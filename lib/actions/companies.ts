@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { Company } from "@/types"
 
+function sanitizeInn(value: string | null | undefined): string {
+  return (value || "").replace(/\D/g, "").slice(0, 12)
+}
+
 export async function getClientCompanies() {
   const supabase = await createClient()
   const {
@@ -61,11 +65,16 @@ export async function createCompany(formData: {
 
   if (!user) return { error: "Не авторизован" }
 
+  const normalizedFormData = {
+    ...formData,
+    inn: sanitizeInn(formData.inn),
+  }
+
   const { data, error } = await supabase
     .from("companies")
     .insert({
       client_id: user.id,
-      ...formData,
+      ...normalizedFormData,
     })
     .select()
     .single()
@@ -93,6 +102,10 @@ export async function updateCompany(
   ]
   const updateData: Partial<Company> = {
     ...formData,
+  }
+
+  if (typeof formData.inn === "string") {
+    updateData.inn = sanitizeInn(formData.inn)
   }
 
   if (fieldsThatChangeCounterparty.some((field) => field in formData)) {

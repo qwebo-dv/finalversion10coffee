@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { isValidRussianPhone } from "@/lib/utils/phone"
 
 // ============================================================
 // Auth validators
@@ -12,7 +13,7 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   email: z.string().email("Введите корректный email"),
   full_name: z.string().min(2, "Введите ваше имя"),
-  phone: z.string().min(10, "Введите корректный номер телефона"),
+  phone: z.string().refine(isValidRussianPhone, "Введите корректный номер телефона"),
 })
 
 export const forgotPasswordSchema = z.object({
@@ -25,7 +26,11 @@ export const forgotPasswordSchema = z.object({
 
 export const companySchema = z.object({
   name: z.string().min(1, "Введите название компании"),
-  inn: z.string().min(10, "ИНН должен содержать минимум 10 цифр").max(12),
+  inn: z
+    .string()
+    .regex(/^\d+$/, "ИНН должен содержать только цифры")
+    .min(10, "ИНН должен содержать минимум 10 цифр")
+    .max(12, "ИНН должен содержать максимум 12 цифр"),
   kpp: z.string().optional(),
   ogrn: z.string().optional(),
   legal_address: z.string().optional(),

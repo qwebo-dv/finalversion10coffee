@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
-  const { inn } = await request.json()
+  const { inn: rawInn } = await request.json()
+  const inn = typeof rawInn === "string" ? rawInn.replace(/\D/g, "").slice(0, 12) : ""
 
-  if (!inn) {
-    return NextResponse.json({ error: "ИНН не указан" }, { status: 400 })
+  if (inn.length < 10) {
+    return NextResponse.json({ error: "Введите корректный ИНН" }, { status: 400 })
   }
 
   const apiKey = process.env.DADATA_API_KEY

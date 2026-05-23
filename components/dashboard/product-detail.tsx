@@ -460,7 +460,7 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Описание</h3>
               <div
-                className="text-sm text-neutral-600 leading-relaxed prose prose-sm max-w-none prose-img:rounded-xl prose-img:shadow-md prose-headings:text-neutral-900 prose-strong:text-neutral-800"
+                className="text-sm text-neutral-600 leading-relaxed whitespace-pre-wrap prose prose-sm max-w-none prose-img:rounded-xl prose-img:shadow-md prose-headings:text-neutral-900 prose-strong:text-neutral-800"
                 dangerouslySetInnerHTML={{ __html: product.description }}
               />
             </div>

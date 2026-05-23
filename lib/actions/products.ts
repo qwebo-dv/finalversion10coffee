@@ -2,6 +2,8 @@
 
 import { getPayload, type Where } from "payload"
 import configPromise from "@payload-config"
+import { convertLexicalToHTML } from "@payloadcms/richtext-lexical/html"
+import type { SerializedEditorState } from "@payloadcms/richtext-lexical/lexical"
 import { createClient } from "@/lib/supabase/server"
 import { getMediaUrl, type PayloadMediaRef as MediaUrlRef } from "@/lib/media"
 import { getRelationshipId, normalizeProductDetailsSchema } from "@/lib/product-types"
@@ -76,18 +78,6 @@ interface PayloadProductTypeDoc {
   isVisible?: boolean
 }
 
-interface LexicalNode {
-  root?: LexicalNode
-  children?: LexicalNode[]
-  type?: string
-  text?: string
-  format?: number
-  tag?: string
-  listType?: string
-  fields?: { url?: string }
-  value?: PayloadMediaRef
-}
-
 interface PayloadProductDoc {
   id?: string | number
   category?: { id?: string | number } | string | number | null
@@ -95,7 +85,7 @@ interface PayloadProductDoc {
   detailsSchema?: ProductDetailsSchema
   name?: string
   slug?: string
-  description?: LexicalNode | string | null
+  description?: SerializedEditorState | string | null
   sortOrder?: number
   isVisible?: boolean
   stickers?: (PayloadTag | string | number | null)[]
@@ -300,61 +290,19 @@ function transformProductType(doc: PayloadProductTypeDoc): ProductTypeOption | n
   }
 }
 
-function serializeLexical(node: LexicalNode | string | null | undefined): string {
-  if (!node) return ""
-  if (typeof node === "string") return node
-  if (node.root) return serializeLexical(node.root)
+function serializeProductDescription(description: SerializedEditorState | string | null | undefined): string {
+  if (!description) return ""
+  if (typeof description === "string") return description
 
-  const children = node.children || []
-  let html = ""
-
-  for (const child of children) {
-    if (child.type === "paragraph") {
-      const inner = serializeLexicalInline(child.children || [])
-      if (inner) html += `<p>${inner}</p>`
-    } else if (child.type === "heading") {
-      const tag = child.tag || "h3"
-      const inner = serializeLexicalInline(child.children || [])
-      html += `<${tag}>${inner}</${tag}>`
-    } else if (child.type === "list") {
-      const tag = child.listType === "number" ? "ol" : "ul"
-      html += `<${tag}>`
-      for (const item of child.children || []) {
-        const inner = serializeLexicalInline(item.children || [])
-        html += `<li>${inner}</li>`
-      }
-      html += `</${tag}>`
-    } else if (child.type === "upload") {
-      const url = extractMediaUrl(child.value)
-      if (url) html += `<img src="${url}" alt="" class="rounded-lg" />`
-    } else {
-      html += serializeLexicalInline(child.children || [])
-    }
+  try {
+    return convertLexicalToHTML({
+      data: description,
+      disableContainer: true,
+    })
+  } catch (error) {
+    console.error("Failed to serialize product description:", error)
+    return ""
   }
-
-  return html
-}
-
-function serializeLexicalInline(children: LexicalNode[]): string {
-  let result = ""
-  for (const child of children) {
-    if (child.type === "text") {
-      let text = child.text || ""
-      const fmt = child.format || 0
-      if (fmt & 1) text = `<strong>${text}</strong>`
-      if (fmt & 2) text = `<em>${text}</em>`
-      result += text
-    } else if (child.type === "linebreak") {
-      result += "<br/>"
-    } else if (child.type === "link") {
-      const inner = serializeLexicalInline(child.children || [])
-      const url = child.fields?.url || "#"
-      result += `<a href="${url}">${inner}</a>`
-    } else if (child.children) {
-      result += serializeLexicalInline(child.children)
-    }
-  }
-  return result
 }
 
 function transformAttachedFiles(files: PayloadProductDoc["attachedFiles"] | undefined | null): AttachedFile[] {
@@ -394,7 +342,7 @@ function transformProduct(doc: PayloadProductDoc): Product {
   const coffee = doc.coffeeDetails || {}
   const tea = doc.teaDetails || {}
 
-  const descriptionHtml = doc.description ? serializeLexical(doc.description) : null
+  const descriptionHtml = serializeProductDescription(doc.description)
 
   return {
     id: productId,

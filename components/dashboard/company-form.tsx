@@ -27,6 +27,10 @@ interface CompanyFormProps {
   defaultValues?: CompanyFormData
 }
 
+function sanitizeInn(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 12)
+}
+
 export function CompanyForm({ mode, companyId, defaultValues }: CompanyFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -53,7 +57,9 @@ export function CompanyForm({ mode, companyId, defaultValues }: CompanyFormProps
   })
 
   async function searchByInn() {
-    const inn = form.getValues("inn")
+    const inn = sanitizeInn(form.getValues("inn"))
+    form.setValue("inn", inn, { shouldValidate: true })
+
     if (!inn || inn.length < 10) {
       toast.error("Введите корректный ИНН (минимум 10 цифр)")
       return
@@ -159,7 +165,14 @@ export function CompanyForm({ mode, companyId, defaultValues }: CompanyFormProps
                     <FormItem className="min-w-0">
                       <FormLabel>ИНН</FormLabel>
                       <FormControl>
-                        <Input placeholder="1234567890" {...field} />
+                        <Input
+                          placeholder="1234567890"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={12}
+                          {...field}
+                          onChange={(event) => field.onChange(sanitizeInn(event.target.value))}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

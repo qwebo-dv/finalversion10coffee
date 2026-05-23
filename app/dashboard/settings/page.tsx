@@ -5,12 +5,14 @@ import { useAuth } from "@/providers/auth-provider"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import PhoneInput from "@/components/shared/phone-input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Plus, X, Loader2, Camera } from "lucide-react"
 import { toast } from "sonner"
 import { saveQuickComments, getQuickComments } from "@/lib/actions/client-settings"
+import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
 
 function resizeImage(file: File, maxSize: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -89,15 +91,23 @@ export default function SettingsPage() {
 
   async function handleSaveProfile() {
     if (!user) return
+
+    if (!isValidRussianPhone(phone)) {
+      toast.error("Введите корректный мобильный телефон")
+      return
+    }
+
     setLoading(true)
 
     try {
+      const normalizedPhone = normalizeRussianPhone(phone)
       // Update auth metadata so values persist across sessions
       const { error: authError } = await supabase.auth.updateUser({
-        data: { full_name: fullName, phone },
+        data: { full_name: fullName, phone: normalizedPhone },
       })
       if (authError) throw authError
 
+      setPhone(normalizedPhone)
       toast.success("Профиль обновлён")
     } catch {
       toast.error("Ошибка при сохранении")
@@ -197,10 +207,11 @@ export default function SettingsPage() {
           </div>
           <div>
             <Label>Телефон</Label>
-            <Input
+            <PhoneInput
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="mt-1.5"
+              onChange={setPhone}
+              required
+              className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
             />
           </div>
           <Button onClick={handleSaveProfile} disabled={loading}>

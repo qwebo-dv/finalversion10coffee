@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache"
 import crypto from "crypto"
 import nodemailer from "nodemailer"
 import { dbQuery } from "@/lib/db"
+import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -56,6 +57,11 @@ export async function signUp(formData: {
   phone: string
 }) {
   const adminClient = createAdminClient()
+  const phone = normalizeRussianPhone(formData.phone)
+
+  if (!isValidRussianPhone(phone)) {
+    return { error: "Введите корректный мобильный телефон" }
+  }
 
   // Generate password automatically
   const password = generatePassword()
@@ -67,7 +73,7 @@ export async function signUp(formData: {
     user_metadata: {
       user_type: "client",
       full_name: formData.full_name,
-      phone: formData.phone,
+      phone,
     },
   })
 
@@ -87,7 +93,7 @@ export async function signUp(formData: {
               full_name = excluded.full_name,
               phone = excluded.phone,
               updated_at = now()`,
-      [data.user.id, formData.email, formData.full_name, formData.phone]
+      [data.user.id, formData.email, formData.full_name, phone]
     )
   }
 
@@ -102,7 +108,7 @@ export async function signUp(formData: {
       data: {
         fullName: formData.full_name,
         email: formData.email,
-        phone: formData.phone,
+        phone,
         supabaseId: data.user?.id || "",
       },
     })
