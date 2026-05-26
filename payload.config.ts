@@ -1,7 +1,7 @@
 import path from "path"
 import { buildConfig } from "payload"
 import { postgresAdapter } from "@payloadcms/db-postgres"
-import { lexicalEditor } from "@payloadcms/richtext-lexical"
+import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from "@payloadcms/richtext-lexical"
 import { s3Storage } from "@payloadcms/storage-s3"
 import { ru } from "@payloadcms/translations/languages/ru"
 import type { EmailAdapter, SendEmailOptions } from "payload"
@@ -79,7 +79,19 @@ export default buildConfig({
 
   globals: [SiteSettings],
 
-  editor: lexicalEditor(),
+  editor: lexicalEditor({
+    admin: {
+      placeholder: "Добавьте описание: заголовки, жирный текст, списки, ссылки...",
+    },
+    features: ({ defaultFeatures }) => [
+      ...defaultFeatures.map((feature) =>
+        feature.key === "heading"
+          ? HeadingFeature({ enabledHeadingSizes: ["h1", "h2", "h3", "h4", "h5", "h6"] })
+          : feature
+      ),
+      FixedToolbarFeature(),
+    ],
+  }),
 
   email: smtpEmailAdapter,
 

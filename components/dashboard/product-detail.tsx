@@ -42,6 +42,27 @@ const GRIND_ORDER: Record<string, number> = {
   ground: 1,
 }
 
+const DESCRIPTION_HTML_CLASSNAME = [
+  "max-w-none text-sm text-neutral-600 leading-relaxed",
+  "[&_p]:mb-3 [&_p:last-child]:mb-0",
+  "[&_h1]:mt-6 [&_h1]:mb-3 [&_h1]:text-2xl [&_h1]:font-black [&_h1]:leading-tight [&_h1]:text-neutral-900",
+  "[&_h2]:mt-5 [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-black [&_h2]:leading-tight [&_h2]:text-neutral-900",
+  "[&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-lg [&_h3]:font-black [&_h3]:leading-tight [&_h3]:text-neutral-900",
+  "[&_h4]:mt-4 [&_h4]:mb-2 [&_h4]:text-base [&_h4]:font-extrabold [&_h4]:leading-tight [&_h4]:text-neutral-900",
+  "[&_h5]:mt-3 [&_h5]:mb-2 [&_h5]:text-sm [&_h5]:font-extrabold [&_h5]:uppercase [&_h5]:tracking-wide [&_h5]:text-neutral-900",
+  "[&_h6]:mt-3 [&_h6]:mb-2 [&_h6]:text-xs [&_h6]:font-extrabold [&_h6]:uppercase [&_h6]:tracking-wider [&_h6]:text-neutral-500",
+  "[&_strong]:font-bold [&_strong]:text-neutral-800",
+  "[&_em]:italic",
+  "[&_a]:font-semibold [&_a]:text-[#5b328a] [&_a]:underline [&_a]:underline-offset-2",
+  "[&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5",
+  "[&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5",
+  "[&_li]:mb-1",
+  "[&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-[#5b328a]/30 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-neutral-700",
+  "[&_code]:rounded-md [&_code]:bg-neutral-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs [&_code]:text-neutral-800",
+  "[&_hr]:my-5 [&_hr]:border-neutral-200",
+  "[&_img]:rounded-xl [&_img]:shadow-md",
+].join(" ")
+
 function normalizeGrindOption(value: string) {
   const normalized = value.toLowerCase().replace(/ё/g, "е").trim()
   if (normalized === "beans" || normalized.includes("зерн")) return "beans"
@@ -460,7 +481,7 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Описание</h3>
               <div
-                className="text-sm text-neutral-600 leading-relaxed whitespace-pre-wrap prose prose-sm max-w-none prose-img:rounded-xl prose-img:shadow-md prose-headings:text-neutral-900 prose-strong:text-neutral-800"
+                className={DESCRIPTION_HTML_CLASSNAME}
                 dangerouslySetInnerHTML={{ __html: product.description }}
               />
             </div>
