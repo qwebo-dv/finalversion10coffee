@@ -10,6 +10,7 @@ const RETRY_INTERVAL_MS = 5 * 60 * 1000
 interface RetryOptions {
   limit?: number
   minAgeMs?: number
+  includeAllUnexported?: boolean
 }
 
 interface PayloadClientDoc {
@@ -100,8 +101,13 @@ function hasMoyskladError(order: PayloadOrderDoc) {
   return Boolean(order.moyskladSyncError?.trim())
 }
 
-function isRetryableMoyskladOrder(order: PayloadOrderDoc) {
-  if (order.moyskladCustomerOrderId) return false
+function isUnexportedMoyskladOrder(order: PayloadOrderDoc) {
+  return !order.moyskladCustomerOrderId?.trim()
+}
+
+function isRetryableMoyskladOrder(order: PayloadOrderDoc, includeAllUnexported = false) {
+  if (!isUnexportedMoyskladOrder(order)) return false
+  if (includeAllUnexported) return true
   if (order.moyskladSyncStatus === "error") return true
 
   // Some failed creates were left as "pending" with a filled error field,
@@ -109,8 +115,8 @@ function isRetryableMoyskladOrder(order: PayloadOrderDoc) {
   return order.moyskladSyncStatus === "pending" && hasMoyskladError(order)
 }
 
-function isRetryDue(order: PayloadOrderDoc, minAgeMs: number) {
-  if (!isRetryableMoyskladOrder(order)) return false
+function isRetryDue(order: PayloadOrderDoc, minAgeMs: number, includeAllUnexported = false) {
+  if (!isRetryableMoyskladOrder(order, includeAllUnexported)) return false
 
   const updatedAt = order.updatedAt ? Date.parse(order.updatedAt) : 0
   if (!updatedAt) return true
@@ -291,24 +297,39 @@ async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
 }
 
 export async function retryFailedMoyskladOrders(payload: Payload, options: RetryOptions = {}) {
-  const limit = options.limit || 25
+  const limit = options.limit || (options.includeAllUnexported ? 100 : 25)
   const minAgeMs = options.minAgeMs ?? RETRY_INTERVAL_MS
+  const includeAllUnexported = options.includeAllUnexported || false
+  const where = includeAllUnexported
+    ? undefined
+    : {
+        or: [
+          { moyskladSyncStatus: { equals: "error" } },
+          { moyskladSyncStatus: { equals: "pending" } },
+        ],
+      }
 
-  const result = await payload.find({
-    collection: "orders",
-    where: {
-      or: [
-        { moyskladSyncStatus: { equals: "error" } },
-        { moyskladSyncStatus: { equals: "pending" } },
-      ],
-    },
-    sort: "updatedAt",
-    limit,
-    depth: 1,
-  })
+  const orders: PayloadOrderDoc[] = []
+  let page = 1
+  let totalPages = 1
 
-  const retryable = (result.docs as PayloadOrderDoc[]).filter(isRetryableMoyskladOrder)
-  const candidates = retryable.filter((order) => isRetryDue(order, minAgeMs))
+  do {
+    const result = await payload.find({
+      collection: "orders",
+      where,
+      sort: "updatedAt",
+      limit,
+      page,
+      depth: 1,
+    })
+
+    orders.push(...(result.docs as PayloadOrderDoc[]))
+    totalPages = Number(result.totalPages) || 1
+    page += 1
+  } while (includeAllUnexported && page <= totalPages)
+
+  const retryable = orders.filter((order) => isRetryableMoyskladOrder(order, includeAllUnexported))
+  const candidates = retryable.filter((order) => isRetryDue(order, minAgeMs, includeAllUnexported))
   const retried: { id: string | number; orderId?: string; success: boolean; error?: string }[] = []
 
   for (const order of candidates) {
@@ -343,7 +364,7 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
   }
 
   return {
-    checked: result.docs.length,
+    checked: orders.length,
     retryable: retryable.length,
     due: candidates.length,
     retried,
