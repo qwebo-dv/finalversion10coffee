@@ -98,6 +98,59 @@ function numberValue(value: number | string | null | undefined) {
   return Number(value) || 0
 }
 
+function normalizeText(value?: string | null) {
+  return (value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/\s+/g, " ")
+}
+
+function normalizeGrind(value?: string | null) {
+  const normalized = normalizeText(value)
+  if (!normalized) return ""
+  if (normalized === "beans" || normalized.includes("зерн")) return "beans"
+  if (normalized === "ground" || normalized.includes("молот")) return "ground"
+  return normalized
+}
+
+function getVariantMatchScore(variant: ProductVariant, row: OrderItemRow, unitPrice: number, weightGrams: number | null) {
+  const variantName = normalizeText(variant.name)
+  const rowVariantName = normalizeText(row.variant_name)
+  const rowGrind = normalizeGrind(row.grind_option || row.variant_name)
+  const variantGrinds = (variant.grind_options || []).map(normalizeGrind).filter(Boolean)
+  let score = 0
+
+  if (String(variant.id) === String(row.variant_id)) score += 100
+  if (variantName && rowVariantName) {
+    if (variantName === rowVariantName) score += 80
+    else if (rowVariantName.includes(variantName) || variantName.includes(rowVariantName)) score += 40
+  }
+
+  if (weightGrams && variant.weight_grams && Number(variant.weight_grams) === Number(weightGrams)) score += 20
+  if (unitPrice > 0 && Number(variant.price) === unitPrice) score += 20
+
+  if (rowGrind && variantGrinds.includes(rowGrind)) score += 15
+
+  if (variant.moysklad_id) score += 5
+  return score
+}
+
+function resolveRetryVariant(product: Product | null, row: OrderItemRow, unitPrice: number, weightGrams: number | null) {
+  if (!product?.variants?.length) return undefined
+
+  const direct = product.variants.find((item) => String(item.id) === String(row.variant_id))
+  if (direct?.moysklad_id) return direct
+
+  const bestWithMoysklad = product.variants
+    .filter((item) => item.moysklad_id)
+    .map((item) => ({ item, score: getVariantMatchScore(item, row, unitPrice, weightGrams) }))
+    .filter((match) => match.score >= 40)
+    .sort((a, b) => b.score - a.score)[0]?.item
+
+  return bestWithMoysklad || direct
+}
+
 function hasMoyskladError(order: PayloadOrderDoc) {
   return Boolean(order.moyskladSyncError?.trim())
 }
@@ -224,12 +277,12 @@ async function getRetryCartItems(payload: Payload, order: PayloadOrderDoc): Prom
       productCache.set(row.product_id, product)
     }
 
-    const variant = product?.variants?.find((item) => item.id === row.variant_id)
     const quantity = numberValue(row.quantity)
     const unitPrice = numberValue(row.unit_price) || (quantity > 0 ? numberValue(row.total_price) / quantity : 0)
-    const weightGrams = row.weight_grams === null
-      ? variant?.weight_grams ?? null
-      : numberValue(row.weight_grams)
+    const directVariant = product?.variants?.find((item) => String(item.id) === String(row.variant_id))
+    const storedWeightGrams = row.weight_grams == null ? null : numberValue(row.weight_grams)
+    const weightGrams = storedWeightGrams ?? directVariant?.weight_grams ?? null
+    const variant = resolveRetryVariant(product, row, unitPrice, weightGrams)
     const restoredVariant = product ? {
       ...(variant || {
         id: row.variant_id,
@@ -243,7 +296,8 @@ async function getRetryCartItems(payload: Payload, order: PayloadOrderDoc): Prom
         created_at: "",
         updated_at: "",
       }),
-      name: variant?.name || row.variant_name || row.variant_id,
+      id: String(variant?.id ?? row.variant_id),
+      name: row.variant_name || variant?.name || row.variant_id,
       price: unitPrice || variant?.price || 0,
       weight_grams: weightGrams,
     } : undefined
