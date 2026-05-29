@@ -11,6 +11,7 @@ interface RetryOptions {
   limit?: number
   minAgeMs?: number
   includeAllUnexported?: boolean
+  includeExisting?: boolean
 }
 
 interface PayloadClientDoc {
@@ -105,8 +106,12 @@ function isUnexportedMoyskladOrder(order: PayloadOrderDoc) {
   return !order.moyskladCustomerOrderId?.trim()
 }
 
-function isRetryableMoyskladOrder(order: PayloadOrderDoc, includeAllUnexported = false) {
-  if (!isUnexportedMoyskladOrder(order)) return false
+function isRetryableMoyskladOrder(
+  order: PayloadOrderDoc,
+  includeAllUnexported = false,
+  includeExisting = false
+) {
+  if (!isUnexportedMoyskladOrder(order)) return includeExisting
   if (includeAllUnexported) return true
   if (order.moyskladSyncStatus === "error") return true
 
@@ -115,8 +120,13 @@ function isRetryableMoyskladOrder(order: PayloadOrderDoc, includeAllUnexported =
   return order.moyskladSyncStatus === "pending" && hasMoyskladError(order)
 }
 
-function isRetryDue(order: PayloadOrderDoc, minAgeMs: number, includeAllUnexported = false) {
-  if (!isRetryableMoyskladOrder(order, includeAllUnexported)) return false
+function isRetryDue(
+  order: PayloadOrderDoc,
+  minAgeMs: number,
+  includeAllUnexported = false,
+  includeExisting = false
+) {
+  if (!isRetryableMoyskladOrder(order, includeAllUnexported, includeExisting)) return false
 
   const updatedAt = order.updatedAt ? Date.parse(order.updatedAt) : 0
   if (!updatedAt) return true
@@ -216,7 +226,27 @@ async function getRetryCartItems(payload: Payload, order: PayloadOrderDoc): Prom
 
     const variant = product?.variants?.find((item) => item.id === row.variant_id)
     const quantity = numberValue(row.quantity)
-    const unitPrice = numberValue(row.unit_price)
+    const unitPrice = numberValue(row.unit_price) || (quantity > 0 ? numberValue(row.total_price) / quantity : 0)
+    const weightGrams = row.weight_grams === null
+      ? variant?.weight_grams ?? null
+      : numberValue(row.weight_grams)
+    const restoredVariant = product ? {
+      ...(variant || {
+        id: row.variant_id,
+        product_id: row.product_id,
+        sku: null,
+        moysklad_id: null,
+        moysklad_type: null,
+        is_available: true,
+        sort_order: 0,
+        grind_options: [],
+        created_at: "",
+        updated_at: "",
+      }),
+      name: variant?.name || row.variant_name || row.variant_id,
+      price: unitPrice || variant?.price || 0,
+      weight_grams: weightGrams,
+    } : undefined
 
     result.push({
       id: row.id,
@@ -231,12 +261,7 @@ async function getRetryCartItems(payload: Payload, order: PayloadOrderDoc): Prom
         ...product,
         name: product.name || row.product_name || row.product_id,
       } : undefined,
-      variant: variant ? {
-        ...variant,
-        name: variant.name || row.variant_name || row.variant_id,
-        price: unitPrice || variant.price,
-        weight_grams: row.weight_grams === null ? variant.weight_grams : numberValue(row.weight_grams),
-      } : undefined,
+      variant: restoredVariant,
     })
   }
 
@@ -300,7 +325,8 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
   const limit = options.limit || (options.includeAllUnexported ? 100 : 25)
   const minAgeMs = options.minAgeMs ?? RETRY_INTERVAL_MS
   const includeAllUnexported = options.includeAllUnexported || false
-  const where = includeAllUnexported
+  const includeExisting = options.includeExisting || false
+  const where = includeAllUnexported || includeExisting
     ? undefined
     : {
         or: [
@@ -326,10 +352,10 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
     orders.push(...(result.docs as PayloadOrderDoc[]))
     totalPages = Number(result.totalPages) || 1
     page += 1
-  } while (includeAllUnexported && page <= totalPages)
+  } while ((includeAllUnexported || includeExisting) && page <= totalPages)
 
-  const retryable = orders.filter((order) => isRetryableMoyskladOrder(order, includeAllUnexported))
-  const candidates = retryable.filter((order) => isRetryDue(order, minAgeMs, includeAllUnexported))
+  const retryable = orders.filter((order) => isRetryableMoyskladOrder(order, includeAllUnexported, includeExisting))
+  const candidates = retryable.filter((order) => isRetryDue(order, minAgeMs, includeAllUnexported, includeExisting))
   const retried: { id: string | number; orderId?: string; success: boolean; error?: string }[] = []
 
   for (const order of candidates) {

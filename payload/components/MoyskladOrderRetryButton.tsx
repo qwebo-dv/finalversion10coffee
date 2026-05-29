@@ -61,7 +61,7 @@ export default function MoyskladOrderRetryButton() {
         <div>
           <h2 style={{ margin: "0 0 6px", fontSize: "18px" }}>МойСклад: заказы</h2>
           <p style={{ margin: 0, color: "#666", fontSize: "13px" }}>
-            Кнопка проверит все заказы без ID заказа в МойСклад и сразу повторит выгрузку.
+            Кнопка заново выгрузит неотправленные заказы и обновит уже созданные заказы в МойСклад.
           </p>
         </div>
         <button
@@ -79,7 +79,7 @@ export default function MoyskladOrderRetryButton() {
             whiteSpace: "nowrap",
           }}
         >
-          {loading ? "Отправка заказов..." : "Повторить выгрузку заказов"}
+          {loading ? "Отправка заказов..." : "Повторить/обновить выгрузку заказов"}
         </button>
       </div>
 

@@ -81,6 +81,7 @@ export const Orders: CollectionConfig = {
         try {
           const result = await retryFailedMoyskladOrders(req.payload, {
             includeAllUnexported: true,
+            includeExisting: true,
             minAgeMs: 0,
           })
 

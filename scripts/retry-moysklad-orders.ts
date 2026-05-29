@@ -8,7 +8,7 @@ async function main() {
     import("../payload.config"),
   ])
   const payload = await getPayload({ config: configModule.default })
-  const result = await retryFailedMoyskladOrders(payload, { includeAllUnexported: true, minAgeMs: 0 })
+  const result = await retryFailedMoyskladOrders(payload, { includeAllUnexported: true, includeExisting: true, minAgeMs: 0 })
   console.log(JSON.stringify(result, null, 2))
 }
 
