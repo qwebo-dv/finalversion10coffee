@@ -1,6 +1,6 @@
 import { moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
 
-interface MoyskladSalePriceForBundle {
+export interface MoyskladSalePriceForBundle {
   value?: number
   priceType?: {
     id?: string
@@ -13,10 +13,11 @@ interface MoyskladSalePriceForBundle {
   }
 }
 
-interface MoyskladBundle {
+export interface MoyskladBundle {
   id?: string
   name?: string
   externalCode?: string
+  salePrices?: MoyskladSalePriceForBundle[] | null
 }
 
 interface MoyskladProductFolderRef {
@@ -75,6 +76,10 @@ async function findMoyskladBundleByExternalCode(externalCode: string) {
   return result?.rows?.[0] || null
 }
 
+export async function findMoyskladBundleByVariantId(variantMoyskladId: string) {
+  return findMoyskladBundleByExternalCode(buildMoyskladBundleExternalCode(variantMoyskladId))
+}
+
 export async function ensureMoyskladBundleForVariant(params: EnsureMoyskladBundleForVariantParams) {
   const quantityKg = Number((params.weightGrams / 1000).toFixed(6))
   if (quantityKg <= 0) {
@@ -92,7 +97,6 @@ export async function ensureMoyskladBundleForVariant(params: EnsureMoyskladBundl
     uom: {
       meta: moyskladMeta("uom", "19f1edc0-fc42-4001-94cb-c9ec9c62ec10"),
     },
-    salePrices: getSalePricesForBundle(params),
     components: [
       {
         assortment: {
@@ -101,6 +105,7 @@ export async function ensureMoyskladBundleForVariant(params: EnsureMoyskladBundl
         quantity: quantityKg,
       },
     ],
+    ...(existing?.id ? {} : { salePrices: getSalePricesForBundle(params) }),
   }
 
   if (existing?.id) {
