@@ -46,6 +46,7 @@ interface PayloadOrderDoc {
   moyskladCustomerOrderId?: string | null
   moyskladInvoiceOutId?: string | null
   moyskladSyncStatus?: string | null
+  moyskladSyncError?: string | null
   updatedAt?: string
   items?: PayloadOrderItemDoc[]
 }
@@ -95,7 +96,22 @@ function numberValue(value: number | string | null | undefined) {
   return Number(value) || 0
 }
 
+function hasMoyskladError(order: PayloadOrderDoc) {
+  return Boolean(order.moyskladSyncError?.trim())
+}
+
+function isRetryableMoyskladOrder(order: PayloadOrderDoc) {
+  if (order.moyskladCustomerOrderId) return false
+  if (order.moyskladSyncStatus === "error") return true
+
+  // Some failed creates were left as "pending" with a filled error field,
+  // so treat them as stuck failed orders and keep retrying them too.
+  return order.moyskladSyncStatus === "pending" && hasMoyskladError(order)
+}
+
 function isRetryDue(order: PayloadOrderDoc, minAgeMs: number) {
+  if (!isRetryableMoyskladOrder(order)) return false
+
   const updatedAt = order.updatedAt ? Date.parse(order.updatedAt) : 0
   if (!updatedAt) return true
   return Date.now() - updatedAt >= minAgeMs
@@ -281,14 +297,18 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
   const result = await payload.find({
     collection: "orders",
     where: {
-      moyskladSyncStatus: { equals: "error" },
+      or: [
+        { moyskladSyncStatus: { equals: "error" } },
+        { moyskladSyncStatus: { equals: "pending" } },
+      ],
     },
     sort: "updatedAt",
     limit,
     depth: 1,
   })
 
-  const candidates = (result.docs as PayloadOrderDoc[]).filter((order) => isRetryDue(order, minAgeMs))
+  const retryable = (result.docs as PayloadOrderDoc[]).filter(isRetryableMoyskladOrder)
+  const candidates = retryable.filter((order) => isRetryDue(order, minAgeMs))
   const retried: { id: string | number; orderId?: string; success: boolean; error?: string }[] = []
 
   for (const order of candidates) {
@@ -324,6 +344,7 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
 
   return {
     checked: result.docs.length,
+    retryable: retryable.length,
     due: candidates.length,
     retried,
     succeeded: retried.filter((item) => item.success).length,
