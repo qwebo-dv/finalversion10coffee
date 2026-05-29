@@ -1,5 +1,7 @@
 import type { CollectionConfig } from "payload"
 import { dbQuery } from "@/lib/db"
+import { getMoyskladConfig } from "@/lib/moysklad/config"
+import { retryFailedMoyskladOrders } from "@/lib/moysklad/order-retry"
 
 async function generateSequentialOrderId() {
   await dbQuery(`
@@ -53,11 +55,51 @@ export const Orders: CollectionConfig = {
       "total",
       "createdAt",
     ],
+    components: {
+      beforeList: ["/payload/components/MoyskladOrderRetryButton"],
+    },
   },
   labels: {
     singular: "Заказ",
     plural: "Заказы",
   },
+
+  endpoints: [
+    {
+      path: "/moysklad/retry",
+      method: "post",
+      handler: async (req) => {
+        if (!req.user) {
+          return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+        }
+
+        const config = getMoyskladConfig()
+        if (!config.enabled || !config.syncOrdersOnCreate) {
+          return Response.json({ ok: false, error: "Выгрузка заказов в МойСклад отключена" }, { status: 400 })
+        }
+
+        try {
+          const result = await retryFailedMoyskladOrders(req.payload, {
+            includeAllUnexported: true,
+            includeExisting: true,
+            minAgeMs: 0,
+          })
+
+          return Response.json({ ok: result.failed === 0, ...result })
+        } catch (error) {
+          return Response.json(
+            {
+              ok: false,
+              error: error instanceof Error
+                ? error.message
+                : "Не удалось повторить выгрузку заказов в МойСклад",
+            },
+            { status: 500 }
+          )
+        }
+      },
+    },
+  ],
   hooks: {
     beforeChange: [
       async ({ data, operation, req, originalDoc }) => {
