@@ -1,7 +1,7 @@
 import type { Payload } from "payload"
 import { extractMoyskladId } from "./client"
 import { getMoyskladConfig } from "./config"
-import { ensureMoyskladBundleForVariant } from "./bundles"
+import { ensureMoyskladBundleForVariant, findMoyskladBundleByVariantId } from "./bundles"
 import {
   fetchMoyskladAssortment,
   fetchMoyskladProductFolders,
@@ -500,6 +500,29 @@ function getVariantGrindSortOrder(variant: ReturnType<typeof variantPayloadFromM
   return 99
 }
 
+
+async function applyExistingBundlePrice(
+  row: {
+    source: MoyskladVariant | MoyskladProduct | MoyskladAssortment
+    payload: ReturnType<typeof variantPayloadFromMoysklad>
+  }
+) {
+  const variantId = getEntityId(row.source)
+  if (!variantId || !row.payload.weightGrams) return row
+
+  const bundle = await findMoyskladBundleByVariantId(variantId)
+  const bundlePrice = bundle?.salePrices?.[0]?.value
+  if (!bundlePrice) return row
+
+  return {
+    ...row,
+    payload: {
+      ...row.payload,
+      price: Math.round(bundlePrice) / 100,
+    },
+  }
+}
+
 function compareImportedVariants(
   a: ReturnType<typeof variantPayloadFromMoysklad>,
   b: ReturnType<typeof variantPayloadFromMoysklad>
@@ -542,12 +565,15 @@ async function upsertProduct(params: {
     params.variants.some((variant) => inferWeightGrams(variant.name || "") !== null)
   const parentHasAvailableStock = getAssortmentStock(assortmentProduct) > 0
 
-  const variantRows = variantItems.map((item) => ({
+  const sourceVariantRows = variantItems.map((item) => ({
     source: item,
     payload: variantPayloadFromMoysklad(item, params.product.name || "Товар", {
       isAvailableOverride: useParentStockForVariants ? parentHasAvailableStock : undefined,
     }),
   }))
+  const variantRows = useParentStockForVariants
+    ? await Promise.all(sourceVariantRows.map(applyExistingBundlePrice))
+    : sourceVariantRows
   const variants = variantRows
     .map((row) => row.payload)
     .sort(compareImportedVariants)
