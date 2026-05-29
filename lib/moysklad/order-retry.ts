@@ -30,6 +30,9 @@ interface PayloadOrderItemDoc {
   quantity?: number | string
   unitPrice?: number | string
   totalPrice?: number | string
+  stockProductMoyskladId?: string | null
+  stockQuantityKg?: number | string | null
+  stockPricePerKg?: number | string | null
 }
 
 interface PayloadOrderDoc {
@@ -112,6 +115,17 @@ function normalizeGrind(value?: string | null) {
   if (normalized === "beans" || normalized.includes("зерн")) return "beans"
   if (normalized === "ground" || normalized.includes("молот")) return "ground"
   return normalized
+}
+
+function inferWeightGrams(value?: string | null) {
+  const normalized = normalizeText(value).replace(",", ".")
+  const kgMatch = normalized.match(/(\d+(?:\.\d+)?)\s*кг/)
+  if (kgMatch) return Math.round(Number(kgMatch[1]) * 1000)
+
+  const gramMatch = normalized.match(/(\d+(?:\.\d+)?)\s*г/)
+  if (gramMatch) return Math.round(Number(gramMatch[1]))
+
+  return null
 }
 
 function getVariantMatchScore(variant: ProductVariant, row: OrderItemRow, unitPrice: number, weightGrams: number | null) {
@@ -254,7 +268,134 @@ async function getProduct(payload: Payload, id: string) {
   }
 }
 
+async function findProductByMoyskladId(payload: Payload, moyskladId: string) {
+  const result = await payload.find({
+    collection: "products",
+    where: { moyskladId: { equals: moyskladId } },
+    limit: 1,
+    depth: 2,
+  })
+
+  const product = result.docs[0] as PayloadProductDoc | undefined
+  return product ? transformProduct(product) : null
+}
+
+async function findProductByName(payload: Payload, name: string) {
+  const result = await payload.find({
+    collection: "products",
+    where: { name: { equals: name } },
+    limit: 1,
+    depth: 2,
+  })
+
+  const product = result.docs[0] as PayloadProductDoc | undefined
+  return product ? transformProduct(product) : null
+}
+
+async function getProductForStoredOrderItem(
+  payload: Payload,
+  item: PayloadOrderItemDoc,
+  productCache: Map<string, Product | null>
+) {
+  const stockProductMoyskladId = item.stockProductMoyskladId?.trim()
+  const cacheKey = stockProductMoyskladId
+    ? `moysklad:${stockProductMoyskladId}`
+    : `name:${item.productName || ""}`
+
+  const cached = productCache.get(cacheKey)
+  if (cached !== undefined) return cached
+
+  const product = stockProductMoyskladId
+    ? await findProductByMoyskladId(payload, stockProductMoyskladId)
+    : item.productName
+      ? await findProductByName(payload, item.productName)
+      : null
+
+  productCache.set(cacheKey, product)
+  return product
+}
+
+function buildCartItemFromStoredOrderItem(
+  order: PayloadOrderDoc,
+  item: PayloadOrderItemDoc,
+  product: Product | null
+): CartItem {
+  const quantity = numberValue(item.quantity)
+  const unitPrice = numberValue(item.unitPrice) || (quantity > 0 ? numberValue(item.totalPrice) / quantity : 0)
+  const stockQuantityKg = numberValue(item.stockQuantityKg)
+  const storedWeightGrams = stockQuantityKg > 0 && quantity > 0
+    ? Math.round((stockQuantityKg / quantity) * 1000)
+    : inferWeightGrams(item.variantName)
+  const row: OrderItemRow = {
+    id: String(item.id ?? `${order.id}-${item.productName || "item"}`),
+    order_id: String(order.id),
+    product_id: product?.id || item.stockProductMoyskladId || "",
+    variant_id: "",
+    product_name: item.productName || null,
+    variant_name: item.variantName || null,
+    grind_option: item.grindOption || null,
+    quantity,
+    unit_price: unitPrice,
+    total_price: numberValue(item.totalPrice),
+    weight_grams: storedWeightGrams,
+  }
+  const variant = resolveRetryVariant(product, row, unitPrice, storedWeightGrams)
+  const weightGrams = storedWeightGrams ?? variant?.weight_grams ?? null
+  const variantId = String(variant?.id ?? item.id ?? "")
+
+  return {
+    id: row.id,
+    client_id: "",
+    product_id: product?.id || row.product_id,
+    variant_id: variantId,
+    quantity,
+    grind_option: item.grindOption || null,
+    created_at: "",
+    updated_at: "",
+    product: product ? {
+      ...product,
+      name: product.name || item.productName || product.id,
+    } : undefined,
+    variant: product ? {
+      ...(variant || {
+        id: variantId,
+        product_id: product.id,
+        sku: null,
+        moysklad_id: null,
+        moysklad_type: null,
+        is_available: true,
+        sort_order: 0,
+        grind_options: [],
+        created_at: "",
+        updated_at: "",
+      }),
+      id: variantId,
+      name: item.variantName || variant?.name || variantId,
+      price: unitPrice || variant?.price || 0,
+      weight_grams: weightGrams,
+    } : undefined,
+  }
+}
+
+async function getRetryCartItemsFromStoredOrder(payload: Payload, order: PayloadOrderDoc) {
+  const items = order.items || []
+  if (items.length === 0 || !items.some((item) => item.stockProductMoyskladId?.trim())) return []
+
+  const productCache = new Map<string, Product | null>()
+  const result: CartItem[] = []
+
+  for (const item of items) {
+    const product = await getProductForStoredOrderItem(payload, item, productCache)
+    result.push(buildCartItemFromStoredOrderItem(order, item, product))
+  }
+
+  return result
+}
+
 async function getRetryCartItems(payload: Payload, order: PayloadOrderDoc): Promise<CartItem[]> {
+  const storedOrderItems = await getRetryCartItemsFromStoredOrder(payload, order)
+  if (storedOrderItems.length > 0) return storedOrderItems
+
   const adminDb = createAdminClient()
   const { data, error } = await adminDb
     .from("order_items")
