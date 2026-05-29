@@ -46,6 +46,8 @@ interface SyncOrder {
   deliveryMethod?: DeliveryMethod
   deliveryAddress?: string | null
   comment?: string | null
+  moyskladCustomerOrderId?: string | null
+  moyskladInvoiceOutId?: string | null
 }
 
 interface SyncOrderParams {
@@ -705,6 +707,24 @@ function buildDocumentRefs(params: {
   return body
 }
 
+async function findCustomerOrderByExternalCode(externalCode: string) {
+  const result = await moyskladGetList<MoyskladCustomerOrder>("entity/customerorder", {
+    filter: `externalCode=${externalCode}`,
+    limit: 1,
+  })
+
+  return result.rows[0] || null
+}
+
+async function findInvoiceOutByExternalCode(externalCode: string) {
+  const result = await moyskladGetList<MoyskladInvoiceOut>("entity/invoiceout", {
+    filter: `externalCode=${externalCode}`,
+    limit: 1,
+  })
+
+  return result.rows[0] || null
+}
+
 async function createInvoiceOut(params: {
   order: SyncOrder
   counterpartyId: string
@@ -714,6 +734,18 @@ async function createInvoiceOut(params: {
   shipmentAddress?: string | null
   salesChannelId?: string | null
 }) {
+  const externalCode = `${params.order.orderId || params.order.id}-invoice`
+  const existing = await findInvoiceOutByExternalCode(externalCode).catch(() => null)
+  const existingId = extractMoyskladId(existing)
+  if (existingId) {
+    return {
+      invoice: existing,
+      invoiceId: existingId,
+      payload: null,
+      reused: true as const,
+    }
+  }
+
   const invoiceBody = {
     ...buildDocumentRefs({
       counterpartyId: params.counterpartyId,
@@ -722,7 +754,7 @@ async function createInvoiceOut(params: {
       shipmentAddress: params.shipmentAddress,
       salesChannelId: params.salesChannelId,
     }),
-    externalCode: `${params.order.orderId || params.order.id}-invoice`,
+    externalCode,
     customerOrder: {
       meta: moyskladMeta("customerorder", params.moyskladOrderId),
     },
@@ -950,11 +982,25 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       body.state = { meta: moyskladMeta("state", config.defaultOrderStateId) }
     }
 
-    const created = await moyskladRequest<MoyskladCustomerOrder>("entity/customerorder", {
-      method: "POST",
-      body: JSON.stringify(body),
-    })
-    const moyskladOrderId = extractMoyskladId(created)
+    let created: MoyskladCustomerOrder | null = null
+    let orderPayload: Record<string, unknown> | undefined = body
+    let moyskladOrderId = params.order.moyskladCustomerOrderId || null
+
+    if (!moyskladOrderId) {
+      const existing = await findCustomerOrderByExternalCode(String(orderId)).catch(() => null)
+      moyskladOrderId = extractMoyskladId(existing)
+      created = existing
+      if (moyskladOrderId) orderPayload = undefined
+    }
+
+    if (!moyskladOrderId) {
+      created = await moyskladRequest<MoyskladCustomerOrder>("entity/customerorder", {
+        method: "POST",
+        body: JSON.stringify(body),
+      })
+      moyskladOrderId = extractMoyskladId(created)
+    }
+
     moyskladOrderIdForUpdate = moyskladOrderId
 
     await writeMoyskladLog({
@@ -963,8 +1009,9 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       moyskladId: moyskladOrderId,
       direction: "site_to_moysklad",
       status: "success",
-      payload: body,
-      response: created,
+      message: orderPayload ? undefined : "Заказ уже существовал в МойСклад, повторно использован",
+      payload: orderPayload,
+      response: created || undefined,
     })
 
     let moyskladInvoiceOutId: string | null = null
