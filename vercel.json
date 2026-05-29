@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/moysklad-order-retry",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
