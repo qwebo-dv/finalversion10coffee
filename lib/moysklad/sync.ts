@@ -233,6 +233,13 @@ async function findCounterpartyById(id: string) {
   return moyskladRequest<MoyskladCounterparty>(`entity/counterparty/${id}`)
 }
 
+async function updateCounterpartyContactData(id: string, client: SyncClient, company?: SyncCompany | null) {
+  return moyskladRequest<MoyskladCounterparty>(`entity/counterparty/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(buildCounterpartyPayload(client, company)),
+  })
+}
+
 async function ensureCounterparty(payload: Payload, client: SyncClient, company?: SyncCompany | null) {
   const config = getMoyskladConfig()
   assertMoyskladReady(config)
@@ -244,6 +251,7 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company?
       const companyInn = normalizeInn(company.inn)
 
       if (!companyInn || linkedInn === companyInn) {
+        await updateCounterpartyContactData(company.moyskladCounterpartyId, client, company).catch(() => null)
         return company.moyskladCounterpartyId
       }
 
@@ -254,6 +262,7 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company?
       const existing = await findCounterpartyByInn(company.inn)
       const existingId = extractMoyskladId(existing)
       if (existingId) {
+        await updateCounterpartyContactData(existingId, client, company).catch(() => null)
         await updateCompanyCounterpartyId(company.id, existingId)
         return existingId
       }
@@ -275,6 +284,7 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company?
   }
 
   if (client.moyskladCounterpartyId) {
+    await updateCounterpartyContactData(client.moyskladCounterpartyId, client, company).catch(() => null)
     return client.moyskladCounterpartyId
   }
 
@@ -282,6 +292,7 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company?
     const existing = await findCounterpartyByEmail(client.email)
     const existingId = extractMoyskladId(existing)
     if (existingId) {
+      await updateCounterpartyContactData(existingId, client, company).catch(() => null)
       if (client.id) {
         await payload.update({
           collection: "clients",

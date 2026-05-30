@@ -16,9 +16,36 @@ interface RetryOptions {
 
 interface PayloadClientDoc {
   id?: string | number
+  supabaseId?: string | null
   fullName?: string
   email?: string
   phone?: string | null
+  moyskladCounterpartyId?: string | null
+}
+
+interface SupabaseCompanyRow {
+  id: string
+  name: string | null
+  inn: string | null
+  kpp?: string | null
+  ogrn?: string | null
+  legal_address?: string | null
+  actual_address?: string | null
+  contact_phone?: string | null
+  contact_email?: string | null
+  moysklad_counterparty_id?: string | null
+}
+
+interface RetryCompany {
+  id?: string
+  name?: string
+  inn?: string
+  kpp?: string | null
+  ogrn?: string | null
+  legalAddress?: string | null
+  actualAddress?: string | null
+  contactEmail?: string | null
+  contactPhone?: string | null
   moyskladCounterpartyId?: string | null
 }
 
@@ -48,6 +75,7 @@ interface PayloadOrderDoc {
   deliveryCost?: number | string
   total?: number | string
   comment?: string | null
+  moyskladCounterpartyId?: string | null
   moyskladCustomerOrderId?: string | null
   moyskladInvoiceOutId?: string | null
   moyskladSyncStatus?: string | null
@@ -479,11 +507,92 @@ function getClient(order: PayloadOrderDoc): PayloadClientDoc | null {
   return typeof order.client === "object" && order.client !== null ? order.client : null
 }
 
+async function getRetryClient(payload: Payload, order: PayloadOrderDoc): Promise<PayloadClientDoc | null> {
+  const clientRef = order.client
+  const clientId = typeof clientRef === "object" && clientRef !== null
+    ? clientRef.id
+    : clientRef
+
+  if (!clientId) return getClient(order)
+
+  try {
+    const loaded = await payload.findByID({
+      collection: "clients",
+      id: clientId,
+      depth: 0,
+    }) as PayloadClientDoc
+
+    return {
+      ...(typeof clientRef === "object" && clientRef !== null ? clientRef : {}),
+      ...loaded,
+      moyskladCounterpartyId: loaded.moyskladCounterpartyId
+        || (typeof clientRef === "object" && clientRef !== null ? clientRef.moyskladCounterpartyId : null)
+        || order.moyskladCounterpartyId
+        || null,
+    }
+  } catch {
+    const client = getClient(order)
+    return client ? {
+      ...client,
+      moyskladCounterpartyId: client.moyskladCounterpartyId || order.moyskladCounterpartyId || null,
+    } : null
+  }
+}
+
+function mapSupabaseCompanyToRetryCompany(company: SupabaseCompanyRow): RetryCompany {
+  return {
+    id: company.id,
+    name: company.name || undefined,
+    inn: company.inn || undefined,
+    kpp: company.kpp || null,
+    ogrn: company.ogrn || null,
+    legalAddress: company.legal_address || null,
+    actualAddress: company.actual_address || null,
+    contactPhone: company.contact_phone || null,
+    contactEmail: company.contact_email || null,
+    moyskladCounterpartyId: company.moysklad_counterparty_id || null,
+  }
+}
+
+async function getRetryCompany(order: PayloadOrderDoc, client: PayloadClientDoc): Promise<RetryCompany | null> {
+  if (!order.companyName && !order.companyInn) return null
+
+  const adminDb = createAdminClient()
+  let query = adminDb
+    .from("companies")
+    .select("id, name, inn, kpp, ogrn, legal_address, actual_address, contact_phone, contact_email, moysklad_counterparty_id")
+    .limit(1)
+
+  if (order.companyInn) {
+    query = query.eq("inn", order.companyInn)
+  } else {
+    query = query.eq("name", order.companyName || "")
+  }
+
+  if (client.supabaseId) {
+    query = query.eq("client_id", client.supabaseId)
+  }
+
+  const { data } = await query.maybeSingle<SupabaseCompanyRow>()
+  if (data) return mapSupabaseCompanyToRetryCompany(data)
+
+  return {
+    name: order.companyName || undefined,
+    inn: order.companyInn || undefined,
+    contactPhone: client.phone || null,
+    contactEmail: client.email || null,
+    moyskladCounterpartyId: order.moyskladCounterpartyId || null,
+  }
+}
+
 async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
-  const client = getClient(order)
+  const client = await getRetryClient(payload, order)
   if (!client) throw new Error("Клиент заказа не загружен для повтора МойСклад")
 
-  const cartItems = await getRetryCartItems(payload, order)
+  const [cartItems, company] = await Promise.all([
+    getRetryCartItems(payload, order),
+    getRetryCompany(order, client),
+  ])
 
   return syncOrderToMoysklad({
     payload,
@@ -507,10 +616,7 @@ async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
       phone: client.phone || null,
       moyskladCounterpartyId: client.moyskladCounterpartyId || null,
     },
-    company: order.companyName || order.companyInn ? {
-      name: order.companyName || undefined,
-      inn: order.companyInn || undefined,
-    } : null,
+    company,
     cartItems,
     discountLines: buildDiscountLines(order, cartItems),
   })
