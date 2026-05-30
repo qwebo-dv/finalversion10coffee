@@ -233,6 +233,13 @@ async function findCounterpartyById(id: string) {
   return moyskladRequest<MoyskladCounterparty>(`entity/counterparty/${id}`)
 }
 
+async function updateCounterpartyContactData(id: string, client: SyncClient, company?: SyncCompany | null) {
+  return moyskladRequest<MoyskladCounterparty>(`entity/counterparty/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(buildCounterpartyPayload(client, company)),
+  })
+}
+
 async function ensureCounterparty(payload: Payload, client: SyncClient, company?: SyncCompany | null) {
   const config = getMoyskladConfig()
   assertMoyskladReady(config)
@@ -244,6 +251,7 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company?
       const companyInn = normalizeInn(company.inn)
 
       if (!companyInn || linkedInn === companyInn) {
+        await updateCounterpartyContactData(company.moyskladCounterpartyId, client, company).catch(() => null)
         return company.moyskladCounterpartyId
       }
 
@@ -254,6 +262,7 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company?
       const existing = await findCounterpartyByInn(company.inn)
       const existingId = extractMoyskladId(existing)
       if (existingId) {
+        await updateCounterpartyContactData(existingId, client, company).catch(() => null)
         await updateCompanyCounterpartyId(company.id, existingId)
         return existingId
       }
@@ -275,6 +284,7 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company?
   }
 
   if (client.moyskladCounterpartyId) {
+    await updateCounterpartyContactData(client.moyskladCounterpartyId, client, company).catch(() => null)
     return client.moyskladCounterpartyId
   }
 
@@ -282,6 +292,7 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company?
     const existing = await findCounterpartyByEmail(client.email)
     const existingId = extractMoyskladId(existing)
     if (existingId) {
+      await updateCounterpartyContactData(existingId, client, company).catch(() => null)
       if (client.id) {
         await payload.update({
           collection: "clients",
@@ -377,6 +388,14 @@ function buildOrderDescriptionWithComposition(
   ].filter(Boolean).join("\n")
 }
 
+function getSkippedPositionReason(item: CartItem) {
+  if (isCoffeeWeightAccountingItem(item) && !item.variant?.moysklad_id) {
+    return "нужен ID модификации МойСклад для комплекта"
+  }
+
+  return "не заполнен moyskladId"
+}
+
 function resolveAssortment(item: CartItem) {
   const variant = item.variant as (CartItem["variant"] & {
     moysklad_id?: string | null
@@ -434,7 +453,11 @@ async function isKilogramProduct(moyskladProductId: string) {
 }
 
 function shouldUseBundleAccounting(item: CartItem, productMoyskladId: string) {
-  return Boolean(productMoyskladId && isCoffeeWeightAccountingItem(item))
+  return Boolean(
+    productMoyskladId &&
+    isCoffeeWeightAccountingItem(item) &&
+    item.variant?.moysklad_id
+  )
 }
 
 async function getMoyskladVariantForBundle(variantMoyskladId: string) {
@@ -548,17 +571,11 @@ async function buildCustomerPositions(
   const skipped: CartItem[] = []
   const positions: MoyskladOrderPositionPayload[] = []
   const compositionLines: string[] = []
-  const weightPositions = new Map<string, MoyskladOrderPositionPayload>()
-
   for (const item of cartItems) {
     const productMoyskladId = item.product?.moysklad_id || null
     const weightGrams = Number(item.variant?.weight_grams) || 0
 
-    if (
-      productMoyskladId &&
-      shouldUseBundleAccounting(item, productMoyskladId) &&
-      await isKilogramProduct(productMoyskladId)
-    ) {
+    if (productMoyskladId && shouldUseBundleAccounting(item, productMoyskladId)) {
       const bundle = await ensureBundleForWeightAccountingItem(item, productMoyskladId, weightGrams)
       if (!bundle.id) {
         throw new Error(`Не удалось создать комплект для ${item.variant?.name || item.variant_id}`)
@@ -583,54 +600,12 @@ async function buildCustomerPositions(
       continue
     }
 
-    const shouldUseWeightAccounting =
+    if (
       isCoffeeWeightAccountingItem(item) &&
       productMoyskladId &&
       await isKilogramProduct(productMoyskladId)
-
-    if (shouldUseWeightAccounting) {
-      const weightKgPerPack = weightGrams / 1000
-      const quantityKg = weightKgPerPack * item.quantity
-      const variantPriceKopecks = rubToKopecks(item.variant?.price ?? 0)
-      const pricePerKg = weightKgPerPack > 0
-        ? Math.round(variantPriceKopecks / weightKgPerPack)
-        : 0
-
-      if (quantityKg <= 0 || pricePerKg <= 0) {
-        skipped.push(item)
-        continue
-      }
-
-      const discount = discountByItem.get(item.id) || 0
-      const key = [
-        productMoyskladId,
-        pricePerKg,
-        discount,
-        config.defaultVat,
-      ].join(":")
-      const existing = weightPositions.get(key)
-
-      if (existing) {
-        existing.quantity = Number((existing.quantity + quantityKg).toFixed(6))
-      } else {
-        const position: MoyskladOrderPositionPayload = {
-          quantity: Number(quantityKg.toFixed(6)),
-          price: pricePerKg,
-          assortment: {
-            meta: moyskladMeta("product", productMoyskladId),
-          },
-        }
-
-        if (discount > 0) position.discount = discount
-        if (config.defaultVat > 0) position.vat = config.defaultVat
-
-        weightPositions.set(key, position)
-        positions.push(position)
-      }
-
-      compositionLines.push(
-        `${item.product?.name || item.product_id}: ${item.variant?.name || item.variant_id}${getCartItemGrindLabel(item)} ×${item.quantity} (${formatWeightFromGrams(weightGrams * item.quantity)})`
-      )
+    ) {
+      skipped.push(item)
       continue
     }
 
@@ -962,8 +937,11 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
     )
 
     if (skipped.length > 0) {
-      const names = skipped.map((item) => `${item.product?.name || item.product_id} / ${item.variant?.name || item.variant_id}`)
-      throw new Error(`Не заполнен moyskladId у позиций: ${names.join(", ")}`)
+      const names = skipped.map((item) => {
+        const label = `${item.product?.name || item.product_id} / ${item.variant?.name || item.variant_id}`
+        return `${label} (${getSkippedPositionReason(item)})`
+      })
+      throw new Error(`Позиции не готовы к выгрузке в МойСклад: ${names.join(", ")}`)
     }
 
     if (positions.length === 0) {
