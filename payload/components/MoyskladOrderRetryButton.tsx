@@ -50,7 +50,7 @@ export default function MoyskladOrderRetryButton() {
   return (
     <div
       style={{
-        margin: "0 0 24px",
+        margin: "30px 60px",
         padding: "20px",
         border: "1px solid #e5e5e5",
         borderRadius: "12px",
