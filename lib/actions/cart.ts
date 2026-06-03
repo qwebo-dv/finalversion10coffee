@@ -66,9 +66,14 @@ interface PayloadProductTypeDoc {
   detailsSchema?: ProductDetailsSchema
 }
 
+interface PayloadCategoryRef {
+  id?: string | number
+  parent?: PayloadCategoryRef | string | number | null
+}
+
 interface PayloadProductDoc {
   id?: string | number
-  category?: { id?: string | number } | string | number | null
+  category?: PayloadCategoryRef | string | number | null
   productTypeRef?: PayloadProductTypeDoc | string | number | null
   detailsSchema?: ProductDetailsSchema
   name?: string
@@ -139,6 +144,32 @@ function transformTag(tag: PayloadTag | string | number | null): ProductTag | nu
   }
 }
 
+
+function getRelationshipId(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === "object") {
+    const id = (value as { id?: unknown }).id
+    return id === null || id === undefined ? null : String(id)
+  }
+  return String(value)
+}
+
+function getCategoryIds(category: PayloadProductDoc["category"]): string[] {
+  const result: string[] = []
+  let current: unknown = category
+
+  while (current !== null && current !== undefined) {
+    const id = getRelationshipId(current)
+    if (!id || result.includes(id)) break
+    result.push(id)
+
+    if (typeof current !== "object") break
+    current = (current as PayloadCategoryRef).parent
+  }
+
+  return result
+}
+
 function resolveProductType(doc: PayloadProductDoc): Product["product_type"] {
   const typeRef = doc.productTypeRef
   if (typeRef && typeof typeRef === "object" && typeRef.slug) {
@@ -194,13 +225,15 @@ function transformVariantFromPayload(v: PayloadVariant, productId: string): Prod
 
 function transformProductFromPayload(doc: PayloadProductDoc): Product {
   const productId = String(doc.id)
-  const categoryId = typeof doc.category === "object" && doc.category !== null ? doc.category.id : doc.category
+  const categoryIds = getCategoryIds(doc.category)
+  const categoryId = categoryIds[0] || ""
   const coffee = doc.coffeeDetails || {}
   const tea = doc.teaDetails || {}
 
   return {
     id: productId,
-    category_id: categoryId === null || categoryId === undefined ? "" : String(categoryId),
+    category_id: categoryId,
+    category_ids: categoryIds,
     product_type: resolveProductType(doc),
     product_type_name: resolveProductTypeName(doc),
     product_type_schema: resolveProductTypeSchema(doc),

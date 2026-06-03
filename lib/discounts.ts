@@ -70,9 +70,14 @@ export function calculateClientDiscount(
   const lines: ClientDiscountLine[] = []
 
   for (const item of items) {
-    const categoryId = item.product?.category_id || ""
+    const categoryIds = item.product?.category_ids?.length
+      ? item.product.category_ids
+      : [item.product?.category_id || ""]
+    const categoryId = categoryIds[0] || ""
     const subtotal = (item.variant?.price ?? 0) * item.quantity
-    const categoryRule = categoryRuleMap.get(categoryId)
+    const categoryRule = categoryIds
+      .map((id) => categoryRuleMap.get(id))
+      .find((rule): rule is CategoryDiscountRule => Boolean(rule))
     const discountPercent = categoryRule?.discountPercent ?? basePercent
     const source = categoryRule ? "category" : "base"
     const discountAmount = discountPercent > 0
