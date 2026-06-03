@@ -1,7 +1,7 @@
 import type { Payload } from "payload"
 import { dbQuery } from "@/lib/db"
 import { getMoyskladConfig, assertMoyskladReady } from "./config"
-import { extractMoyskladId, moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
+import { MoyskladApiError, extractMoyskladId, moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
 import { writeMoyskladLog } from "./logs"
 import { DELIVERY_METHOD_LABELS } from "@/lib/utils/constants"
 import { ensureMoyskladBundleForVariant } from "./bundles"
@@ -127,6 +127,39 @@ interface PayloadOrderForStockLoss {
 const kilogramProductCache = new Map<string, Promise<boolean>>()
 const bundleCache = new Map<string, Promise<MoyskladBundleForOrder>>()
 
+
+function normalizeMoyskladDiscount(value: unknown) {
+  const numeric = Number(value) || 0
+  const bounded = Math.max(0, Math.min(100, numeric))
+  return Math.round(bounded * 100) / 100
+}
+
+function isMoyskladTrashOperationError(error: unknown) {
+  if (!(error instanceof MoyskladApiError)) return false
+
+  const message = error.message.toLowerCase()
+  if (message.includes("находится в корзине") || message.includes("trash")) return true
+
+  const errors = (error.body as { errors?: unknown })?.errors
+  if (!Array.isArray(errors)) return false
+
+  return errors.some((item) => {
+    if (!item || typeof item !== "object") return false
+    const details = item as { error?: unknown; code?: unknown }
+    return details.code === 3007 &&
+      typeof details.error === "string" &&
+      details.error.toLowerCase().includes("находится в корзине")
+  })
+}
+
+function buildTrashOperationMessage(entityLabel: string, entityId: string, orderName: string) {
+  return [
+    `${entityLabel} ${orderName} уже связан с документом МойСклад ${entityId}, но этот документ находится в корзине.`,
+    "МойСклад запрещает обновлять операции из корзины.",
+    "Восстановите документ в МойСклад из корзины и запустите повторную синхронизацию либо очистите привязку МойСклад у заказа, если нужно создать документ заново.",
+  ].join(" ")
+}
+
 function rubToKopecks(value: number) {
   return Math.round((Number(value) || 0) * 100)
 }
@@ -161,6 +194,9 @@ async function ensureB2bMoyskladSchema() {
       add column if not exists moysklad_stock_loss_id varchar,
       add column if not exists moysklad_stock_loss_synced_at timestamptz,
       add column if not exists moysklad_stock_loss_error text;
+    alter table public.order_items
+      add column if not exists discount_percent numeric default 0,
+      add column if not exists discount_amount numeric default 0;
     create index if not exists orders_moysklad_counterparty_id_idx
       on public.orders(moysklad_counterparty_id);
     create index if not exists orders_moysklad_invoice_out_id_idx
@@ -564,7 +600,7 @@ async function buildCustomerPositions(
   const discountByItem = new Map(
     discountLines.map((line) => [
       line.cartItemId,
-      Math.max(0, Math.min(100, Math.round(line.discountPercent))),
+      normalizeMoyskladDiscount(line.discountPercent),
     ])
   )
 
@@ -731,10 +767,18 @@ async function createInvoiceOut(params: {
   }
 
   if (invoiceId) {
-    const updated = await moyskladRequest<MoyskladInvoiceOut>(`entity/invoiceout/${invoiceId}`, {
-      method: "PUT",
-      body: JSON.stringify(invoiceBody),
-    })
+    let updated: MoyskladInvoiceOut
+    try {
+      updated = await moyskladRequest<MoyskladInvoiceOut>(`entity/invoiceout/${invoiceId}`, {
+        method: "PUT",
+        body: JSON.stringify(invoiceBody),
+      })
+    } catch (error) {
+      if (isMoyskladTrashOperationError(error)) {
+        throw new Error(buildTrashOperationMessage("Счёт", invoiceId, params.order.orderId || String(params.order.id)))
+      }
+      throw error
+    }
 
     return {
       invoice: updated,
@@ -980,10 +1024,17 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
 
     if (moyskladOrderId) {
       delete body.state
-      orderResponse = await moyskladRequest<MoyskladCustomerOrder>(`entity/customerorder/${moyskladOrderId}`, {
-        method: "PUT",
-        body: JSON.stringify(body),
-      })
+      try {
+        orderResponse = await moyskladRequest<MoyskladCustomerOrder>(`entity/customerorder/${moyskladOrderId}`, {
+          method: "PUT",
+          body: JSON.stringify(body),
+        })
+      } catch (error) {
+        if (isMoyskladTrashOperationError(error)) {
+          throw new Error(buildTrashOperationMessage("Заказ", moyskladOrderId, params.order.orderId || String(orderId)))
+        }
+        throw error
+      }
       orderMessage = "Заказ уже существовал в МойСклад, позиции и суммы обновлены"
     } else {
       orderResponse = await moyskladRequest<MoyskladCustomerOrder>("entity/customerorder", {

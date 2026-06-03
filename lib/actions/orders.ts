@@ -144,6 +144,11 @@ function formatPrice(n: number) {
   return new Intl.NumberFormat("ru-RU").format(n) + " ₽"
 }
 
+function normalizeOrderLineDiscount(value: unknown) {
+  const numeric = Number(value) || 0
+  return Math.max(0, Math.min(100, Math.round(numeric * 100) / 100))
+}
+
 function buildProportionalDiscountLines(cartItems: Awaited<ReturnType<typeof getCartItems>>, discountAmount: number) {
   const subtotal = cartItems.reduce((sum, item) => {
     return sum + (item.variant?.price ?? 0) * item.quantity
@@ -165,7 +170,7 @@ function buildProportionalDiscountLines(cartItems: Awaited<ReturnType<typeof get
 
       return {
         cartItemId: item.id,
-        discountPercent: Math.min(100, (lineDiscount / lineSubtotal) * 100),
+        discountPercent: normalizeOrderLineDiscount((lineDiscount / lineSubtotal) * 100),
       }
     })
     .filter((line): line is { cartItemId: string; discountPercent: number } => Boolean(line))
@@ -265,6 +270,9 @@ async function ensureB2bMoyskladSchema() {
       add column if not exists moysklad_stock_loss_id varchar,
       add column if not exists moysklad_stock_loss_synced_at timestamptz,
       add column if not exists moysklad_stock_loss_error text;
+    alter table public.order_items
+      add column if not exists discount_percent numeric default 0,
+      add column if not exists discount_amount numeric default 0;
     create index if not exists orders_moysklad_counterparty_id_idx
       on public.orders(moysklad_counterparty_id);
     create index if not exists orders_moysklad_invoice_out_id_idx
@@ -495,9 +503,7 @@ export async function createOrder(params: {
     ? buildProportionalDiscountLines(cartItems, promoDiscountAmount)
     : clientDiscountResult.lines.map((line) => ({
         cartItemId: line.cartItemId,
-        discountPercent: line.subtotal > 0
-          ? (line.discountAmount / line.subtotal) * 100
-          : line.discountPercent,
+        discountPercent: normalizeOrderLineDiscount(line.discountPercent),
       }))
   const appliedDiscountPercent = discountAmount === clientDiscountAmount &&
     clientDiscountResult.hasBaseDiscount &&
@@ -587,8 +593,14 @@ export async function createOrder(params: {
   }
 
   // Build items array for Payload
+  const discountByCartItem = new Map(
+    discountLines.map((line) => [line.cartItemId, normalizeOrderLineDiscount(line.discountPercent)])
+  )
+
   const items = cartItems.map((item) => {
     const stockLossLine = buildMoyskladStockLossLines([item])[0]
+    const lineSubtotal = (item.variant?.price ?? 0) * item.quantity
+    const discountPercent = discountByCartItem.get(item.id) || 0
 
     return {
       productName: item.product?.name || "",
@@ -596,7 +608,9 @@ export async function createOrder(params: {
       grindOption: item.grind_option || "",
       quantity: item.quantity,
       unitPrice: item.variant?.price ?? 0,
-      totalPrice: (item.variant?.price ?? 0) * item.quantity,
+      totalPrice: lineSubtotal,
+      discountPercent,
+      discountAmount: Math.round((lineSubtotal * discountPercent) / 100),
       stockProductMoyskladId: stockLossLine?.productMoyskladId || "",
       stockQuantityKg: stockLossLine?.quantityKg || 0,
       stockPricePerKg: stockLossLine?.pricePerKg || 0,
@@ -656,6 +670,8 @@ export async function createOrder(params: {
     quantity: item.quantity,
     unit_price: item.variant?.price ?? 0,
     total_price: (item.variant?.price ?? 0) * item.quantity,
+    discount_percent: discountByCartItem.get(item.id) || 0,
+    discount_amount: Math.round((((item.variant?.price ?? 0) * item.quantity) * (discountByCartItem.get(item.id) || 0)) / 100),
     weight_grams: item.variant?.weight_grams ?? null,
   }))
 
