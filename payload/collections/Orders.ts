@@ -476,21 +476,14 @@ export const Orders: CollectionConfig = {
                 {
                   type: "row",
                   fields: [
-                    { name: "quantity", type: "number", label: "Кол-во", required: true, admin: { width: "25%" } },
-                    { name: "unitPrice", type: "number", label: "Цена/шт", required: true, admin: { width: "25%" } },
-                    { name: "discountPercent", type: "number", label: "Скидка %", defaultValue: 0, admin: { width: "25%", readOnly: true } },
-                    { name: "totalPrice", type: "number", label: "Сумма", required: true, admin: { width: "25%" } },
+                    { name: "quantity", type: "number", label: "Кол-во", required: true, admin: { width: "33%" } },
+                    { name: "unitPrice", type: "number", label: "Цена/шт", required: true, admin: { width: "33%" } },
+                    { name: "totalPrice", type: "number", label: "Сумма", required: true, admin: { width: "34%" } },
                   ],
                 },
                 {
                   type: "row",
                   fields: [
-                    {
-                      name: "discountAmount",
-                      type: "number",
-                      label: "Сумма скидки",
-                      admin: { readOnly: true, hidden: true },
-                    },
                     {
                       name: "stockProductMoyskladId",
                       type: "text",
