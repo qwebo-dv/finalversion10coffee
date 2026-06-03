@@ -1,6 +1,7 @@
 import type { Payload } from "payload"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { normalizeProductDetailsSchema } from "@/lib/product-types"
+import { calculateClientDiscount, normalizeCategoryDiscounts, normalizeDiscountPercent, type CategoryDiscountRule } from "@/lib/discounts"
 import { syncOrderToMoysklad } from "./sync"
 import { writeMoyskladLog } from "./logs"
 import type { CartItem, DeliveryMethod, Product, ProductDetailsSchema, ProductVariant } from "@/types"
@@ -21,6 +22,11 @@ interface PayloadClientDoc {
   email?: string
   phone?: string | null
   moyskladCounterpartyId?: string | null
+  discountPercent?: number | string | null
+  categoryDiscounts?: {
+    category?: { id?: string | number; name?: string } | string | number | null
+    discountPercent?: number | string | null
+  }[] | null
 }
 
 interface SupabaseCompanyRow {
@@ -60,6 +66,8 @@ interface PayloadOrderItemDoc {
   stockProductMoyskladId?: string | null
   stockQuantityKg?: number | string | null
   stockPricePerKg?: number | string | null
+  discountPercent?: number | string | null
+  discountAmount?: number | string | null
 }
 
 interface PayloadOrderDoc {
@@ -95,6 +103,8 @@ interface OrderItemRow {
   quantity: number | string
   unit_price: number | string
   total_price: number | string
+  discount_percent?: number | string | null
+  discount_amount?: number | string | null
   weight_grams: number | string | null
 }
 
@@ -127,6 +137,39 @@ interface PayloadProductDoc {
 
 function numberValue(value: number | string | null | undefined) {
   return Number(value) || 0
+}
+
+function normalizeRetryDiscountPercent(value: unknown) {
+  const numeric = Number(value) || 0
+  return Math.max(0, Math.min(100, Math.round(numeric * 100) / 100))
+}
+
+function getRelationshipId(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === "object") {
+    const id = (value as { id?: unknown }).id
+    return id === null || id === undefined ? null : String(id)
+  }
+  return String(value)
+}
+
+function getClientCategoryDiscounts(client: PayloadClientDoc): CategoryDiscountRule[] {
+  const rules = (client.categoryDiscounts || [])
+    .map((rule): CategoryDiscountRule | null => {
+      const categoryId = getRelationshipId(rule.category)
+      if (categoryId === null) return null
+
+      return {
+        categoryId,
+        categoryName: typeof rule.category === "object" && rule.category !== null
+          ? rule.category.name
+          : undefined,
+        discountPercent: normalizeDiscountPercent(rule.discountPercent),
+      }
+    })
+    .filter((rule): rule is CategoryDiscountRule => rule !== null)
+
+  return normalizeCategoryDiscounts(rules)
 }
 
 function normalizeText(value?: string | null) {
@@ -365,6 +408,8 @@ function buildCartItemFromStoredOrderItem(
     quantity,
     unit_price: unitPrice,
     total_price: numberValue(item.totalPrice),
+    discount_percent: item.discountPercent ?? null,
+    discount_amount: item.discountAmount ?? null,
     weight_grams: storedWeightGrams,
   }
   const variant = resolveRetryVariant(product, row, unitPrice, storedWeightGrams)
@@ -427,7 +472,7 @@ async function getRetryCartItems(payload: Payload, order: PayloadOrderDoc): Prom
   const adminDb = createAdminClient()
   const { data, error } = await adminDb
     .from("order_items")
-    .select("id, order_id, product_id, variant_id, product_name, variant_name, grind_option, quantity, unit_price, total_price, weight_grams")
+    .select("id, order_id, product_id, variant_id, product_name, variant_name, grind_option, quantity, unit_price, total_price, discount_percent, discount_amount, weight_grams")
     .eq("order_id", String(order.id))
     .order("id", { ascending: true })
 
@@ -485,18 +530,48 @@ async function getRetryCartItems(payload: Payload, order: PayloadOrderDoc): Prom
         name: product.name || row.product_name || row.product_id,
       } : undefined,
       variant: restoredVariant,
-    })
+      discount_percent: row.discount_percent,
+    } as CartItem & { discount_percent?: number | string | null })
   }
 
   return result
 }
 
-function buildDiscountLines(order: PayloadOrderDoc, cartItems: CartItem[]) {
+function buildStoredDiscountLines(order: PayloadOrderDoc, cartItems: CartItem[]) {
+  const orderItemDiscounts = new Map(
+    (order.items || [])
+      .map((item) => [String(item.id ?? ""), normalizeRetryDiscountPercent(item.discountPercent)]) as [string, number][]
+  )
+  const lines = cartItems
+    .map((item) => ({
+      cartItemId: item.id,
+      discountPercent: orderItemDiscounts.get(item.id) || normalizeRetryDiscountPercent((item as { discount_percent?: unknown }).discount_percent),
+    }))
+    .filter((line) => line.discountPercent > 0)
+
+  return lines.length > 0 ? lines : null
+}
+
+function buildDiscountLines(order: PayloadOrderDoc, cartItems: CartItem[], client: PayloadClientDoc) {
   const subtotal = numberValue(order.subtotal)
   const discountAmount = numberValue(order.discountAmount)
   if (subtotal <= 0 || discountAmount <= 0) return []
 
-  const discountPercent = Math.max(0, Math.min(100, (discountAmount / subtotal) * 100))
+  const storedLines = buildStoredDiscountLines(order, cartItems)
+  if (storedLines) return storedLines
+
+  const recalculatedClientDiscount = calculateClientDiscount(cartItems, {
+    discountPercent: normalizeDiscountPercent(client.discountPercent),
+    categoryDiscounts: getClientCategoryDiscounts(client),
+  })
+  if (recalculatedClientDiscount.amount === discountAmount && recalculatedClientDiscount.lines.length > 0) {
+    return recalculatedClientDiscount.lines.map((line) => ({
+      cartItemId: line.cartItemId,
+      discountPercent: normalizeRetryDiscountPercent(line.discountPercent),
+    }))
+  }
+
+  const discountPercent = normalizeRetryDiscountPercent((discountAmount / subtotal) * 100)
   return cartItems.map((item) => ({
     cartItemId: item.id,
     discountPercent,
@@ -618,7 +693,7 @@ async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
     },
     company,
     cartItems,
-    discountLines: buildDiscountLines(order, cartItems),
+    discountLines: buildDiscountLines(order, cartItems, client),
   })
 }
 
