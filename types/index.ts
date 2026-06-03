@@ -148,6 +148,7 @@ export interface AttachedFile {
 export interface Product {
   id: string
   category_id: string
+  category_ids?: string[]
   product_type: ProductType
   product_type_name: string
   product_type_schema: ProductDetailsSchema

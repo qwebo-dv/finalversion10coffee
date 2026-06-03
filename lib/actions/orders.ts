@@ -144,6 +144,11 @@ function formatPrice(n: number) {
   return new Intl.NumberFormat("ru-RU").format(n) + " ₽"
 }
 
+function normalizeOrderLineDiscount(value: unknown) {
+  const numeric = Number(value) || 0
+  return Math.max(0, Math.min(100, Math.round(numeric * 100) / 100))
+}
+
 function buildProportionalDiscountLines(cartItems: Awaited<ReturnType<typeof getCartItems>>, discountAmount: number) {
   const subtotal = cartItems.reduce((sum, item) => {
     return sum + (item.variant?.price ?? 0) * item.quantity
@@ -165,7 +170,7 @@ function buildProportionalDiscountLines(cartItems: Awaited<ReturnType<typeof get
 
       return {
         cartItemId: item.id,
-        discountPercent: Math.min(100, (lineDiscount / lineSubtotal) * 100),
+        discountPercent: normalizeOrderLineDiscount((lineDiscount / lineSubtotal) * 100),
       }
     })
     .filter((line): line is { cartItemId: string; discountPercent: number } => Boolean(line))
@@ -495,9 +500,7 @@ export async function createOrder(params: {
     ? buildProportionalDiscountLines(cartItems, promoDiscountAmount)
     : clientDiscountResult.lines.map((line) => ({
         cartItemId: line.cartItemId,
-        discountPercent: line.subtotal > 0
-          ? (line.discountAmount / line.subtotal) * 100
-          : line.discountPercent,
+        discountPercent: normalizeOrderLineDiscount(line.discountPercent),
       }))
   const appliedDiscountPercent = discountAmount === clientDiscountAmount &&
     clientDiscountResult.hasBaseDiscount &&
@@ -589,6 +592,7 @@ export async function createOrder(params: {
   // Build items array for Payload
   const items = cartItems.map((item) => {
     const stockLossLine = buildMoyskladStockLossLines([item])[0]
+    const lineSubtotal = (item.variant?.price ?? 0) * item.quantity
 
     return {
       productName: item.product?.name || "",
@@ -596,7 +600,7 @@ export async function createOrder(params: {
       grindOption: item.grind_option || "",
       quantity: item.quantity,
       unitPrice: item.variant?.price ?? 0,
-      totalPrice: (item.variant?.price ?? 0) * item.quantity,
+      totalPrice: lineSubtotal,
       stockProductMoyskladId: stockLossLine?.productMoyskladId || "",
       stockQuantityKg: stockLossLine?.quantityKg || 0,
       stockPricePerKg: stockLossLine?.pricePerKg || 0,

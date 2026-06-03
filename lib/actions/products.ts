@@ -78,9 +78,14 @@ interface PayloadProductTypeDoc {
   isVisible?: boolean
 }
 
+interface PayloadCategoryRef {
+  id?: string | number
+  parent?: PayloadCategoryRef | string | number | null
+}
+
 interface PayloadProductDoc {
   id?: string | number
-  category?: { id?: string | number } | string | number | null
+  category?: PayloadCategoryRef | string | number | null
   productTypeRef?: PayloadProductTypeDoc | string | number | null
   detailsSchema?: ProductDetailsSchema
   name?: string
@@ -155,6 +160,24 @@ interface PayloadTagDoc {
   name?: string
   slug?: string
   color?: string
+}
+
+
+function getCategoryIds(category: PayloadProductDoc["category"]): string[] {
+  const result: string[] = []
+  let current: unknown = category
+
+  while (current !== null && current !== undefined) {
+    const rawId = getRelationshipId(current)
+    const id = rawId === null ? "" : String(rawId)
+    if (!id || result.includes(id)) break
+    result.push(id)
+
+    if (typeof current !== "object") break
+    current = (current as PayloadCategoryRef).parent
+  }
+
+  return result
 }
 
 function isPayloadMedia(value: PayloadMediaRef): value is PayloadMedia {
@@ -338,7 +361,8 @@ function resolveProductTypeSchema(doc: { detailsSchema?: ProductDetailsSchema; p
 
 function transformProduct(doc: PayloadProductDoc): Product {
   const productId = String(doc.id)
-  const categoryId = typeof doc.category === "object" && doc.category !== null ? doc.category.id : doc.category
+  const categoryIds = getCategoryIds(doc.category)
+  const categoryId = categoryIds[0] || ""
   const coffee = doc.coffeeDetails || {}
   const tea = doc.teaDetails || {}
 
@@ -346,7 +370,8 @@ function transformProduct(doc: PayloadProductDoc): Product {
 
   return {
     id: productId,
-    category_id: categoryId === null || categoryId === undefined ? "" : String(categoryId),
+    category_id: categoryId,
+    category_ids: categoryIds,
     product_type: resolveProductType(doc),
     product_type_name: resolveProductTypeName(doc),
     product_type_schema: resolveProductTypeSchema(doc),

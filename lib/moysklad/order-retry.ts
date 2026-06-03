@@ -1,6 +1,7 @@
 import type { Payload } from "payload"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { normalizeProductDetailsSchema } from "@/lib/product-types"
+import { calculateClientDiscount, normalizeCategoryDiscounts, normalizeDiscountPercent, type CategoryDiscountRule } from "@/lib/discounts"
 import { syncOrderToMoysklad } from "./sync"
 import { writeMoyskladLog } from "./logs"
 import type { CartItem, DeliveryMethod, Product, ProductDetailsSchema, ProductVariant } from "@/types"
@@ -21,6 +22,11 @@ interface PayloadClientDoc {
   email?: string
   phone?: string | null
   moyskladCounterpartyId?: string | null
+  discountPercent?: number | string | null
+  categoryDiscounts?: {
+    category?: { id?: string | number; name?: string } | string | number | null
+    discountPercent?: number | string | null
+  }[] | null
 }
 
 interface SupabaseCompanyRow {
@@ -72,6 +78,7 @@ interface PayloadOrderDoc {
   deliveryAddress?: string | null
   subtotal?: number | string
   discountAmount?: number | string
+  promoCode?: unknown
   deliveryCost?: number | string
   total?: number | string
   comment?: string | null
@@ -110,9 +117,14 @@ interface PayloadVariantDoc {
   grindOptions?: string[]
 }
 
+interface PayloadCategoryRef {
+  id?: string | number
+  parent?: PayloadCategoryRef | string | number | null
+}
+
 interface PayloadProductDoc {
   id?: string | number
-  category?: { id?: string | number } | string | number | null
+  category?: PayloadCategoryRef | string | number | null
   productTypeRef?: { name?: string; slug?: Product["product_type"]; detailsSchema?: ProductDetailsSchema } | string | number | null
   detailsSchema?: ProductDetailsSchema
   name?: string
@@ -127,6 +139,56 @@ interface PayloadProductDoc {
 
 function numberValue(value: number | string | null | undefined) {
   return Number(value) || 0
+}
+
+function normalizeRetryDiscountPercent(value: unknown) {
+  const numeric = Number(value) || 0
+  return Math.max(0, Math.min(100, Math.round(numeric * 100) / 100))
+}
+
+function getRelationshipId(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === "object") {
+    const id = (value as { id?: unknown }).id
+    return id === null || id === undefined ? null : String(id)
+  }
+  return String(value)
+}
+
+function getClientCategoryDiscounts(client: PayloadClientDoc): CategoryDiscountRule[] {
+  const rules = (client.categoryDiscounts || [])
+    .map((rule): CategoryDiscountRule | null => {
+      const categoryId = getRelationshipId(rule.category)
+      if (categoryId === null) return null
+
+      return {
+        categoryId,
+        categoryName: typeof rule.category === "object" && rule.category !== null
+          ? rule.category.name
+          : undefined,
+        discountPercent: normalizeDiscountPercent(rule.discountPercent),
+      }
+    })
+    .filter((rule): rule is CategoryDiscountRule => rule !== null)
+
+  return normalizeCategoryDiscounts(rules)
+}
+
+
+function getCategoryIds(category: PayloadProductDoc["category"]): string[] {
+  const result: string[] = []
+  let current: unknown = category
+
+  while (current !== null && current !== undefined) {
+    const id = getRelationshipId(current)
+    if (!id || result.includes(id)) break
+    result.push(id)
+
+    if (typeof current !== "object") break
+    current = (current as PayloadCategoryRef).parent
+  }
+
+  return result
 }
 
 function normalizeText(value?: string | null) {
@@ -248,12 +310,14 @@ function transformVariant(doc: PayloadVariantDoc, productId: string): ProductVar
 
 function transformProduct(doc: PayloadProductDoc): Product {
   const productId = String(doc.id ?? "")
-  const categoryId = typeof doc.category === "object" && doc.category !== null ? doc.category.id : doc.category
+  const categoryIds = getCategoryIds(doc.category)
+  const categoryId = categoryIds[0] || ""
   const typeRef = typeof doc.productTypeRef === "object" && doc.productTypeRef !== null ? doc.productTypeRef : null
 
   return {
     id: productId,
-    category_id: categoryId === null || categoryId === undefined ? "" : String(categoryId),
+    category_id: categoryId,
+    category_ids: categoryIds,
     product_type: typeRef?.slug || "",
     product_type_name: typeRef?.name || typeRef?.slug || "",
     product_type_schema: normalizeProductDetailsSchema(typeRef?.detailsSchema || doc.detailsSchema),
@@ -491,12 +555,27 @@ async function getRetryCartItems(payload: Payload, order: PayloadOrderDoc): Prom
   return result
 }
 
-function buildDiscountLines(order: PayloadOrderDoc, cartItems: CartItem[]) {
+function buildDiscountLines(order: PayloadOrderDoc, cartItems: CartItem[], client: PayloadClientDoc) {
   const subtotal = numberValue(order.subtotal)
   const discountAmount = numberValue(order.discountAmount)
   if (subtotal <= 0 || discountAmount <= 0) return []
 
-  const discountPercent = Math.max(0, Math.min(100, (discountAmount / subtotal) * 100))
+
+  const recalculatedClientDiscount = calculateClientDiscount(cartItems, {
+    discountPercent: normalizeDiscountPercent(client.discountPercent),
+    categoryDiscounts: getClientCategoryDiscounts(client),
+  })
+  if (
+    recalculatedClientDiscount.lines.length > 0 &&
+    (recalculatedClientDiscount.amount === discountAmount || (!order.promoCode && recalculatedClientDiscount.hasCategoryDiscount))
+  ) {
+    return recalculatedClientDiscount.lines.map((line) => ({
+      cartItemId: line.cartItemId,
+      discountPercent: normalizeRetryDiscountPercent(line.discountPercent),
+    }))
+  }
+
+  const discountPercent = normalizeRetryDiscountPercent((discountAmount / subtotal) * 100)
   return cartItems.map((item) => ({
     cartItemId: item.id,
     discountPercent,
@@ -618,7 +697,7 @@ async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
     },
     company,
     cartItems,
-    discountLines: buildDiscountLines(order, cartItems),
+    discountLines: buildDiscountLines(order, cartItems, client),
   })
 }
 
