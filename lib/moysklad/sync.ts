@@ -1,7 +1,7 @@
 import type { Payload } from "payload"
 import { dbQuery } from "@/lib/db"
 import { getMoyskladConfig, assertMoyskladReady } from "./config"
-import { hasMoyskladErrorCode, MoyskladApiError, extractMoyskladId, moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
+import { MoyskladApiError, extractMoyskladId, moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
 import { writeMoyskladLog } from "./logs"
 import { DELIVERY_METHOD_LABELS } from "@/lib/utils/constants"
 import { ensureMoyskladBundleForVariant } from "./bundles"
@@ -39,7 +39,6 @@ interface SyncCompany {
 interface SyncOrder {
   id: string | number
   orderId?: string
-  createdAt?: string
   subtotal?: number
   discountAmount?: number
   deliveryCost?: number
@@ -121,7 +120,6 @@ interface PayloadOrderStockLossItem {
 interface PayloadOrderForStockLoss {
   id: string | number
   orderId?: string
-  createdAt?: string
   moyskladStockLossId?: string | null
   items?: PayloadOrderStockLossItem[]
 }
@@ -196,9 +194,6 @@ async function ensureB2bMoyskladSchema() {
       add column if not exists moysklad_stock_loss_id varchar,
       add column if not exists moysklad_stock_loss_synced_at timestamptz,
       add column if not exists moysklad_stock_loss_error text;
-    alter table public.order_items
-      add column if not exists discount_percent numeric default 0,
-      add column if not exists discount_amount numeric default 0;
     create index if not exists orders_moysklad_counterparty_id_idx
       on public.orders(moysklad_counterparty_id);
     create index if not exists orders_moysklad_invoice_out_id_idx
@@ -694,12 +689,10 @@ function buildDocumentRefs(params: {
   description: string
   shipmentAddress?: string | null
   salesChannelId?: string | null
-  createdAt?: string
 }) {
   const config = getMoyskladConfig()
-  const orderDate = params.createdAt ? new Date(params.createdAt) : undefined
   const body: Record<string, unknown> = {
-    moment: formatMoment(orderDate),
+    moment: formatMoment(),
     applicable: true,
     vatEnabled: config.vatEnabled,
     vatIncluded: config.vatIncluded,
@@ -757,7 +750,6 @@ async function createInvoiceOut(params: {
       description: params.description,
       shipmentAddress: params.shipmentAddress,
       salesChannelId: params.salesChannelId,
-      createdAt: params.order.createdAt,
     }),
     externalCode,
     customerOrder: {
@@ -772,27 +764,24 @@ async function createInvoiceOut(params: {
   }
 
   if (invoiceId) {
+    let updated: MoyskladInvoiceOut
     try {
-      const updated = await moyskladRequest<MoyskladInvoiceOut>(`entity/invoiceout/${invoiceId}`, {
+      updated = await moyskladRequest<MoyskladInvoiceOut>(`entity/invoiceout/${invoiceId}`, {
         method: "PUT",
         body: JSON.stringify(invoiceBody),
       })
-
-      return {
-        invoice: updated,
-        invoiceId,
-        payload: invoiceBody,
-        reused: true as const,
-      }
     } catch (error) {
       if (isMoyskladTrashOperationError(error)) {
         throw new Error(buildTrashOperationMessage("Счёт", invoiceId, params.order.orderId || String(params.order.id)))
       }
-      if (hasMoyskladErrorCode(error, 1021)) {
-        invoiceId = null
-      } else {
-        throw error
-      }
+      throw error
+    }
+
+    return {
+      invoice: updated,
+      invoiceId,
+      payload: invoiceBody,
+      reused: true as const,
     }
   }
 
@@ -910,9 +899,8 @@ export async function ensureMoyskladStockLossForOrder(
     ...compositionLines.map((line) => `- ${line}`),
   ].join("\n")
 
-  const stockLossDate = order.createdAt ? new Date(order.createdAt) : undefined
   const body = {
-    moment: formatMoment(stockLossDate),
+    moment: formatMoment(),
     applicable: true,
     externalCode,
     organization: {
@@ -1013,7 +1001,6 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
         description,
         shipmentAddress: params.order.deliveryAddress,
         salesChannelId,
-        createdAt: params.order.createdAt,
       }),
       name: params.order.orderId || String(orderId),
       externalCode: String(orderId),
@@ -1039,28 +1026,14 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
           method: "PUT",
           body: JSON.stringify(body),
         })
-        orderMessage = "Заказ уже существовал в МойСклад, позиции и суммы обновлены"
       } catch (error) {
         if (isMoyskladTrashOperationError(error)) {
           throw new Error(buildTrashOperationMessage("Заказ", moyskladOrderId, params.order.orderId || String(orderId)))
         }
-        if (hasMoyskladErrorCode(error, 1021)) {
-          moyskladOrderId = null
-          if (config.defaultOrderStateId) {
-            body.state = { meta: moyskladMeta("state", config.defaultOrderStateId) }
-          }
-          await params.payload.update({
-            collection: "orders",
-            id: orderId,
-            data: { moyskladCustomerOrderId: null, moyskladInvoiceOutId: null },
-          }).catch(() => {})
-        } else {
-          throw error
-        }
+        throw error
       }
-    }
-
-    if (!moyskladOrderId) {
+      orderMessage = "Заказ уже существовал в МойСклад, позиции и суммы обновлены"
+    } else {
       orderResponse = await moyskladRequest<MoyskladCustomerOrder>("entity/customerorder", {
         method: "POST",
         body: JSON.stringify(body),

@@ -1,4 +1,4 @@
-import { hasMoyskladErrorCode, moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
+import { moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
 
 export interface MoyskladSalePriceForBundle {
   value?: number
@@ -109,17 +109,10 @@ export async function ensureMoyskladBundleForVariant(params: EnsureMoyskladBundl
   }
 
   if (existing?.id) {
-    try {
-      return await moyskladRequest<MoyskladBundle>(`entity/bundle/${existing.id}`, {
-        method: "PUT",
-        body: JSON.stringify(body),
-      })
-    } catch (error) {
-      if (hasMoyskladErrorCode(error, 29001)) {
-        return existing
-      }
-      throw error
-    }
+    return moyskladRequest<MoyskladBundle>(`entity/bundle/${existing.id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    })
   }
 
   return moyskladRequest<MoyskladBundle>("entity/bundle", {

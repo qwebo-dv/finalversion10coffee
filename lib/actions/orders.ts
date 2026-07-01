@@ -270,9 +270,6 @@ async function ensureB2bMoyskladSchema() {
       add column if not exists moysklad_stock_loss_id varchar,
       add column if not exists moysklad_stock_loss_synced_at timestamptz,
       add column if not exists moysklad_stock_loss_error text;
-    alter table public.order_items
-      add column if not exists discount_percent numeric default 0,
-      add column if not exists discount_amount numeric default 0;
     create index if not exists orders_moysklad_counterparty_id_idx
       on public.orders(moysklad_counterparty_id);
     create index if not exists orders_moysklad_invoice_out_id_idx
@@ -593,14 +590,9 @@ export async function createOrder(params: {
   }
 
   // Build items array for Payload
-  const discountByCartItem = new Map(
-    discountLines.map((line) => [line.cartItemId, normalizeOrderLineDiscount(line.discountPercent)])
-  )
-
   const items = cartItems.map((item) => {
     const stockLossLine = buildMoyskladStockLossLines([item])[0]
     const lineSubtotal = (item.variant?.price ?? 0) * item.quantity
-    const discountPercent = discountByCartItem.get(item.id) || 0
 
     return {
       productName: item.product?.name || "",
@@ -609,8 +601,6 @@ export async function createOrder(params: {
       quantity: item.quantity,
       unitPrice: item.variant?.price ?? 0,
       totalPrice: lineSubtotal,
-      discountPercent,
-      discountAmount: Math.round((lineSubtotal * discountPercent) / 100),
       stockProductMoyskladId: stockLossLine?.productMoyskladId || "",
       stockQuantityKg: stockLossLine?.quantityKg || 0,
       stockPricePerKg: stockLossLine?.pricePerKg || 0,
@@ -670,8 +660,6 @@ export async function createOrder(params: {
     quantity: item.quantity,
     unit_price: item.variant?.price ?? 0,
     total_price: (item.variant?.price ?? 0) * item.quantity,
-    discount_percent: discountByCartItem.get(item.id) || 0,
-    discount_amount: Math.round((((item.variant?.price ?? 0) * item.quantity) * (discountByCartItem.get(item.id) || 0)) / 100),
     weight_grams: item.variant?.weight_grams ?? null,
   }))
 
@@ -682,7 +670,6 @@ export async function createOrder(params: {
     order: {
       id: doc.id,
       orderId: doc.orderId,
-      createdAt: doc.createdAt,
       subtotal,
       discountAmount,
       deliveryCost,
