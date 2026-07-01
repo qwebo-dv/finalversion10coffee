@@ -682,6 +682,7 @@ export async function createOrder(params: {
     order: {
       id: doc.id,
       orderId: doc.orderId,
+      createdAt: doc.createdAt,
       subtotal,
       discountAmount,
       deliveryCost,

@@ -12,6 +12,13 @@ export class MoyskladApiError extends Error {
   }
 }
 
+function parseMoyskladErrors(body: unknown) {
+  if (!body || typeof body !== "object") return []
+  const errors = (body as { errors?: unknown }).errors
+  if (!Array.isArray(errors)) return []
+  return errors.filter((e): e is Record<string, unknown> => e !== null && typeof e === "object")
+}
+
 function joinUrl(baseUrl: string, path: string) {
   const normalizedBase = baseUrl.replace(/\/+$/, "")
   const normalizedPath = path.replace(/^\/+/, "")
@@ -45,27 +52,42 @@ export async function moyskladRequest<T>(
 ): Promise<T> {
   assertMoyskladReady(config)
 
-  const response = await fetch(joinUrl(config.baseUrl, path), {
-    ...init,
-    headers: {
-      Accept: "application/json;charset=utf-8",
-      "Content-Type": "application/json",
-      Authorization: buildAuthHeader(config),
-      ...(init.headers || {}),
-    },
-    cache: "no-store",
-  })
+  const MAX_RETRIES = 3
 
-  const body = await parseResponse(response)
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const response = await fetch(joinUrl(config.baseUrl, path), {
+      ...init,
+      headers: {
+        Accept: "application/json;charset=utf-8",
+        "Content-Type": "application/json",
+        Authorization: buildAuthHeader(config),
+        ...(init.headers || {}),
+      },
+      cache: "no-store",
+    })
 
-  if (!response.ok) {
-    const message = typeof body === "object" && body !== null && "errors" in body
-      ? JSON.stringify((body as { errors?: unknown }).errors)
-      : `MoySklad API error ${response.status}`
-    throw new MoyskladApiError(message, response.status, body)
+    const body = await parseResponse(response)
+
+    if (!response.ok) {
+      const moyskladErrors = parseMoyskladErrors(body)
+      const isRateLimit = moyskladErrors.some((e) => e.code === 1049)
+      const message = moyskladErrors.length > 0
+        ? JSON.stringify(moyskladErrors)
+        : `MoySklad API error ${response.status}`
+
+      if (isRateLimit && attempt < MAX_RETRIES) {
+        const delay = Math.pow(2, attempt) * 1000
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        continue
+      }
+
+      throw new MoyskladApiError(message, response.status, body)
+    }
+
+    return body as T
   }
 
-  return body as T
+  throw new MoyskladApiError("Превышено ограничение на количество запросов — повторы не помогли", 429, null)
 }
 
 export function moyskladMeta(type: MoyskladEntityType, id: string, config = getMoyskladConfig()): MoyskladMeta {
@@ -93,6 +115,11 @@ export async function moyskladGetList<T>(
 
   const query = search.toString()
   return moyskladRequest<MoyskladListResponse<T>>(`${path}${query ? `?${query}` : ""}`)
+}
+
+export function hasMoyskladErrorCode(error: unknown, targetCode: number): boolean {
+  if (!(error instanceof MoyskladApiError)) return false
+  return parseMoyskladErrors(error.body).some((e) => e.code === targetCode)
 }
 
 export function extractMoyskladId(value: unknown): string | null {
