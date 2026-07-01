@@ -71,6 +71,7 @@ interface PayloadOrderItemDoc {
 interface PayloadOrderDoc {
   id: string | number
   orderId?: string
+  createdAt?: string
   client?: PayloadClientDoc | string | number | null
   companyName?: string | null
   companyInn?: string | null
@@ -678,6 +679,7 @@ async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
     order: {
       id: order.id,
       orderId: order.orderId,
+      createdAt: order.createdAt,
       subtotal: numberValue(order.subtotal),
       discountAmount: numberValue(order.discountAmount),
       deliveryCost: numberValue(order.deliveryCost),
