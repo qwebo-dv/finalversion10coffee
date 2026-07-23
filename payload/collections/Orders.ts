@@ -78,25 +78,42 @@ export const Orders: CollectionConfig = {
           return Response.json({ ok: false, error: "Выгрузка заказов в МойСклад отключена" }, { status: 400 })
         }
 
-        try {
-          const result = await retryFailedMoyskladOrders(req.payload, {
-            includeAllUnexported: true,
-            includeExisting: true,
-            minAgeMs: 0,
-          })
+        const encoder = new TextEncoder()
+        const stream = new ReadableStream({
+          async start(controller) {
+            const send = (data: Record<string, unknown>) => {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+            }
 
-          return Response.json({ ok: result.failed === 0, ...result })
-        } catch (error) {
-          return Response.json(
-            {
-              ok: false,
-              error: error instanceof Error
-                ? error.message
-                : "Не удалось повторить выгрузку заказов в МойСклад",
-            },
-            { status: 500 }
-          )
-        }
+            try {
+              const result = await retryFailedMoyskladOrders(req.payload, {
+                includeAllUnexported: true,
+                includeExisting: true,
+                minAgeMs: 0,
+                onProgress: (event) => send(event),
+              })
+              send({ type: "final", ok: result.failed === 0, ...result })
+            } catch (error) {
+              send({
+                type: "final",
+                ok: false,
+                error: error instanceof Error
+                  ? error.message
+                  : "Не удалось повторить выгрузку заказов в МойСклад",
+              })
+            } finally {
+              controller.close()
+            }
+          },
+        })
+
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        })
       },
     },
   ],

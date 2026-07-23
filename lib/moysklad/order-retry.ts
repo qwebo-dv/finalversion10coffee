@@ -12,11 +12,25 @@ import type { CartItem, DeliveryMethod, Product, ProductDetailsSchema, ProductVa
 
 const RETRY_INTERVAL_MS = 5 * 60 * 1000
 
+export interface RetryProgressEvent {
+  type:
+    | "status"
+    | "order_start"
+    | "order_done"
+    | "error"
+    | "done"
+  orderId?: string
+  message: string
+  current?: number
+  total?: number
+}
+
 interface RetryOptions {
   limit?: number
-  minAgeMs?: number
-  includeAllUnexported?: boolean
   includeExisting?: boolean
+  includeAllUnexported?: boolean
+  minAgeMs?: number
+  onProgress?: (event: RetryProgressEvent) => void
 }
 
 interface PayloadClientDoc {
@@ -817,19 +831,29 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
     toSync.push(order)
   }
 
+  const emit = options.onProgress || (() => {})
   const retried: { id: string | number; orderId?: string; success: boolean; error?: string }[] = []
 
-  for (const order of toSync) {
+  emit({ type: "status", message: `Загружено ${orders.length} заказов, проверяю кандидатов...`, total: toSync.length, current: 0 })
+
+  for (let i = 0; i < toSync.length; i++) {
+    const order = toSync[i]
+    const progress = { current: i + 1, total: toSync.length }
+    emit({ type: "order_start", orderId: order.orderId, message: `Выгружаю заказ ${order.orderId}...`, ...progress })
+
     try {
       const syncResult = await retryOrder(payload, order)
       if ("error" in syncResult && syncResult.error) {
         retried.push({ id: order.id, orderId: order.orderId, success: false, error: syncResult.error })
+        emit({ type: "order_done", orderId: order.orderId, message: `${order.orderId}: ошибка — ${syncResult.error}`, ...progress })
       } else {
         retried.push({ id: order.id, orderId: order.orderId, success: true })
+        emit({ type: "order_done", orderId: order.orderId, message: `${order.orderId}: готово`, ...progress })
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Не удалось повторить синхронизацию заказа с МойСклад"
       retried.push({ id: order.id, orderId: order.orderId, success: false, error: message })
+      emit({ type: "order_done", orderId: order.orderId, message: `${order.orderId}: ошибка — ${message}`, ...progress })
 
       await payload.update({
         collection: "orders",
@@ -850,6 +874,16 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
     }
   }
 
+  const succeeded = retried.filter((item) => item.success).length
+  const failed = retried.filter((item) => !item.success).length
+
+  emit({
+    type: "done",
+    message: failed === 0
+      ? `Готово: отправлено ${succeeded}, ошибок ${failed}`
+      : `Готово: отправлено ${succeeded}, ошибок ${failed}`,
+  })
+
   return {
     checked: orders.length,
     retryable: retryable.length,
@@ -857,7 +891,7 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
     skipped,
     synced: toSync.length,
     retried,
-    succeeded: retried.filter((item) => item.success).length,
-    failed: retried.filter((item) => !item.success).length,
+    succeeded,
+    failed,
   }
 }
