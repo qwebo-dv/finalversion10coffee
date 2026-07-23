@@ -4,7 +4,6 @@ import { normalizeProductDetailsSchema } from "@/lib/product-types"
 import { calculateClientDiscount, normalizeCategoryDiscounts, normalizeDiscountPercent, type CategoryDiscountRule } from "@/lib/discounts"
 import { syncOrderToMoysklad, MoyskladTrashedOrderError } from "./sync"
 import { writeMoyskladLog } from "./logs"
-import { computeOrderContentHash } from "./order-hash"
 import { getMoyskladConfig } from "./config"
 import { moyskladGetList, moyskladMeta } from "./client"
 import type { MoyskladCustomerOrder } from "./types"
@@ -747,6 +746,7 @@ async function fetchMoyskladOrderExternalCodes(): Promise<Set<string>> {
     const rows = result.rows || []
     for (const row of rows) {
       if (row.externalCode) codes.add(String(row.externalCode))
+      if (row.name) codes.add(String(row.name))
     }
     if (rows.length < pageSize) break
   }
@@ -764,14 +764,15 @@ async function fetchMoyskladOrderExternalCodes(): Promise<Set<string>> {
  */
 function isOrderUpToDateInMoysklad(
   order: PayloadOrderDoc,
-  moyskladExternalCodes: Set<string> | null
+  moyskladKeys: Set<string> | null
 ): boolean {
-  if (order.moyskladSyncStatus !== "synced") return false
-  if (!order.moyskladCustomerOrderId?.trim()) return false
-  if (!order.moyskladSyncedHash) return false
-  if (computeOrderContentHash(order) !== order.moyskladSyncedHash) return false
-  if (moyskladExternalCodes && !moyskladExternalCodes.has(String(order.id))) return false
-  return true
+  // Если заказ уже есть в МойСклад (по имени 10C-xxxxx или по externalCode) —
+  // повторно не выгружаем, просто пропускаем. Заодно убирает ошибку 3006
+  // (нарушение уникальности name при попытке создать дубль).
+  if (!moyskladKeys) return false
+  if (order.orderId && moyskladKeys.has(order.orderId)) return true
+  if (moyskladKeys.has(String(order.id))) return true
+  return false
 }
 
 export async function retryFailedMoyskladOrders(payload: Payload, options: RetryOptions = {}) {
