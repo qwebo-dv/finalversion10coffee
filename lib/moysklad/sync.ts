@@ -3,6 +3,7 @@ import { dbQuery } from "@/lib/db"
 import { getMoyskladConfig, assertMoyskladReady } from "./config"
 import { hasMoyskladErrorCode, MoyskladApiError, extractMoyskladId, moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
 import { writeMoyskladLog } from "./logs"
+import { computeOrderContentHash } from "./order-hash"
 import { DELIVERY_METHOD_LABELS } from "@/lib/utils/constants"
 import { ensureMoyskladBundleForVariant } from "./bundles"
 import type {
@@ -1111,6 +1112,21 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
     }
     if (moyskladInvoiceOutId) {
       updateData.paymentStatus = "invoiced"
+    }
+
+    // Store a content hash of the order as it was successfully synced. The
+    // "Повторить/обновить выгрузку" action uses it to skip orders that are
+    // already in MoySklad and unchanged, instead of re-pushing every order.
+    try {
+      const storedOrder = await params.payload.findByID({
+        collection: "orders",
+        id: orderId,
+        depth: 0,
+      })
+      updateData.moyskladSyncedHash = computeOrderContentHash(storedOrder as Parameters<typeof computeOrderContentHash>[0])
+    } catch {
+      // Non-fatal: if the hash cannot be computed the order will simply be
+      // re-synced on the next manual retry.
     }
 
     await params.payload.update({

@@ -338,6 +338,17 @@ export const Orders: CollectionConfig = {
         readOnly: true,
       },
     },
+    {
+      name: "moyskladSyncedHash",
+      type: "text",
+      label: "Хэш выгрузки",
+      admin: {
+        position: "sidebar",
+        readOnly: true,
+        hidden: true,
+        description: "Служебное поле: хэш состава заказа на момент успешной выгрузки в МойСклад.",
+      },
+    },
 
     // === Main content (tabs) ===
     {
