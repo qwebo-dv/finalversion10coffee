@@ -741,6 +741,14 @@ async function findInvoiceOutByExternalCode(externalCode: string) {
   return result.rows[0] || null
 }
 
+async function deleteMoyskladEntity(entityPath: string) {
+  try {
+    await moyskladRequest(entityPath, { method: "DELETE" })
+  } catch {
+    // Best-effort: if deletion fails we still move on to create a fresh document.
+  }
+}
+
 async function createInvoiceOut(params: {
   order: SyncOrder
   counterpartyId: string
@@ -787,9 +795,9 @@ async function createInvoiceOut(params: {
       }
     } catch (error) {
       if (isMoyskladTrashOperationError(error)) {
-        throw new Error(buildTrashOperationMessage("Счёт", invoiceId, params.order.orderId || String(params.order.id)))
-      }
-      if (hasMoyskladErrorCode(error, 1021)) {
+        await deleteMoyskladEntity(`entity/invoiceout/${invoiceId}`)
+        invoiceId = null
+      } else if (hasMoyskladErrorCode(error, 1021)) {
         invoiceId = null
       } else {
         throw error
@@ -797,15 +805,36 @@ async function createInvoiceOut(params: {
     }
   }
 
-  const created = await moyskladRequest<MoyskladInvoiceOut>("entity/invoiceout", {
-    method: "POST",
-    body: JSON.stringify(invoiceBody),
-  })
+  try {
+    const created = await moyskladRequest<MoyskladInvoiceOut>("entity/invoiceout", {
+      method: "POST",
+      body: JSON.stringify(invoiceBody),
+    })
 
-  return {
-    invoice: created,
-    invoiceId: extractMoyskladId(created),
-    payload: invoiceBody,
+    return {
+      invoice: created,
+      invoiceId: extractMoyskladId(created),
+      payload: invoiceBody,
+    }
+  } catch (error) {
+    if (!hasMoyskladErrorCode(error, 3006)) throw error
+
+    const conflicting = await findInvoiceOutByExternalCode(externalCode).catch(() => null)
+    const conflictingId = extractMoyskladId(conflicting)
+    if (conflictingId) {
+      await deleteMoyskladEntity(`entity/invoiceout/${conflictingId}`)
+    }
+
+    const created = await moyskladRequest<MoyskladInvoiceOut>("entity/invoiceout", {
+      method: "POST",
+      body: JSON.stringify(invoiceBody),
+    })
+
+    return {
+      invoice: created,
+      invoiceId: extractMoyskladId(created),
+      payload: invoiceBody,
+    }
   }
 }
 
@@ -1043,9 +1072,17 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
         orderMessage = "Заказ уже существовал в МойСклад, позиции и суммы обновлены"
       } catch (error) {
         if (isMoyskladTrashOperationError(error)) {
-          throw new Error(buildTrashOperationMessage("Заказ", moyskladOrderId, params.order.orderId || String(orderId)))
-        }
-        if (hasMoyskladErrorCode(error, 1021)) {
+          await deleteMoyskladEntity(`entity/customerorder/${moyskladOrderId}`)
+          moyskladOrderId = null
+          if (config.defaultOrderStateId) {
+            body.state = { meta: moyskladMeta("state", config.defaultOrderStateId) }
+          }
+          await params.payload.update({
+            collection: "orders",
+            id: orderId,
+            data: { moyskladCustomerOrderId: null, moyskladInvoiceOutId: null },
+          }).catch(() => {})
+        } else if (hasMoyskladErrorCode(error, 1021)) {
           moyskladOrderId = null
           if (config.defaultOrderStateId) {
             body.state = { meta: moyskladMeta("state", config.defaultOrderStateId) }
@@ -1062,10 +1099,25 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
     }
 
     if (!moyskladOrderId) {
-      orderResponse = await moyskladRequest<MoyskladCustomerOrder>("entity/customerorder", {
-        method: "POST",
-        body: JSON.stringify(body),
-      })
+      try {
+        orderResponse = await moyskladRequest<MoyskladCustomerOrder>("entity/customerorder", {
+          method: "POST",
+          body: JSON.stringify(body),
+        })
+      } catch (error) {
+        if (!hasMoyskladErrorCode(error, 3006)) throw error
+
+        const conflicting = await findCustomerOrderByExternalCode(String(orderId)).catch(() => null)
+        const conflictingId = extractMoyskladId(conflicting)
+        if (conflictingId) {
+          await deleteMoyskladEntity(`entity/customerorder/${conflictingId}`)
+        }
+
+        orderResponse = await moyskladRequest<MoyskladCustomerOrder>("entity/customerorder", {
+          method: "POST",
+          body: JSON.stringify(body),
+        })
+      }
       moyskladOrderId = extractMoyskladId(orderResponse)
     }
 
