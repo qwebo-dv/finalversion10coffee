@@ -4,6 +4,10 @@ import { normalizeProductDetailsSchema } from "@/lib/product-types"
 import { calculateClientDiscount, normalizeCategoryDiscounts, normalizeDiscountPercent, type CategoryDiscountRule } from "@/lib/discounts"
 import { syncOrderToMoysklad } from "./sync"
 import { writeMoyskladLog } from "./logs"
+import { computeOrderContentHash } from "./order-hash"
+import { getMoyskladConfig } from "./config"
+import { moyskladGetList, moyskladMeta } from "./client"
+import type { MoyskladCustomerOrder } from "./types"
 import type { CartItem, DeliveryMethod, Product, ProductDetailsSchema, ProductVariant } from "@/types"
 
 const RETRY_INTERVAL_MS = 5 * 60 * 1000
@@ -88,6 +92,7 @@ interface PayloadOrderDoc {
   moyskladInvoiceOutId?: string | null
   moyskladSyncStatus?: string | null
   moyskladSyncError?: string | null
+  moyskladSyncedHash?: string | null
   updatedAt?: string
   items?: PayloadOrderItemDoc[]
 }
@@ -703,6 +708,58 @@ async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
   })
 }
 
+/**
+ * Fetches the set of externalCodes of customer orders that already exist in
+ * MoySklad. Site orders are pushed with externalCode = local order id and under
+ * the configured organization, so the list is bounded to that organization.
+ * One (rarely a few) paginated list calls replace a per-order search.
+ */
+async function fetchMoyskladOrderExternalCodes(): Promise<Set<string>> {
+  const config = getMoyskladConfig()
+  const codes = new Set<string>()
+  const pageSize = 1000
+  const maxPages = 50
+
+  const baseParams: Record<string, string | number> = { limit: pageSize }
+  if (config.organizationId) {
+    baseParams.filter = `organization=${moyskladMeta("organization", config.organizationId).href}`
+  }
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const result = await moyskladGetList<MoyskladCustomerOrder>("entity/customerorder", {
+      ...baseParams,
+      offset: page * pageSize,
+    })
+    const rows = result.rows || []
+    for (const row of rows) {
+      if (row.externalCode) codes.add(String(row.externalCode))
+    }
+    if (rows.length < pageSize) break
+  }
+
+  return codes
+}
+
+/**
+ * True when the order is already correctly synced to MoySklad and does not need
+ * to be re-pushed: it is marked synced, has a MoySklad order id, its current
+ * content hash matches the hash stored at the last successful sync, and — when
+ * we managed to fetch the MoySklad list — it is still present there. If the
+ * MoySklad list could not be fetched (null), the presence check is skipped and
+ * the decision falls back to the local synced + unchanged signal.
+ */
+function isOrderUpToDateInMoysklad(
+  order: PayloadOrderDoc,
+  moyskladExternalCodes: Set<string> | null
+): boolean {
+  if (order.moyskladSyncStatus !== "synced") return false
+  if (!order.moyskladCustomerOrderId?.trim()) return false
+  if (!order.moyskladSyncedHash) return false
+  if (computeOrderContentHash(order) !== order.moyskladSyncedHash) return false
+  if (moyskladExternalCodes && !moyskladExternalCodes.has(String(order.id))) return false
+  return true
+}
+
 export async function retryFailedMoyskladOrders(payload: Payload, options: RetryOptions = {}) {
   const limit = options.limit || (options.includeAllUnexported ? 100 : 25)
   const minAgeMs = options.minAgeMs ?? RETRY_INTERVAL_MS
@@ -738,9 +795,31 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
 
   const retryable = orders.filter((order) => isRetryableMoyskladOrder(order, includeAllUnexported, includeExisting))
   const candidates = retryable.filter((order) => isRetryDue(order, minAgeMs, includeAllUnexported, includeExisting))
+
+  // Compare-first: for the manual "Повторить/обновить выгрузку" action we fetch
+  // the set of orders already present in MoySklad once, then skip every
+  // candidate that is already synced, unchanged (same content hash) and still
+  // present in MoySklad. Only new / changed / failed / missing orders go
+  // through the expensive per-order sync, so re-running the action when nothing
+  // changed finishes in seconds instead of re-pushing every order.
+  const compareWithMoysklad = includeExisting || includeAllUnexported
+  const moyskladExternalCodes = compareWithMoysklad
+    ? await fetchMoyskladOrderExternalCodes().catch(() => null)
+    : null
+
+  const toSync: PayloadOrderDoc[] = []
+  let skipped = 0
+  for (const order of candidates) {
+    if (compareWithMoysklad && isOrderUpToDateInMoysklad(order, moyskladExternalCodes)) {
+      skipped += 1
+      continue
+    }
+    toSync.push(order)
+  }
+
   const retried: { id: string | number; orderId?: string; success: boolean; error?: string }[] = []
 
-  for (const order of candidates) {
+  for (const order of toSync) {
     try {
       const syncResult = await retryOrder(payload, order)
       if ("error" in syncResult && syncResult.error) {
@@ -775,6 +854,8 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
     checked: orders.length,
     retryable: retryable.length,
     due: candidates.length,
+    skipped,
+    synced: toSync.length,
     retried,
     succeeded: retried.filter((item) => item.success).length,
     failed: retried.filter((item) => !item.success).length,
