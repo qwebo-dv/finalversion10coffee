@@ -62,7 +62,7 @@ export function getMoyskladConfig(): MoyskladConfig {
     createInvoiceOnOrder: readBoolean(process.env.MOYSKLAD_CREATE_INVOICE_ON_ORDER, true),
     createCounterparties: readBoolean(process.env.MOYSKLAD_CREATE_COUNTERPARTIES, true),
     createSalesChannel: readBoolean(process.env.MOYSKLAD_CREATE_SALES_CHANNEL, true),
-    vatEnabled: readBoolean(process.env.MOYSKLAD_VAT_ENABLED, false),
+    vatEnabled: readBoolean(process.env.MOYSKLAD_VAT_ENABLED, true),
     vatIncluded: readBoolean(process.env.MOYSKLAD_VAT_INCLUDED, true),
     defaultVat: readNumber(process.env.MOYSKLAD_DEFAULT_VAT, 0),
   }
