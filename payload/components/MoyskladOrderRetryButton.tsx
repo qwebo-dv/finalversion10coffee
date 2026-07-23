@@ -7,6 +7,7 @@ interface RetryOrderResult {
   orderId?: string
   success: boolean
   error?: string
+  skipped?: boolean
 }
 
 interface LogEntry {
@@ -22,6 +23,7 @@ interface FinalResult {
   due?: number
   succeeded?: number
   failed?: number
+  trashedSkipped?: number
   retried?: RetryOrderResult[]
 }
 
@@ -107,7 +109,7 @@ export default function MoyskladOrderRetryButton() {
   }
 
   const pct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0
-  const failedOrders = final?.retried?.filter((item) => !item.success) || []
+  const failedOrders = final?.retried?.filter((item) => !item.success && !item.skipped) || []
 
   return (
     <div
@@ -212,14 +214,14 @@ export default function MoyskladOrderRetryButton() {
           {final.ok ? (
             <span>
               Готово: проверено {final.checked || 0}, к выгрузке {final.retryable || 0}, отправлено{" "}
-              {final.succeeded || 0}, ошибок {final.failed || 0}.
+              {final.succeeded || 0}, пропущено {final.trashedSkipped || 0}, ошибок {final.failed || 0}.
             </span>
           ) : (
             <div>
               <div>{final.error || "Повторная синхронизация завершилась с ошибками"}</div>
               <div style={{ marginTop: "6px" }}>
                 Проверено {final.checked || 0}, к выгрузке {final.retryable || 0}, отправлено {final.succeeded || 0},
-                ошибок {final.failed || 0}.
+                пропущено {final.trashedSkipped || 0}, ошибок {final.failed || 0}.
               </div>
               {failedOrders.length > 0 && (
                 <ul style={{ margin: "8px 0 0", paddingLeft: "18px" }}>

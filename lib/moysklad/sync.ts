@@ -137,6 +137,13 @@ function normalizeMoyskladDiscount(value: unknown) {
   return Math.round(bounded * 100) / 100
 }
 
+export class MoyskladTrashedOrderError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "MoyskladTrashedOrderError"
+  }
+}
+
 function isMoyskladTrashOperationError(error: unknown) {
   if (!(error instanceof MoyskladApiError)) return false
 
@@ -741,6 +748,24 @@ async function findInvoiceOutByExternalCode(externalCode: string) {
   return result.rows[0] || null
 }
 
+async function findArchivedInvoiceOutByExternalCode(externalCode: string) {
+  const result = await moyskladGetList<MoyskladInvoiceOut>("entity/invoiceout", {
+    filter: `externalCode=${externalCode};archived=true`,
+    limit: 1,
+  })
+
+  return result.rows[0] || null
+}
+
+async function findArchivedCustomerOrderByExternalCode(externalCode: string) {
+  const result = await moyskladGetList<MoyskladCustomerOrder>("entity/customerorder", {
+    filter: `externalCode=${externalCode};archived=true`,
+    limit: 1,
+  })
+
+  return result.rows[0] || null
+}
+
 async function deleteMoyskladEntity(entityPath: string) {
   try {
     await moyskladRequest(entityPath, { method: "DELETE" })
@@ -819,7 +844,7 @@ async function createInvoiceOut(params: {
   } catch (error) {
     if (!hasMoyskladErrorCode(error, 3006)) throw error
 
-    const conflicting = await findInvoiceOutByExternalCode(externalCode).catch(() => null)
+    const conflicting = await findArchivedInvoiceOutByExternalCode(externalCode).catch(() => null)
     const conflictingId = extractMoyskladId(conflicting)
     if (conflictingId) {
       await deleteMoyskladEntity(`entity/invoiceout/${conflictingId}`)
@@ -1072,17 +1097,11 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
         orderMessage = "Заказ уже существовал в МойСклад, позиции и суммы обновлены"
       } catch (error) {
         if (isMoyskladTrashOperationError(error)) {
-          await deleteMoyskladEntity(`entity/customerorder/${moyskladOrderId}`)
-          moyskladOrderId = null
-          if (config.defaultOrderStateId) {
-            body.state = { meta: moyskladMeta("state", config.defaultOrderStateId) }
-          }
-          await params.payload.update({
-            collection: "orders",
-            id: orderId,
-            data: { moyskladCustomerOrderId: null, moyskladInvoiceOutId: null },
-          }).catch(() => {})
-        } else if (hasMoyskladErrorCode(error, 1021)) {
+          throw new MoyskladTrashedOrderError(
+            `Заказ ${params.order.orderId || String(orderId)} находится в корзине МойСклад, пропущен`
+          )
+        }
+        if (hasMoyskladErrorCode(error, 1021)) {
           moyskladOrderId = null
           if (config.defaultOrderStateId) {
             body.state = { meta: moyskladMeta("state", config.defaultOrderStateId) }
@@ -1107,7 +1126,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       } catch (error) {
         if (!hasMoyskladErrorCode(error, 3006)) throw error
 
-        const conflicting = await findCustomerOrderByExternalCode(String(orderId)).catch(() => null)
+        const conflicting = await findArchivedCustomerOrderByExternalCode(String(orderId)).catch(() => null)
         const conflictingId = extractMoyskladId(conflicting)
         if (conflictingId) {
           await deleteMoyskladEntity(`entity/customerorder/${conflictingId}`)

@@ -2,7 +2,7 @@ import type { Payload } from "payload"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { normalizeProductDetailsSchema } from "@/lib/product-types"
 import { calculateClientDiscount, normalizeCategoryDiscounts, normalizeDiscountPercent, type CategoryDiscountRule } from "@/lib/discounts"
-import { syncOrderToMoysklad } from "./sync"
+import { syncOrderToMoysklad, MoyskladTrashedOrderError } from "./sync"
 import { writeMoyskladLog } from "./logs"
 import { computeOrderContentHash } from "./order-hash"
 import { getMoyskladConfig } from "./config"
@@ -832,7 +832,7 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
   }
 
   const emit = options.onProgress || (() => {})
-  const retried: { id: string | number; orderId?: string; success: boolean; error?: string }[] = []
+  const retried: { id: string | number; orderId?: string; success: boolean; error?: string; skipped?: boolean }[] = []
 
   emit({ type: "status", message: `Загружено ${orders.length} заказов, проверяю кандидатов...`, total: toSync.length, current: 0 })
 
@@ -851,6 +851,12 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
         emit({ type: "order_done", orderId: order.orderId, message: `${order.orderId}: готово`, ...progress })
       }
     } catch (error) {
+      if (error instanceof MoyskladTrashedOrderError) {
+        retried.push({ id: order.id, orderId: order.orderId, success: false, skipped: true, error: error.message })
+        emit({ type: "order_done", orderId: order.orderId, message: `${order.orderId}: пропущен (в корзине МойСклад)`, ...progress })
+        continue
+      }
+
       const message = error instanceof Error ? error.message : "Не удалось повторить синхронизацию заказа с МойСклад"
       retried.push({ id: order.id, orderId: order.orderId, success: false, error: message })
       emit({ type: "order_done", orderId: order.orderId, message: `${order.orderId}: ошибка — ${message}`, ...progress })
@@ -875,13 +881,14 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
   }
 
   const succeeded = retried.filter((item) => item.success).length
-  const failed = retried.filter((item) => !item.success).length
+  const skippedCount = retried.filter((item) => item.skipped).length
+  const failed = retried.filter((item) => !item.success && !item.skipped).length
 
   emit({
     type: "done",
     message: failed === 0
-      ? `Готово: отправлено ${succeeded}, ошибок ${failed}`
-      : `Готово: отправлено ${succeeded}, ошибок ${failed}`,
+      ? `Готово: отправлено ${succeeded}, пропущено ${skippedCount}, ошибок ${failed}`
+      : `Готово: отправлено ${succeeded}, пропущено ${skippedCount}, ошибок ${failed}`,
   })
 
   return {
@@ -893,5 +900,6 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
     retried,
     succeeded,
     failed,
+    trashedSkipped: skippedCount,
   }
 }
