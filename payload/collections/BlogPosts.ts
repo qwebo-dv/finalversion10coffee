@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { revalidatePath, revalidateTag } from "next/cache"
 
 export const BlogPosts: CollectionConfig = {
   slug: "blog_posts",
@@ -79,13 +80,20 @@ export const BlogPosts: CollectionConfig = {
       ({ data }) => {
         if (data) {
           const now = new Date()
-          // Дата/время публикации подставляются автоматически. Пустое или будущее
-          // значение → текущее время; вручную указанная прошедшая дата сохраняется.
           if (!data.publishedAt || new Date(data.publishedAt as string) > now) {
             data.publishedAt = now.toISOString()
           }
         }
         return data
+      },
+    ],
+    afterChange: [
+      ({ doc }) => {
+        try {
+          revalidatePath("/dashboard/blog")
+          revalidatePath(`/dashboard/blog/${doc.id}`)
+          revalidateTag("blog-posts-paginated")
+        } catch {}
       },
     ],
   },

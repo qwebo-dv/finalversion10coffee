@@ -363,6 +363,23 @@ export interface News {
 }
 
 // ============================================================
+// Blog Post
+// ============================================================
+
+export interface BlogPost {
+  id: string
+  title: string
+  slug: string
+  excerpt: string | null
+  content: unknown
+  coverImage: string | null
+  isPublished: boolean
+  publishedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================================
 // Client Settings
 // ============================================================
 

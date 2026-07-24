@@ -18,6 +18,7 @@ import {
   X,
   ShoppingBag,
   Newspaper,
+  BookOpen,
   Package,
   CheckCheck,
   Building2,
@@ -237,6 +238,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   { href: "/dashboard/orders", label: "Заказы", icon: Package },
                   { href: "/dashboard/companies", label: "Компании", icon: Building2 },
                   { href: "/dashboard/news", label: "Новости", icon: Newspaper },
+                  { href: "/dashboard/blog", label: "Блог", icon: BookOpen },
                   { href: "/dashboard/settings", label: "Настройки", icon: Settings },
                 ].map((item) => {
                   const Icon = item.icon
