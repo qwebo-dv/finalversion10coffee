@@ -7,7 +7,7 @@ import { Heart, Plus, Minus, Coffee } from "lucide-react"
 import { useCart } from "@/providers/cart-provider"
 import { toggleFavorite } from "@/lib/actions/products"
 import { cn } from "@/lib/utils"
-import { getTagBgClass } from "@/lib/utils/constants"
+import { getTagBgClass, getTagStyle } from "@/lib/utils/constants"
 import { toast } from "sonner"
 import type { Product, ProductVariant } from "@/types"
 
@@ -193,6 +193,7 @@ export function ProductTableRow({
                   "text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase",
                   getTagBgClass(tag.color)
                 )}
+                style={getTagStyle(tag.color)}
               >
                 {tag.name}
               </span>

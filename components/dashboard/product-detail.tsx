@@ -29,7 +29,7 @@ import { toggleFavorite } from "@/lib/actions/products"
 import { formatPrice } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { getTagBgClass } from "@/lib/utils/constants"
+import { getTagBgClass, getTagStyle } from "@/lib/utils/constants"
 import type { Product, ProductVariant } from "@/types"
 
 interface ProductDetailProps {
@@ -273,6 +273,7 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
                       "text-[11px] font-bold px-3 py-1 rounded-full shadow-lg",
                       getTagBgClass(tag.color)
                     )}
+                    style={getTagStyle(tag.color)}
                   >
                     {tag.name}
                   </span>

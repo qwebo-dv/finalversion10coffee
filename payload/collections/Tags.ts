@@ -34,21 +34,14 @@ export const Tags: CollectionConfig = {
     },
     {
       name: "color",
-      type: "select",
+      type: "text",
       label: "Цвет",
-      defaultValue: "orange",
-      options: [
-        { label: "Оранжевый", value: "orange" },
-        { label: "Фиолетовый", value: "purple" },
-        { label: "Зелёный", value: "green" },
-        { label: "Красный", value: "red" },
-        { label: "Синий", value: "blue" },
-        { label: "Жёлтый", value: "yellow" },
-        { label: "Розовый", value: "pink" },
-        { label: "Серый", value: "gray" },
-      ],
+      defaultValue: "#e6610d",
       admin: {
         position: "sidebar",
+        components: {
+          Field: "/payload/components/ColorPickerField",
+        },
       },
     },
   ],

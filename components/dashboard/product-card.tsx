@@ -15,7 +15,7 @@ import {
 import { useCart } from "@/providers/cart-provider"
 import { toggleFavorite } from "@/lib/actions/products"
 import { formatPrice } from "@/lib/utils/format"
-import { getTagBgClass } from "@/lib/utils/constants"
+import { getTagBgClass, getTagStyle } from "@/lib/utils/constants"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { Product, ProductVariant } from "@/types"
@@ -120,6 +120,7 @@ export function ProductCard({ product, isFavorite: initialFav, index = 0 }: Prod
                   "text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg border-0",
                   getTagBgClass(tag.color)
                 )}
+                style={getTagStyle(tag.color)}
               >
                 {tag.name}
               </Badge>

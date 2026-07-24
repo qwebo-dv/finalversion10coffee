@@ -41,7 +41,35 @@ export function getTagBgClass(color?: string): string {
   if (color === "yellow") return "bg-yellow-100 text-yellow-800"
   if (color === "pink") return "bg-pink-100 text-pink-700"
   if (color === "gray") return "bg-neutral-100 text-neutral-600"
+  if (color?.startsWith("#")) return "text-white"
   return "bg-[#faead5] text-[#e6610d]"
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const match = hex.replace("#", "").match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+  if (!match) return null
+  return { r: parseInt(match[1], 16), g: parseInt(match[2], 16), b: parseInt(match[3], 16) }
+}
+
+function lighten(hex: string, factor: number): string {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+  const r = Math.round(rgb.r + (255 - rgb.r) * factor)
+  const g = Math.round(rgb.g + (255 - rgb.g) * factor)
+  const b = Math.round(rgb.b + (255 - rgb.b) * factor)
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`
+}
+
+function getContrastText(hex: string): string {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return "#ffffff"
+  const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255
+  return luminance > 0.5 ? "#000000" : "#ffffff"
+}
+
+export function getTagStyle(color?: string): Record<string, string> | undefined {
+  if (!color?.startsWith("#")) return undefined
+  return { backgroundColor: lighten(color, 0.85), color: getContrastText(color) }
 }
 
 export const PRODUCT_TYPE_LABELS = {
