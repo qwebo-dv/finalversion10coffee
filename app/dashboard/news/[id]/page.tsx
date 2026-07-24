@@ -6,6 +6,8 @@ import Image from "next/image"
 import Link from "next/link"
 import type { News } from "@/types"
 
+export const dynamic = "force-dynamic"
+
 interface Props {
   params: Promise<{ id: string }>
 }

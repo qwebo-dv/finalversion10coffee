@@ -39,11 +39,19 @@ async function resolveMediaUrls<T extends NewsItemRecord>(items: T[]) {
 
   // Also collect media IDs from Lexical rich-text content (upload nodes)
   const contentMediaIds: number[] = []
+  const uploadMediaId = (node: LexicalNode): number | undefined => {
+    if (node.type !== "upload") return undefined
+    const v = node.value as unknown
+    if (typeof v === "number") return v
+    if (v && typeof v === "object" && typeof (v as { id?: unknown }).id === "number") {
+      return (v as { id: number }).id
+    }
+    return undefined
+  }
   function walkLexical(node: LexicalNode | null | undefined) {
     if (!node) return
-    if (node.type === "upload" && node.value?.id && typeof node.value.id === "number") {
-      contentMediaIds.push(node.value.id)
-    }
+    const uid = uploadMediaId(node)
+    if (typeof uid === "number") contentMediaIds.push(uid)
     if (Array.isArray(node.children)) {
       node.children.forEach(walkLexical)
     }
@@ -71,8 +79,9 @@ async function resolveMediaUrls<T extends NewsItemRecord>(items: T[]) {
   // Patch upload nodes in Lexical content with resolved src
   function patchLexical(node: LexicalNode | null | undefined): LexicalNode | null | undefined {
     if (!node) return node
-    if (node.type === "upload" && node.value?.id && typeof node.value.id === "number") {
-      const resolvedUrl = mediaMap.get(node.value.id)
+    const uid = uploadMediaId(node)
+    if (typeof uid === "number") {
+      const resolvedUrl = mediaMap.get(uid)
       if (resolvedUrl) {
         return { ...node, src: resolvedUrl }
       }
@@ -122,13 +131,13 @@ const getCachedNewsPaginated = unstable_cache(async (offset: number, limit: numb
     items: resolved as unknown as News[],
     total: count || 0,
   }
-}, ["news-paginated"], { revalidate: 60 })
+}, ["news-paginated"], { revalidate: 60, tags: ["news-paginated"] })
 
 export async function getNewsById(id: string): Promise<News | null> {
   return getCachedNewsById(id)
 }
 
-const getCachedNewsById = unstable_cache(async (id: string): Promise<News | null> => {
+async function getCachedNewsById(id: string): Promise<News | null> {
   const supabase = await createClient()
 
   const { data: item } = await supabase
@@ -142,4 +151,4 @@ const getCachedNewsById = unstable_cache(async (id: string): Promise<News | null
 
   const [resolved] = await resolveMediaUrls([item])
   return resolved as unknown as News
-}, ["news-by-id"], { revalidate: 60 })
+}

@@ -3,6 +3,8 @@ import { NewsLoadMore } from "@/components/dashboard/news-load-more"
 import { Newspaper } from "lucide-react"
 import type { News } from "@/types"
 
+export const dynamic = "force-dynamic"
+
 export default async function NewsPage() {
   const { items, total } = await getNewsPaginated(0, 10)
 

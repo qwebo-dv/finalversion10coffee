@@ -849,18 +849,20 @@ async function createInvoiceOut(params: {
     const conflictingId = extractMoyskladId(conflicting)
     if (conflictingId) {
       await deleteMoyskladEntity(`entity/invoiceout/${conflictingId}`)
+
+      const created = await moyskladRequest<MoyskladInvoiceOut>("entity/invoiceout", {
+        method: "POST",
+        body: JSON.stringify(invoiceBody),
+      })
+
+      return {
+        invoice: created,
+        invoiceId: extractMoyskladId(created),
+        payload: invoiceBody,
+      }
     }
 
-    const created = await moyskladRequest<MoyskladInvoiceOut>("entity/invoiceout", {
-      method: "POST",
-      body: JSON.stringify(invoiceBody),
-    })
-
-    return {
-      invoice: created,
-      invoiceId: extractMoyskladId(created),
-      payload: invoiceBody,
-    }
+    return null
   }
 }
 
@@ -1143,12 +1145,16 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
         const conflictingId = extractMoyskladId(conflicting)
         if (conflictingId) {
           await deleteMoyskladEntity(`entity/customerorder/${conflictingId}`)
-        }
 
-        orderResponse = await moyskladRequest<MoyskladCustomerOrder>("entity/customerorder", {
-          method: "POST",
-          body: JSON.stringify(body),
-        })
+          orderResponse = await moyskladRequest<MoyskladCustomerOrder>("entity/customerorder", {
+            method: "POST",
+            body: JSON.stringify(body),
+          })
+        } else {
+          throw new MoyskladTrashedOrderError(
+            `Заказ ${params.order.orderId || String(orderId)} не может быть создан: конфликт имени с документом в корзине МойСклад`
+          )
+        }
       }
       moyskladOrderId = extractMoyskladId(orderResponse)
     }
@@ -1180,10 +1186,12 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
         shipmentAddress: params.order.deliveryAddress,
         salesChannelId,
       })
-      moyskladInvoiceOutId = invoiceResult.invoiceId
-      moyskladInvoiceOutIdForUpdate = moyskladInvoiceOutId
-      invoiceResponse = invoiceResult.invoice
-      invoicePayload = invoiceResult.payload
+      if (invoiceResult) {
+        moyskladInvoiceOutId = invoiceResult.invoiceId
+        moyskladInvoiceOutIdForUpdate = moyskladInvoiceOutId
+        invoiceResponse = invoiceResult.invoice
+        invoicePayload = invoiceResult.payload
+      }
     }
 
     const updateData: Record<string, unknown> = {

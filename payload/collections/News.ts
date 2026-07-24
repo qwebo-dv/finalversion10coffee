@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { revalidatePath, revalidateTag } from "next/cache"
 
 export const News: CollectionConfig = {
   slug: "news",
@@ -87,6 +88,17 @@ export const News: CollectionConfig = {
           }
         }
         return data
+      },
+    ],
+    afterChange: [
+      ({ doc, operation }) => {
+        if (operation === "update" || operation === "create") {
+          try {
+            revalidatePath(`/dashboard/news`)
+            revalidatePath(`/dashboard/news/${doc.id}`)
+            revalidateTag("news-paginated")
+          } catch {}
+        }
       },
     ],
   },
