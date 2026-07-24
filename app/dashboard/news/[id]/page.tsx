@@ -20,6 +20,7 @@ interface LexicalNode {
   tag?: string
   listType?: string
   url?: string
+  fields?: { url?: string; newTab?: boolean }
   src?: string
   altText?: string
   value?: {
@@ -67,7 +68,7 @@ function renderLexicalNode(node: LexicalNode, i: number): React.ReactNode {
       return <li key={i}>{children}</li>
     case "link":
       return (
-        <a key={i} href={node.url} target="_blank" rel="noopener noreferrer" className="text-[#5b328a] underline">
+        <a key={i} href={node.fields?.url} target="_blank" rel="noopener noreferrer" className="text-[#5b328a] underline">
           {children}
         </a>
       )
