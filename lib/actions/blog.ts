@@ -144,7 +144,7 @@ export async function getBlogPostById(id: string): Promise<BlogPostRecord | null
   return withCover
 }
 
-export function revalidateBlogCache() {
+export async function revalidateBlogCache() {
   try {
     revalidateTag("blog-posts-paginated")
   } catch {}

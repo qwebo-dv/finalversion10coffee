@@ -162,14 +162,6 @@ function isMoyskladTrashOperationError(error: unknown) {
   })
 }
 
-function buildTrashOperationMessage(entityLabel: string, entityId: string, orderName: string) {
-  return [
-    `${entityLabel} ${orderName} уже связан с документом МойСклад ${entityId}, но этот документ находится в корзине.`,
-    "МойСклад запрещает обновлять операции из корзины.",
-    "Восстановите документ в МойСклад из корзины и запустите повторную синхронизацию либо очистите привязку МойСклад у заказа, если нужно создать документ заново.",
-  ].join(" ")
-}
-
 function rubToKopecks(value: number) {
   return Math.round((Number(value) || 0) * 100)
 }
