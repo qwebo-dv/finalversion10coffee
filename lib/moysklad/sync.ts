@@ -604,7 +604,8 @@ export function buildMoyskladStockLossLines(cartItems: CartItem[]) {
 async function buildCustomerPositions(
   cartItems: CartItem[],
   deliveryCost: number,
-  discountLines: MoyskladDiscountLine[] = []
+  discountLines: MoyskladDiscountLine[] = [],
+  positionVat = 0
 ) {
   const config = getMoyskladConfig()
   const discountByItem = new Map(
@@ -637,7 +638,7 @@ async function buildCustomerPositions(
 
       const discount = discountByItem.get(item.id) || 0
       if (discount > 0) position.discount = discount
-      if (config.defaultVat > 0) position.vat = config.defaultVat
+      if (positionVat > 0) position.vat = positionVat
 
       positions.push(position)
       compositionLines.push(
@@ -671,7 +672,7 @@ async function buildCustomerPositions(
 
     const discount = discountByItem.get(item.id) || 0
     if (discount > 0) position.discount = discount
-    if (config.defaultVat > 0) position.vat = config.defaultVat
+    if (positionVat > 0) position.vat = positionVat
 
     positions.push(position)
   }
@@ -689,7 +690,7 @@ async function buildCustomerPositions(
       },
     }
 
-    if (config.defaultVat > 0) deliveryPosition.vat = config.defaultVat
+    if (positionVat > 0) deliveryPosition.vat = positionVat
     positions.push(deliveryPosition)
   }
 
@@ -1038,10 +1039,22 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
     const counterpartyId = await ensureCounterparty(params.payload, params.client, params.company)
     counterpartyIdForUpdate = counterpartyId
     const salesChannelId = await ensureSalesChannel()
+    let positionVat = config.defaultVat
+    if (config.vatEnabled && positionVat <= 0) {
+      try {
+        const siteSettings = await params.payload.findGlobal({ slug: "site-settings" })
+        positionVat = Number((siteSettings as { vatPercent?: number | string }).vatPercent) || 0
+      } catch {
+        positionVat = 0
+      }
+    }
+    if (!config.vatEnabled) positionVat = 0
+
     const { positions, skipped, compositionLines } = await buildCustomerPositions(
       params.cartItems,
       Number(params.order.deliveryCost) || 0,
-      params.discountLines || []
+      params.discountLines || [],
+      positionVat
     )
 
     if (skipped.length > 0) {
