@@ -7,6 +7,7 @@ import { Heart, Plus, Minus, Coffee } from "lucide-react"
 import { useCart } from "@/providers/cart-provider"
 import { toggleFavorite } from "@/lib/actions/products"
 import { cn } from "@/lib/utils"
+import { getTagBgClass } from "@/lib/utils/constants"
 import { toast } from "sonner"
 import type { Product, ProductVariant } from "@/types"
 
@@ -190,7 +191,7 @@ export function ProductTableRow({
                 key={tag.id}
                 className={cn(
                   "text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase",
-                  tag.color === "purple" ? "bg-[#faead5] text-[#5b328a]" : "bg-[#faead5] text-[#e6610d]"
+                  getTagBgClass(tag.color)
                 )}
               >
                 {tag.name}

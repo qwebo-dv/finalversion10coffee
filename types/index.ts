@@ -37,7 +37,7 @@ export interface ProductTag {
   id: string
   name: string
   slug: string
-  color?: "orange" | "purple" | "green"
+  color?: string
 }
 
 export type NotificationType = "order_update" | "news" | "product_restock"
