@@ -1,17 +1,16 @@
 "use client"
 
 import { useField } from "@payloadcms/ui"
-import type { TextFieldClientProps } from "payload"
 
 const PRESET_COLORS = [
-  { name: "Оранжевый", value: "#e6610d", bg: "#faead5", text: "#5b328a" },
-  { name: "Фиолетовый", value: "#7c3aed", bg: "#ede9fe", text: "#5b21b6" },
-  { name: "Зелёный", value: "#16a34a", bg: "#dcfce7", text: "#166534" },
-  { name: "Красный", value: "#dc2626", bg: "#fee2e2", text: "#991b1b" },
-  { name: "Синий", value: "#2563eb", bg: "#dbeafe", text: "#1e40af" },
-  { name: "Жёлтый", value: "#ca8a04", bg: "#fef9c3", text: "#854d0e" },
-  { name: "Розовый", value: "#db2777", bg: "#fce7f3", text: "#9d174d" },
-  { name: "Серый", value: "#6b7280", bg: "#f3f4f6", text: "#374151" },
+  { name: "Оранжевый", value: "#e6610d" },
+  { name: "Фиолетовый", value: "#7c3aed" },
+  { name: "Зелёный", value: "#16a34a" },
+  { name: "Красный", value: "#dc2626" },
+  { name: "Синий", value: "#2563eb" },
+  { name: "Жёлтый", value: "#ca8a04" },
+  { name: "Розовый", value: "#db2777" },
+  { name: "Серый", value: "#6b7280" },
 ]
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -27,8 +26,8 @@ function getContrastColor(hex: string): string {
   return luminance > 0.5 ? "#000000" : "#ffffff"
 }
 
-export default function ColorPickerField({ field, path }: TextFieldClientProps) {
-  const { value, setValue } = useField<string>({ path: path || field.name })
+export default function ColorPickerField({ path }: { path: string }) {
+  const { value, setValue } = useField<string>({ path })
 
   return (
     <div className="space-y-3">
