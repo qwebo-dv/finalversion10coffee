@@ -3,9 +3,6 @@ import { default as default_b29d5d4bafbb0e734603f6b3f2ac2235 } from '../../../pa
 import { default as default_c8d81c80c3d2740af2d1d7f821470379 } from '../../../payload/components/MoyskladCatalogSyncButton'
 import { default as default_ae28d88f8f82cd60af7c36e6bdf5678a } from '../../../payload/components/MoyskladOrderRetryButton'
 import { default as ColorPickerField_custom } from '../../../payload/components/ColorPickerField'
-import { default as OrderItemProductPicker_custom } from '../../../payload/components/OrderItemProductPicker'
-import { default as OrderClientCompanyField_custom } from '../../../payload/components/OrderClientCompanyField'
-import { default as OrderSubtotalField_custom } from '../../../payload/components/OrderSubtotalField'
 import { RscEntryLexicalCell as RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { RscEntryLexicalField as RscEntryLexicalField_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { LexicalDiffComponent as LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
@@ -39,9 +36,6 @@ export const importMap = {
   "/payload/components/MoyskladCatalogSyncButton#default": default_c8d81c80c3d2740af2d1d7f821470379,
   "/payload/components/MoyskladOrderRetryButton#default": default_ae28d88f8f82cd60af7c36e6bdf5678a,
   "/payload/components/ColorPickerField#default": ColorPickerField_custom,
-  "/payload/components/OrderItemProductPicker#default": OrderItemProductPicker_custom,
-  "/payload/components/OrderClientCompanyField#default": OrderClientCompanyField_custom,
-  "/payload/components/OrderSubtotalField#default": OrderSubtotalField_custom,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalField": RscEntryLexicalField_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/rsc#LexicalDiffComponent": LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e,
