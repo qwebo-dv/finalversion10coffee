@@ -59,6 +59,7 @@ export const News: CollectionConfig = {
       name: "publishedAt",
       type: "date",
       label: "Дата публикации",
+      defaultValue: () => new Date().toISOString(),
       admin: {
         position: "sidebar",
         date: {
@@ -77,8 +78,13 @@ export const News: CollectionConfig = {
     beforeChange: [
       ({ data }) => {
         // Auto-set publishedAt when first published
-        if (data?.isPublished && !data?.publishedAt) {
-          data.publishedAt = new Date().toISOString()
+        if (data) {
+          const now = new Date()
+          // Дата/время публикации подставляются автоматически. Пустое или будущее
+          // значение → текущее время; вручную указанная прошедшая дата сохраняется.
+          if (!data.publishedAt || new Date(data.publishedAt as string) > now) {
+            data.publishedAt = now.toISOString()
+          }
         }
         return data
       },

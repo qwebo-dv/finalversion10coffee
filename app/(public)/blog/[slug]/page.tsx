@@ -44,16 +44,22 @@ interface LexicalNode {
 function renderLexicalNode(node: LexicalNode, i: number): React.ReactNode {
   if (node.text !== undefined) {
     let el: React.ReactNode = node.text
-    if (node.format && node.format & 1) el = <strong key={i}>{el}</strong>
-    if (node.format && node.format & 2) el = <em key={i}>{el}</em>
+    const f = node.format || 0
+    if (f & 1) el = <strong key={i}>{el}</strong>
+    if (f & 2) el = <em key={i}>{el}</em>
+    if (f & 8) el = <u key={i}>{el}</u>
+    if (f & 4) el = <s key={i}>{el}</s>
+    if (f & 16) el = <code key={i}>{el}</code>
     return el
   }
+
+  if (node.type === "linebreak") return <br key={i} />
 
   const children = node.children?.map((child, ci) => renderLexicalNode(child, ci))
 
   switch (node.type) {
     case "paragraph":
-      return <p key={i}>{children}</p>
+      return <p key={i}>{node.children && node.children.length > 0 ? children : <br />}</p>
     case "heading": {
       const tag = node.tag || "h3"
       if (tag === "h1") return <h1 key={i}>{children}</h1>
@@ -94,6 +100,8 @@ function renderLexicalNode(node: LexicalNode, i: number): React.ReactNode {
     }
     case "quote":
       return <blockquote key={i}>{children}</blockquote>
+    case "horizontalrule":
+      return <hr key={i} />
     default:
       return children ? <div key={i}>{children}</div> : null
   }

@@ -3,6 +3,7 @@
 import { getPayload } from "payload"
 import configPromise from "@payload-config"
 import { unstable_cache } from "next/cache"
+import { resolveLexicalMedia } from "@/lib/lexical-media"
 
 const getCachedBlogPosts = unstable_cache(async (page = 1, limit = 9) => {
   const payload = await getPayload({ config: configPromise })
@@ -43,7 +44,8 @@ const getCachedBlogPost = unstable_cache(async (slug: string) => {
     depth: 1,
   })
 
-  return result.docs[0] || null
+  const doc = result.docs[0] || null
+  return doc ? await resolveLexicalMedia(doc, payload) : null
 }, ["blog-post"], { revalidate: 300 })
 
 export async function getBlogPost(slug: string) {
