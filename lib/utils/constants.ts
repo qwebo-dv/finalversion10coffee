@@ -60,16 +60,10 @@ function lighten(hex: string, factor: number): string {
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`
 }
 
-function getContrastText(hex: string): string {
-  const rgb = hexToRgb(hex)
-  if (!rgb) return "#ffffff"
-  const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255
-  return luminance > 0.5 ? "#000000" : "#ffffff"
-}
 
 export function getTagStyle(color?: string): Record<string, string> | undefined {
   if (!color?.startsWith("#")) return undefined
-  return { backgroundColor: lighten(color, 0.85), color: getContrastText(color) }
+  return { backgroundColor: lighten(color, 0.85), color }
 }
 
 export const PRODUCT_TYPE_LABELS = {

@@ -193,7 +193,8 @@ function isNonEmptyString(value: string | null | undefined): value is string {
 }
 
 function normalizeTagColor(color: string | undefined): ProductTag["color"] {
-  return color === "orange" || color === "purple" || color === "green" ? color : undefined
+  const value = color?.trim()
+  return value ? value : undefined
 }
 
 function transformTag(tag: PayloadTag | string | number | null): ProductTag | null {
