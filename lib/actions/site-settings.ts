@@ -10,6 +10,7 @@ export async function getSiteSettings() {
     return settings as {
       loginAnnouncement?: string
       loginAnnouncementEnabled?: boolean
+      priceListFile?: { url?: string; filename?: string } | null
       priceListUrl?: string
       priceListForm?: {
         emailFile?: { url?: string; filename?: string }
