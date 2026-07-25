@@ -69,13 +69,12 @@ export async function submitPriceListRequest(
 
     const attachments: nodemailer.SendMailOptions["attachments"] = [];
 
-    // Priority 1: dedicated email attachment, then the public download file.
+    // Priority 1: uploaded media file from priceListForm.emailFile
     const emailFile = settings?.priceListForm?.emailFile;
-    const uploadedFile = emailFile?.url ? emailFile : settings?.priceListFile;
-    if (uploadedFile?.url) {
+    if (emailFile?.url) {
       attachments.push({
-        filename: uploadedFile.filename || "Прайс-лист 10кофе.pdf",
-        path: uploadedFile.url,
+        filename: emailFile.filename || "Прайс-лист 10кофе.pdf",
+        path: emailFile.url,
         contentType: "application/pdf",
       });
     } else {
