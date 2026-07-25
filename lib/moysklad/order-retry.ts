@@ -101,6 +101,7 @@ interface PayloadOrderDoc {
   deliveryAddress?: string | null
   subtotal?: number | string
   discountAmount?: number | string
+  discountPercent?: number | string | null
   promoCode?: unknown
   deliveryCost?: number | string
   total?: number | string
@@ -599,7 +600,16 @@ function buildDiscountLines(order: PayloadOrderDoc, cartItems: CartItem[], clien
     }))
   }
 
-  const discountPercent = normalizeRetryDiscountPercent((discountAmount / subtotal) * 100)
+  // Prefer the order's own stored percent (as typed by the admin, or
+  // auto-filled from client/promo) over recomputing it from
+  // discountAmount/subtotal. discountAmount is rounded to whole rubles when
+  // saved, so reconstructing the percent from it drifts slightly (e.g. a
+  // clean 20% becomes 19.99%) — there's no reason for that drift when the
+  // exact percent the admin entered is already on hand.
+  const storedPercent = numberValue(order.discountPercent)
+  const discountPercent = storedPercent > 0
+    ? normalizeRetryDiscountPercent(storedPercent)
+    : normalizeRetryDiscountPercent((discountAmount / subtotal) * 100)
   return cartItems.map((item) => ({
     cartItemId: item.id,
     discountPercent,
