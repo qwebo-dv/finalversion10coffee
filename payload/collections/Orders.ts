@@ -196,7 +196,13 @@ export const Orders: CollectionConfig = {
       type: "number",
       label: "Сумма товаров",
       required: true,
-      admin: { position: "sidebar" },
+      admin: {
+        position: "sidebar",
+        description: "Автоматически суммируется из позиций заказа (можно скорректировать вручную).",
+        components: {
+          Field: "/payload/components/OrderSubtotalField",
+        },
+      },
     },
     {
       name: "discountPercent",
@@ -419,6 +425,15 @@ export const Orders: CollectionConfig = {
               ],
             },
             {
+              name: "clientCompanyPicker",
+              type: "ui",
+              admin: {
+                components: {
+                  Field: "/payload/components/OrderClientCompanyField",
+                },
+              },
+            },
+            {
               type: "row",
               fields: [
                 {
@@ -493,6 +508,15 @@ export const Orders: CollectionConfig = {
               label: "Позиции",
               labels: { singular: "Позиция", plural: "Позиции" },
               fields: [
+                {
+                  name: "itemProductPicker",
+                  type: "ui",
+                  admin: {
+                    components: {
+                      Field: "/payload/components/OrderItemProductPicker",
+                    },
+                  },
+                },
                 {
                   type: "row",
                   fields: [
