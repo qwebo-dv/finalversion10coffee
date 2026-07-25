@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { label: "Обучение", href: "/obuchenie" },
   { label: "Сервис", href: "/b2b-servis" },
   { label: "Контакты", href: "/kontakty" },
+  { label: "Где попробовать", href: "#map", isMap: true },
   { label: "Опт", href: "/?auth=login" },
 ];
 
@@ -32,10 +33,11 @@ const SOCIAL_LINKS = [
 interface BurgerMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenMap?: () => void;
   pageRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export default function BurgerMenu({ isOpen, onClose, pageRef }: BurgerMenuProps) {
+export default function BurgerMenu({ isOpen, onClose, onOpenMap, pageRef }: BurgerMenuProps) {
   const pathname = usePathname();
   const router = useRouter();
   const lenis = useLenis();
@@ -185,7 +187,12 @@ export default function BurgerMenu({ isOpen, onClose, pageRef }: BurgerMenuProps
     }
   }, [pathname]);
 
-  const handleLinkClick = (href: string, external?: boolean) => {
+  const handleLinkClick = (href: string, external?: boolean, isMap?: boolean) => {
+    if (isMap) {
+      onClose();
+      setTimeout(() => onOpenMap?.(), 800);
+      return;
+    }
     if (external) {
       window.open(href, "_blank");
       return;
@@ -231,7 +238,7 @@ export default function BurgerMenu({ isOpen, onClose, pageRef }: BurgerMenuProps
                     onMouseEnter={() => setActiveImg(i)}
                     onClick={(e) => {
                       e.preventDefault();
-                      handleLinkClick(link.href);
+                      handleLinkClick(link.href, false, "isMap" in link && link.isMap);
                     }}
                   >
                     {link.label}

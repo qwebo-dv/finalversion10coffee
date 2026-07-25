@@ -93,7 +93,7 @@ export default function SiteHeader() {
         </div>
       </nav>
 
-      <BurgerMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} pageRef={{ current: null }} />
+      <BurgerMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} onOpenMap={() => setIsMapOpen(true)} pageRef={{ current: null }} />
       <MapModal isOpen={isMapOpen} onClose={() => setIsMapOpen(false)} />
     </>
   );
