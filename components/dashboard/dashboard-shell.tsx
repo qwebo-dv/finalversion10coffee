@@ -81,10 +81,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     getSiteSettings().then((s) => {
-      // Prefer the uploaded priceListFile (media library) over the legacy
-      // priceListUrl text field, which is kept only as a fallback.
-      const resolvedPriceListUrl = s?.priceListFile?.url || s?.priceListUrl || ""
-      if (resolvedPriceListUrl) setPriceListUrl(resolvedPriceListUrl)
+      if (s?.priceListUrl) setPriceListUrl(s.priceListUrl)
     })
     getClientDiscountConfig().then((config) => {
       setClientDiscount(config.discountPercent)

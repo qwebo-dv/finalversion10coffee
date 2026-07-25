@@ -69,21 +69,16 @@ export async function submitPriceListRequest(
 
     const attachments: nodemailer.SendMailOptions["attachments"] = [];
 
-    // Priority 1: uploaded media file from priceListForm.emailFile (specific
-    // to this form's email), Priority 2: the general priceListFile uploaded
-    // in site settings (same file used for the dashboard download button).
+    // Priority 1: uploaded media file from priceListForm.emailFile
     const emailFile = settings?.priceListForm?.emailFile;
-    const uploadedFile = emailFile?.url ? emailFile : settings?.priceListFile;
-    if (uploadedFile?.url) {
+    if (emailFile?.url) {
       attachments.push({
-        filename: uploadedFile.filename || "Прайс-лист 10кофе.pdf",
-        path: uploadedFile.url,
+        filename: emailFile.filename || "Прайс-лист 10кофе.pdf",
+        path: emailFile.url,
         contentType: "application/pdf",
       });
     } else {
-      // Priority 3: legacy local /public/ file from priceListUrl (kept for
-      // backward compatibility with settings saved before priceListFile
-      // existed as an upload field).
+      // Priority 2: local /public/ file from priceListUrl
       const priceListUrl = settings?.priceListUrl || "/Прайс 10coffee_ Март 2026г. (1).pdf";
       const relPath = decodeURIComponent(priceListUrl.replace(/^\//, ""));
       const filePath = path.join(process.cwd(), "public", relPath);
