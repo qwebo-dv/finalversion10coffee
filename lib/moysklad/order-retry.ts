@@ -860,7 +860,18 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
   const emit = options.onProgress || (() => {})
   const retried: { id: string | number; orderId?: string; success: boolean; error?: string; skipped?: boolean }[] = []
 
-  emit({ type: "status", message: `Загружено ${orders.length} заказов, проверяю кандидатов...`, total: toSync.length, current: 0 })
+  // Explicitly state whether this run is scoped to an admin selection or is
+  // the full background sweep — otherwise it is impossible to tell from the
+  // log alone whether an unrelated order showing up (e.g. a stuck trash
+  // conflict) belongs to the selection or was picked up by the full sweep.
+  emit({
+    type: "status",
+    message: orderIds
+      ? `Выборочная выгрузка: отмечено ${orderIds.length}, найдено в базе ${orders.length}...`
+      : `Загружено ${orders.length} заказов, проверяю кандидатов...`,
+    total: toSync.length,
+    current: 0,
+  })
 
   for (let i = 0; i < toSync.length; i++) {
     const order = toSync[i]

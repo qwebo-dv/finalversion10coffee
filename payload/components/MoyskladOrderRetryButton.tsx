@@ -39,17 +39,21 @@ export default function MoyskladOrderRetryButton() {
   // filtered list, not just the current page — in that case we don't have a
   // reliable client-side list of every id, so we fall back to the full sweep
   // (which already covers every order) instead of guessing a partial list.
-  const { count, selected, selectAll } = useSelection()
-  const selectedIds = selectAll === "allAvailable"
-    ? null
-    : Object.keys(selected).filter((id) => selected[id])
+  //
+  // Payload's `selected` is a Map<id, boolean>, not a plain object — using
+  // Object.keys() on it silently returns an empty array (Map entries aren't
+  // enumerable own properties), which was the actual bug here: the request
+  // always went out with no orderIds and silently fell back to a full sweep.
+  // `selectedIDs` is the hook's own already-reduced array of checked ids.
+  const { count, selectedIDs, selectAll } = useSelection()
+  const selectedIds = selectAll === "allAvailable" ? null : selectedIDs
   const hasExplicitSelection = count > 0 && selectAll !== "allAvailable"
 
   function appendLog(entry: LogEntry) {
     setLog((prev) => [...prev.slice(-99), entry])
   }
 
-  async function runRetry(orderIds?: string[]) {
+  async function runRetry(orderIds?: (string | number)[]) {
     setLoading(true)
     setLog([])
     setFinal(null)
