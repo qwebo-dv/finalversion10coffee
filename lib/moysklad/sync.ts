@@ -1234,6 +1234,13 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
     return { success: true as const, moyskladOrderId, moyskladInvoiceOutId }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Ошибка синхронизации с МойСклад"
+    // A trashed-document name conflict is not a sync failure the code can
+    // retry its way out of — it needs a human to resolve it in MoySklad's
+    // recycle bin (restore or permanently delete the conflicting document).
+    // We still record it as an error so it stays visible on the order, but
+    // flag it so callers (the bulk retry action) can report it as a
+    // "skipped" conflict instead of a generic failure.
+    const isTrashedConflict = error instanceof MoyskladTrashedOrderError
 
     const errorData: Record<string, unknown> = {
       moyskladSyncStatus: "error",
@@ -1258,6 +1265,6 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
     })
 
     console.error("[MoySklad] order sync failed:", message)
-    return { error: message }
+    return { error: message, trashed: isTrashedConflict }
   }
 }

@@ -870,8 +870,22 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
     try {
       const syncResult = await retryOrder(payload, order)
       if ("error" in syncResult && syncResult.error) {
-        retried.push({ id: order.id, orderId: order.orderId, success: false, error: syncResult.error })
-        emit({ type: "order_done", orderId: order.orderId, message: `${order.orderId}: ошибка — ${syncResult.error}`, ...progress })
+        // syncOrderToMoysklad() catches internally and always returns
+        // { error } rather than throwing, so a trashed-document name
+        // conflict (see MoyskladTrashedOrderError below) never reaches the
+        // catch block below in practice — it has to be detected here via the
+        // `trashed` flag instead. It's not a failure the retry can fix on
+        // its own, so it's reported as skipped rather than an error.
+        const isTrashedConflict = "trashed" in syncResult && Boolean(syncResult.trashed)
+        retried.push({ id: order.id, orderId: order.orderId, success: false, skipped: isTrashedConflict, error: syncResult.error })
+        emit({
+          type: "order_done",
+          orderId: order.orderId,
+          message: isTrashedConflict
+            ? `${order.orderId}: пропущен (в корзине МойСклад) — ${syncResult.error}`
+            : `${order.orderId}: ошибка — ${syncResult.error}`,
+          ...progress,
+        })
       } else {
         retried.push({ id: order.id, orderId: order.orderId, success: true })
         emit({ type: "order_done", orderId: order.orderId, message: `${order.orderId}: готово`, ...progress })
