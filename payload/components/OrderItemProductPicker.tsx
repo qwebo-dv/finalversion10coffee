@@ -10,12 +10,15 @@ interface ProductVariant {
   weightGrams?: number
   isAvailable?: boolean
   grindOptions?: string[]
+  moyskladId?: string | null
 }
 
 interface ProductDoc {
   id: string | number
   name?: string
   variants?: ProductVariant[]
+  moyskladId?: string | null
+  detailsSchema?: string | null
 }
 
 const GRIND_LABELS: Record<string, string> = {
@@ -27,6 +30,35 @@ function getSiblingPath(path: string, siblingName: string): string {
   const parts = path.split(".")
   parts[parts.length - 1] = siblingName
   return parts.join(".")
+}
+
+// Mirrors buildMoyskladStockLossLines() in lib/moysklad/sync.ts so that
+// manually created orders carry the same stock-loss/retry metadata that the
+// B2B checkout flow writes automatically. Without this, МойСклад retry sync
+// fails with "Нет сохранённых позиций заказа для повтора МойСклад" because
+// it has nothing to rebuild the order positions from.
+function computeStockFields(product: ProductDoc | undefined, variant: ProductVariant | undefined, quantity: number, price: number) {
+  const stockProductMoyskladId = product?.moyskladId || ""
+
+  const isCoffeeWeightItem =
+    product?.detailsSchema === "coffee" &&
+    Boolean(variant?.moyskladId) &&
+    Number(variant?.weightGrams) > 0
+
+  if (!isCoffeeWeightItem) {
+    return { stockProductMoyskladId, stockQuantityKg: 0, stockPricePerKg: 0 }
+  }
+
+  const weightKgPerPack = Number(variant?.weightGrams) / 1000
+  const quantityKg = weightKgPerPack * (Number(quantity) || 0)
+  const priceKopecks = Math.round((Number(price) || 0) * 100)
+  const pricePerKg = weightKgPerPack > 0 ? Math.round(priceKopecks / weightKgPerPack) : 0
+
+  return {
+    stockProductMoyskladId,
+    stockQuantityKg: Math.round(quantityKg * 1e6) / 1e6,
+    stockPricePerKg: pricePerKg,
+  }
 }
 
 const selectStyle: CSSProperties = {
@@ -50,12 +82,18 @@ export default function OrderItemProductPicker({ path }: { path: string }) {
   const grindOptionPath = getSiblingPath(path, "grindOption")
   const unitPricePath = getSiblingPath(path, "unitPrice")
   const totalPricePath = getSiblingPath(path, "totalPrice")
+  const stockProductMoyskladIdPath = getSiblingPath(path, "stockProductMoyskladId")
+  const stockQuantityKgPath = getSiblingPath(path, "stockQuantityKg")
+  const stockPricePerKgPath = getSiblingPath(path, "stockPricePerKg")
 
   const { setValue: setProductName } = useField<string>({ path: productNamePath })
   const { setValue: setVariantName } = useField<string>({ path: variantNamePath })
   const { value: grindOption, setValue: setGrindOption } = useField<string>({ path: grindOptionPath })
   const { setValue: setUnitPrice } = useField<number>({ path: unitPricePath })
   const { setValue: setTotalPrice } = useField<number>({ path: totalPricePath })
+  const { setValue: setStockProductMoyskladId } = useField<string>({ path: stockProductMoyskladIdPath })
+  const { setValue: setStockQuantityKg } = useField<number>({ path: stockQuantityKgPath })
+  const { setValue: setStockPricePerKg } = useField<number>({ path: stockPricePerKgPath })
 
   const quantity = useFormFields(([fields]) => fields?.[quantityPath]?.value) as number | undefined
   const unitPrice = useFormFields(([fields]) => fields?.[unitPricePath]?.value) as number | undefined
@@ -83,7 +121,13 @@ export default function OrderItemProductPicker({ path }: { path: string }) {
     return () => controller.abort()
   }, [])
 
-  // Recalculate totalPrice whenever quantity changes, using whatever unit
+  const selectedProduct = products.find((p) => String(p.id) === selectedProductId)
+  const variants = selectedProduct?.variants || []
+  const selectedVariant = selectedVariantIdx !== "" ? variants[Number(selectedVariantIdx)] : undefined
+  const grindOptions = selectedVariant?.grindOptions || []
+
+  // Recalculate totalPrice (and the МойСклад stock-loss fields, since they
+  // scale with quantity) whenever quantity changes, using whatever unit
   // price is currently set (respects manual overrides of unitPrice).
   useEffect(() => {
     if (skipRecalcRef.current) {
@@ -93,13 +137,15 @@ export default function OrderItemProductPicker({ path }: { path: string }) {
     const q = Number(quantity) || 0
     const p = Number(unitPrice) || 0
     setTotalPrice(Math.round(q * p * 100) / 100)
+
+    if (selectedProduct && selectedVariant) {
+      const stock = computeStockFields(selectedProduct, selectedVariant, q, p)
+      setStockProductMoyskladId(stock.stockProductMoyskladId)
+      setStockQuantityKg(stock.stockQuantityKg)
+      setStockPricePerKg(stock.stockPricePerKg)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quantity])
-
-  const selectedProduct = products.find((p) => String(p.id) === selectedProductId)
-  const variants = selectedProduct?.variants || []
-  const selectedVariant = selectedVariantIdx !== "" ? variants[Number(selectedVariantIdx)] : undefined
-  const grindOptions = selectedVariant?.grindOptions || []
 
   function applyVariant(product: ProductDoc | undefined, variant: ProductVariant | undefined) {
     if (!product || !variant) return
@@ -109,6 +155,11 @@ export default function OrderItemProductPicker({ path }: { path: string }) {
     setVariantName(variant.name || "")
     setUnitPrice(price)
     setTotalPrice(Math.round(q * price * 100) / 100)
+
+    const stock = computeStockFields(product, variant, q, price)
+    setStockProductMoyskladId(stock.stockProductMoyskladId)
+    setStockQuantityKg(stock.stockQuantityKg)
+    setStockPricePerKg(stock.stockPricePerKg)
 
     const options = variant.grindOptions || []
     if (options.length === 1) {
