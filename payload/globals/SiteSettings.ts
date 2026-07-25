@@ -22,12 +22,23 @@ export const SiteSettings: GlobalConfig = {
       defaultValue: false,
     },
     {
+      name: "priceListFile",
+      type: "upload",
+      relationTo: "media",
+      label: "Прайс-лист для скачивания",
+      filterOptions: {
+        mimeType: { equals: "application/pdf" },
+      },
+      admin: {
+        description: "Выберите загруженный PDF-файл или загрузите новый. Он будет доступен клиентам для скачивания.",
+      },
+    },
+    {
       name: "priceListUrl",
       type: "text",
-      label: "Ссылка на прайс-лист",
+      label: "Ссылка на прайс-лист (устаревшее поле)",
       admin: {
-        description: "URL для скачивания прайс-листа (PDF).",
-        placeholder: "/prais-list.pdf",
+        hidden: true,
       },
     },
     {
