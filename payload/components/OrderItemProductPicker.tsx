@@ -97,8 +97,30 @@ export default function OrderItemProductPicker({ path }: { path: string }) {
 
   const quantity = useFormFields(([fields]) => fields?.[quantityPath]?.value) as number | undefined
   const unitPrice = useFormFields(([fields]) => fields?.[unitPricePath]?.value) as number | undefined
+  const savedProductName = useFormFields(([fields]) => fields?.[productNamePath]?.value) as string | undefined
+  const savedVariantName = useFormFields(([fields]) => fields?.[variantNamePath]?.value) as string | undefined
 
   const skipRecalcRef = useRef(true)
+
+  // Existing order items (opened for editing) already have productName/
+  // variantName saved, but the local "which catalog product/variant is this"
+  // selection state below always starts empty — the dropdowns don't know
+  // which catalog entry the row corresponds to. Without this, editing just
+  // the quantity on an already-saved row can't recompute the МойСклад
+  // stock-loss fields (stockQuantityKg/stockPricePerKg), since that requires
+  // knowing the selected product/variant. Once products are loaded, match
+  // the saved names back to a catalog entry so quantity edits on existing
+  // rows recalculate correctly too.
+  useEffect(() => {
+    if (loading || selectedProductId || !savedProductName) return
+    const product = products.find((p) => p.name === savedProductName)
+    if (!product) return
+    setSelectedProductId(String(product.id))
+    if (savedVariantName) {
+      const idx = (product.variants || []).findIndex((v) => v.name === savedVariantName)
+      if (idx >= 0) setSelectedVariantIdx(String(idx))
+    }
+  }, [loading, products, savedProductName, savedVariantName, selectedProductId])
 
   useEffect(() => {
     const controller = new AbortController()

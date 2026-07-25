@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { normalizeProductDetailsSchema } from "@/lib/product-types"
 import { calculateClientDiscount, normalizeCategoryDiscounts, normalizeDiscountPercent, type CategoryDiscountRule } from "@/lib/discounts"
 import { syncOrderToMoysklad, MoyskladTrashedOrderError } from "./sync"
+import { computeOrderContentHash } from "./order-hash"
 import { writeMoyskladLog } from "./logs"
 import { getMoyskladConfig } from "./config"
 import { moyskladGetList, moyskladMeta } from "./client"
@@ -760,23 +761,29 @@ async function fetchMoyskladOrderExternalCodes(): Promise<Set<string>> {
 
 /**
  * True when the order is already correctly synced to MoySklad and does not need
- * to be re-pushed: it is marked synced, has a MoySklad order id, its current
- * content hash matches the hash stored at the last successful sync, and — when
- * we managed to fetch the MoySklad list — it is still present there. If the
- * MoySklad list could not be fetched (null), the presence check is skipped and
- * the decision falls back to the local synced + unchanged signal.
+ * to be re-pushed: it is present in MoySklad (by externalCode/name) AND its
+ * current content hash still matches the hash stored at the last successful
+ * sync. Presence alone is not enough — an admin can edit an order (e.g. change
+ * a quantity) after it was pushed, and that edit must still go out on the next
+ * retry even though the order already exists in MoySklad. If the MoySklad list
+ * could not be fetched (null), or the order has no stored hash yet, we do not
+ * risk a false "up to date" and fall through to re-sync.
  */
 function isOrderUpToDateInMoysklad(
   order: PayloadOrderDoc,
   moyskladKeys: Set<string> | null
 ): boolean {
-  // Если заказ уже есть в МойСклад (по имени 10C-xxxxx или по externalCode) —
-  // повторно не выгружаем, просто пропускаем. Заодно убирает ошибку 3006
-  // (нарушение уникальности name при попытке создать дубль).
+  // Если заказа нет в МойСклад — точно выгружаем, попутно это убирает ошибку
+  // 3006 (нарушение уникальности name при попытке создать дубль) для случая,
+  // когда заказ уже есть, но контент не менялся.
   if (!moyskladKeys) return false
-  if (order.orderId && moyskladKeys.has(order.orderId)) return true
-  if (moyskladKeys.has(String(order.id))) return true
-  return false
+  const presentInMoysklad =
+    (order.orderId ? moyskladKeys.has(order.orderId) : false) || moyskladKeys.has(String(order.id))
+  if (!presentInMoysklad) return false
+
+  if (!order.moyskladSyncedHash) return false
+  const currentHash = computeOrderContentHash(order)
+  return currentHash === order.moyskladSyncedHash
 }
 
 export async function retryFailedMoyskladOrders(payload: Payload, options: RetryOptions = {}) {
