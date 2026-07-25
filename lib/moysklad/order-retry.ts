@@ -30,6 +30,10 @@ interface RetryOptions {
   includeAllUnexported?: boolean
   minAgeMs?: number
   onProgress?: (event: RetryProgressEvent) => void
+  // Explicit set of order IDs to retry (checkbox bulk action in the admin
+  // list). When present, these orders are always treated as retryable/due,
+  // bypassing the status/age filters used by the background sweep.
+  orderIds?: (string | number)[]
 }
 
 interface PayloadClientDoc {
@@ -776,18 +780,23 @@ function isOrderUpToDateInMoysklad(
 }
 
 export async function retryFailedMoyskladOrders(payload: Payload, options: RetryOptions = {}) {
+  const orderIds = options.orderIds && options.orderIds.length > 0
+    ? Array.from(new Set(options.orderIds.map(String)))
+    : null
   const limit = options.limit || (options.includeAllUnexported ? 100 : 25)
   const minAgeMs = options.minAgeMs ?? RETRY_INTERVAL_MS
   const includeAllUnexported = options.includeAllUnexported || false
   const includeExisting = options.includeExisting || false
-  const where = includeAllUnexported || includeExisting
-    ? undefined
-    : {
-        or: [
-          { moyskladSyncStatus: { equals: "error" } },
-          { moyskladSyncStatus: { equals: "pending" } },
-        ],
-      }
+  const where = orderIds
+    ? { id: { in: orderIds } }
+    : includeAllUnexported || includeExisting
+      ? undefined
+      : {
+          or: [
+            { moyskladSyncStatus: { equals: "error" } },
+            { moyskladSyncStatus: { equals: "pending" } },
+          ],
+        }
 
   const orders: PayloadOrderDoc[] = []
   let page = 1
@@ -801,23 +810,32 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
       limit,
       page,
       depth: 1,
+      ...(orderIds ? { pagination: false as const } : {}),
     })
 
     orders.push(...(result.docs as PayloadOrderDoc[]))
     totalPages = Number(result.totalPages) || 1
     page += 1
-  } while ((includeAllUnexported || includeExisting) && page <= totalPages)
+  } while (!orderIds && (includeAllUnexported || includeExisting) && page <= totalPages)
 
-  const retryable = orders.filter((order) => isRetryableMoyskladOrder(order, includeAllUnexported, includeExisting))
-  const candidates = retryable.filter((order) => isRetryDue(order, minAgeMs, includeAllUnexported, includeExisting))
+  // Explicitly selected orders (checkbox bulk action in the admin list) are
+  // always treated as retryable/due — the admin picked them on purpose, so we
+  // skip the automatic status/age filtering used by the background sweep.
+  const retryable = orderIds
+    ? orders
+    : orders.filter((order) => isRetryableMoyskladOrder(order, includeAllUnexported, includeExisting))
+  const candidates = orderIds
+    ? orders
+    : retryable.filter((order) => isRetryDue(order, minAgeMs, includeAllUnexported, includeExisting))
 
-  // Compare-first: for the manual "Повторить/обновить выгрузку" action we fetch
-  // the set of orders already present in MoySklad once, then skip every
-  // candidate that is already synced, unchanged (same content hash) and still
-  // present in MoySklad. Only new / changed / failed / missing orders go
-  // through the expensive per-order sync, so re-running the action when nothing
-  // changed finishes in seconds instead of re-pushing every order.
-  const compareWithMoysklad = includeExisting || includeAllUnexported
+  // Compare-first: for the manual "Повторить/обновить выгрузку" action (and
+  // for an explicit selection) we fetch the set of orders already present in
+  // МойСклад once, then skip every candidate that is already synced,
+  // unchanged (same content hash) and still present in MoySklad. Only new /
+  // changed / failed / missing orders go through the expensive per-order
+  // sync, so re-running the action when nothing changed finishes in seconds
+  // instead of re-pushing every order.
+  const compareWithMoysklad = Boolean(orderIds) || includeExisting || includeAllUnexported
   const moyskladExternalCodes = compareWithMoysklad
     ? await fetchMoyskladOrderExternalCodes().catch(() => null)
     : null

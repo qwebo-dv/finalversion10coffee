@@ -78,6 +78,16 @@ export const Orders: CollectionConfig = {
           return Response.json({ ok: false, error: "Выгрузка заказов в МойСклад отключена" }, { status: 400 })
         }
 
+        let orderIds: (string | number)[] | undefined
+        try {
+          const body = await req.json?.()
+          if (Array.isArray(body?.orderIds) && body.orderIds.length > 0) {
+            orderIds = body.orderIds
+          }
+        } catch {
+          // No/invalid JSON body — fall back to the full background sweep.
+        }
+
         const encoder = new TextEncoder()
         const stream = new ReadableStream({
           async start(controller) {
@@ -90,6 +100,7 @@ export const Orders: CollectionConfig = {
                 includeAllUnexported: true,
                 includeExisting: true,
                 minAgeMs: 0,
+                orderIds,
                 onProgress: (event) => send(event),
               })
               send({ type: "final", ok: result.failed === 0, ...result })

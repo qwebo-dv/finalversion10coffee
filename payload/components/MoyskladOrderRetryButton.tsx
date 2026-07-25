@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useRef, useState } from "react"
+import { useSelection } from "@payloadcms/ui"
 
 interface RetryOrderResult {
   id: string | number
@@ -34,11 +35,21 @@ export default function MoyskladOrderRetryButton() {
   const [final, setFinal] = useState<FinalResult | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
+  // "allAvailable" means the admin clicked "Выбрать все (N)" across the whole
+  // filtered list, not just the current page — in that case we don't have a
+  // reliable client-side list of every id, so we fall back to the full sweep
+  // (which already covers every order) instead of guessing a partial list.
+  const { count, selected, selectAll } = useSelection()
+  const selectedIds = selectAll === "allAvailable"
+    ? null
+    : Object.keys(selected).filter((id) => selected[id])
+  const hasExplicitSelection = count > 0 && selectAll !== "allAvailable"
+
   function appendLog(entry: LogEntry) {
     setLog((prev) => [...prev.slice(-99), entry])
   }
 
-  async function runRetry() {
+  async function runRetry(orderIds?: string[]) {
     setLoading(true)
     setLog([])
     setFinal(null)
@@ -51,6 +62,8 @@ export default function MoyskladOrderRetryButton() {
         method: "POST",
         credentials: "include",
         signal: abort.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderIds && orderIds.length > 0 ? { orderIds } : {}),
       })
 
       if (!response.ok || !response.body) {
@@ -121,29 +134,52 @@ export default function MoyskladOrderRetryButton() {
         background: "#fff",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "center" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "center", flexWrap: "wrap" }}>
         <div>
           <h2 style={{ margin: "0 0 6px", fontSize: "18px" }}>МойСклад: заказы</h2>
           <p style={{ margin: 0, color: "#666", fontSize: "13px" }}>
-            Кнопка заново выгрузит неотправленные заказы и обновит уже созданные заказы в МойСклад.
+            {hasExplicitSelection
+              ? `Отмечено заказов: ${count}. Можно выгрузить только их, либо запустить полную проверку по всем заказам.`
+              : "Кнопка заново выгрузит неотправленные заказы и обновит уже созданные заказы в МойСклад."}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={loading ? cancelRetry : runRetry}
-          style={{
-            padding: "10px 16px",
-            borderRadius: "999px",
-            border: `1px solid ${loading ? "#999" : "#5b328a"}`,
-            background: loading ? "#f3f3f3" : "#5b328a",
-            color: loading ? "#333" : "#fff",
-            cursor: "pointer",
-            fontWeight: 600,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {loading ? "Отмена" : "Повторить/обновить выгрузку заказов"}
-        </button>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          {hasExplicitSelection && (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => runRetry(selectedIds || undefined)}
+              style={{
+                padding: "10px 16px",
+                borderRadius: "999px",
+                border: "1px solid #5b328a",
+                background: loading ? "#f3f3f3" : "#fff",
+                color: loading ? "#333" : "#5b328a",
+                cursor: loading ? "default" : "pointer",
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Выгрузить выбранные ({count})
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={loading ? cancelRetry : () => runRetry()}
+            style={{
+              padding: "10px 16px",
+              borderRadius: "999px",
+              border: `1px solid ${loading ? "#999" : "#5b328a"}`,
+              background: loading ? "#f3f3f3" : "#5b328a",
+              color: loading ? "#333" : "#fff",
+              cursor: "pointer",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {loading ? "Отмена" : "Повторить/обновить выгрузку заказов"}
+          </button>
+        </div>
       </div>
 
       {loading && (
