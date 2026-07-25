@@ -22,6 +22,15 @@ export const SiteSettings: GlobalConfig = {
       defaultValue: false,
     },
     {
+      name: "priceListDownloadFile",
+      type: "upload",
+      relationTo: "media",
+      label: "Файл прайс-листа для скачивания",
+      admin: {
+        description: "Выберите PDF из медиатеки или загрузите новый — ссылка для скачивания сформируется автоматически.",
+      },
+    },
+    {
       name: "priceListUrl",
       type: "text",
       label: "Ссылка на прайс-лист (устаревшее поле)",
@@ -37,10 +46,10 @@ export const SiteSettings: GlobalConfig = {
         {
           name: "emailFile",
           type: "upload",
-          label: "Прайс-лист (PDF)",
+          label: "PDF-файл для письма",
           relationTo: "media",
           admin: {
-            description: "Выберите или загрузите актуальный PDF. Этот файл скачивается с сайта и прикрепляется к письму клиенту.",
+            description: "Прайс-лист, который прикрепляется к письму клиенту. Загружайте сюда актуальный файл.",
           },
         },
         {

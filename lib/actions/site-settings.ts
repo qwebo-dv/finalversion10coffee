@@ -8,6 +8,7 @@ export async function getSiteSettings() {
     const payload = await getPayload({ config: configPromise })
     const settings = await payload.findGlobal({ slug: "site-settings" })
     const typedSettings = settings as typeof settings & {
+      priceListDownloadFile?: { url?: string; filename?: string } | string | number
       priceListUrl?: string
       priceListForm?: {
         emailFile?: { url?: string; filename?: string } | string | number
@@ -18,8 +19,8 @@ export async function getSiteSettings() {
       }
     }
     const uploadedPriceList =
-      typeof typedSettings.priceListForm?.emailFile === "object"
-        ? typedSettings.priceListForm.emailFile
+      typeof typedSettings.priceListDownloadFile === "object"
+        ? typedSettings.priceListDownloadFile
         : undefined
 
     return {
@@ -31,6 +32,7 @@ export async function getSiteSettings() {
       loginAnnouncement?: string
       loginAnnouncementEnabled?: boolean
       priceListUrl?: string
+      priceListDownloadFile?: { url?: string; filename?: string }
       priceListForm?: {
         emailFile?: { url?: string; filename?: string }
         senderName?: string
