@@ -229,43 +229,6 @@ export const Clients: CollectionConfig = {
                 },
               ],
             },
-            {
-              name: "productDiscounts",
-              type: "array",
-              label: "Скидки по товарам",
-              labels: {
-                singular: "Скидка по товарам",
-                plural: "Скидки по товарам",
-              },
-              admin: {
-                description: "Выберите один или несколько товаров из любых категорий. Товарная скидка имеет приоритет над скидкой категории и общей скидкой клиента.",
-              },
-              fields: [
-                {
-                  name: "products",
-                  type: "relationship",
-                  label: "Товары",
-                  relationTo: "products",
-                  hasMany: true,
-                  required: true,
-                  admin: {
-                    width: "70%",
-                    description: "Можно выбрать несколько товаров из разных категорий.",
-                  },
-                },
-                {
-                  name: "discountPercent",
-                  type: "number",
-                  label: "Скидка (%)",
-                  required: true,
-                  min: 0,
-                  max: 100,
-                  admin: {
-                    width: "30%",
-                  },
-                },
-              ],
-            },
           ],
         },
       ],

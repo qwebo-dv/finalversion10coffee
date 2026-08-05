@@ -688,8 +688,6 @@ export async function createOrder(params: {
   const items = cartItems.map((item) => {
     const stockLossLine = buildMoyskladStockLossLines([item])[0]
     const lineSubtotal = (item.variant?.price ?? 0) * item.quantity
-    const lineDiscountPercent = discountPercentByItem.get(item.id) || 0
-    const lineDiscountAmount = discountAmountByItem.get(item.id) || 0
 
     return {
       productName: item.product?.name || "",
@@ -698,8 +696,6 @@ export async function createOrder(params: {
       quantity: item.quantity,
       unitPrice: item.variant?.price ?? 0,
       totalPrice: lineSubtotal,
-      discountPercent: lineDiscountPercent,
-      discountAmount: lineDiscountAmount,
       stockProductMoyskladId: stockLossLine?.productMoyskladId || "",
       stockQuantityKg: stockLossLine?.quantityKg || 0,
       stockPricePerKg: stockLossLine?.pricePerKg || 0,

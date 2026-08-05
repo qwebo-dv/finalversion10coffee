@@ -174,16 +174,6 @@ export const PromoCodes: CollectionConfig = {
       label: "Описание (для менеджера)",
     },
     {
-      name: "applicableProducts",
-      type: "relationship",
-      label: "Товары, на которые действует промокод",
-      relationTo: "products",
-      hasMany: true,
-      admin: {
-        description: "Можно выбрать один или несколько товаров из разных категорий. Оставьте пустым, чтобы промокод действовал на весь заказ.",
-      },
-    },
-    {
       type: "row",
       fields: [
         {
