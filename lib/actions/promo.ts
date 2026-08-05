@@ -11,15 +11,23 @@ export type PromoValidationResult =
       discountType: "percentage" | "fixed_amount"
       discountValue: number
       calculatedDiscount: number
+      applicableProductIds: string[]
+      applicableProductNames: string[]
     }
   | {
       valid: false
       error: string
     }
 
+interface PromoCartLine {
+  productId: string
+  subtotal: number
+}
+
 export async function validatePromoCode(
   code: string,
-  subtotal: number
+  subtotal: number,
+  cartLines: PromoCartLine[] = []
 ): Promise<PromoValidationResult> {
   const payload = await getPayload({ config: configPromise })
   const supabase = await createClient()
@@ -57,7 +65,7 @@ export async function validatePromoCode(
     return { valid: false, error: "Промокод исчерпан" }
   }
 
-  if (promo.restrictedToEmail && user.email !== promo.restrictedToEmail) {
+  if (promo.restrictedToEmail && String(user.email || "").toLowerCase() !== String(promo.restrictedToEmail).toLowerCase()) {
     return {
       valid: false,
       error: "Промокод недоступен для вашего аккаунта",
@@ -89,12 +97,31 @@ export async function validatePromoCode(
 
   const discountType = promo.discountType as "percentage" | "fixed_amount"
   const discountValue = promo.discountValue as number
+  const applicableProductIds = Array.isArray(promo.applicableProducts)
+    ? (promo.applicableProducts as ({ id?: string | number } | string | number)[])
+      .map((value) => String(typeof value === "object" ? value.id ?? "" : value))
+      .filter(Boolean)
+    : []
+  const applicableProductNames = Array.isArray(promo.applicableProducts)
+    ? (promo.applicableProducts as ({ name?: string } | string | number)[])
+      .map((value) => typeof value === "object" ? String(value.name || "") : "")
+      .filter(Boolean)
+    : []
+  const eligibleSubtotal = applicableProductIds.length === 0
+    ? subtotal
+    : cartLines
+      .filter((line) => applicableProductIds.includes(line.productId))
+      .reduce((sum, line) => sum + line.subtotal, 0)
+
+  if (applicableProductIds.length > 0 && eligibleSubtotal <= 0) {
+    return { valid: false, error: "В корзине нет товаров, участвующих в промокоде" }
+  }
   let calculatedDiscount = 0
 
   if (discountType === "percentage") {
-    calculatedDiscount = Math.round((subtotal * discountValue) / 100)
+    calculatedDiscount = Math.round((eligibleSubtotal * discountValue) / 100)
   } else {
-    calculatedDiscount = Math.min(discountValue, subtotal)
+    calculatedDiscount = Math.min(discountValue, eligibleSubtotal)
   }
 
   return {
@@ -103,5 +130,7 @@ export async function validatePromoCode(
     discountType,
     discountValue,
     calculatedDiscount,
+    applicableProductIds,
+    applicableProductNames,
   }
 }

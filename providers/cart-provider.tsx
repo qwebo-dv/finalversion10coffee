@@ -23,6 +23,8 @@ interface AppliedPromo {
   discountAmount: number
   discountType: "percentage" | "fixed_amount"
   discountValue: number
+  applicableProductIds: string[]
+  applicableProductNames: string[]
 }
 
 interface CartContextValue {

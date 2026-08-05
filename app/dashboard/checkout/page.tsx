@@ -8,7 +8,7 @@ import { useCart } from "@/providers/cart-provider"
 import { createOrder } from "@/lib/actions/orders"
 import { getClientDiscountConfig } from "@/lib/actions/products"
 import { getClientCompanies } from "@/lib/actions/companies"
-import { calculateClientDiscount, type CategoryDiscountRule } from "@/lib/discounts"
+import { calculateClientDiscount, type CategoryDiscountRule, type ProductDiscountRule } from "@/lib/discounts"
 import { checkoutSchema, type CheckoutFormData } from "@/lib/utils/validators"
 import { getQuickComments } from "@/lib/actions/client-settings"
 import { Button } from "@/components/ui/button"
@@ -68,19 +68,34 @@ export default function CheckoutPage() {
   const { items, totalPrice, totalWeight, clearCart, appliedPromo } = useCart()
   const [clientDiscount, setClientDiscount] = useState(0)
   const [categoryDiscounts, setCategoryDiscounts] = useState<CategoryDiscountRule[]>([])
+  const [productDiscounts, setProductDiscounts] = useState<ProductDiscountRule[]>([])
+  const promoEligibleSubtotal = appliedPromo?.applicableProductIds.length
+    ? items
+      .filter((item) => appliedPromo.applicableProductIds.includes(item.product_id))
+      .reduce((sum, item) => sum + (item.variant?.price ?? 0) * item.quantity, 0)
+    : totalPrice
   const promoDiscount = appliedPromo
     ? appliedPromo.discountType === "percentage"
-      ? Math.round((totalPrice * appliedPromo.discountValue) / 100)
-      : Math.min(appliedPromo.discountValue, totalPrice)
+      ? Math.round((promoEligibleSubtotal * appliedPromo.discountValue) / 100)
+      : Math.min(appliedPromo.discountValue, promoEligibleSubtotal)
     : 0
   const clientDiscountResult = calculateClientDiscount(items, {
     discountPercent: clientDiscount,
     categoryDiscounts,
+    productDiscounts,
   })
   const clientDiscountAmount = clientDiscountResult.amount
+  const clientDiscountScopeNames = Array.from(new Set(
+    clientDiscountResult.lines
+      .filter((line) => line.source !== "base")
+      .map((line) => line.source === "product" ? line.productName : line.categoryName)
+      .filter((name): name is string => Boolean(name))
+  ))
   const currentDiscount = Math.max(promoDiscount, clientDiscountAmount)
   const activeDiscountLabel = currentDiscount > 0
-    ? (clientDiscountAmount > promoDiscount ? clientDiscountResult.label : "Скидка")
+    ? (clientDiscountAmount > promoDiscount
+      ? `${clientDiscountResult.label}${clientDiscountScopeNames.length ? ` · ${clientDiscountScopeNames.join(", ")}` : ""}`
+      : `Промокод${appliedPromo?.applicableProductNames.length ? ` · ${appliedPromo.applicableProductNames.join(", ")}` : ""}`)
     : ""
   const finalPrice = Math.max(0, totalPrice - currentDiscount)
   const [companies, setCompanies] = useState<Company[]>([])
@@ -131,6 +146,7 @@ export default function CheckoutPage() {
       if (comments.length > 0) setQuickComments(comments)
       setClientDiscount(discountConfig.discountPercent || 0)
       setCategoryDiscounts(discountConfig.categoryDiscounts)
+      setProductDiscounts(discountConfig.productDiscounts || [])
     }
 
     loadData()

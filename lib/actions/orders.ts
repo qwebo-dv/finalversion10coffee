@@ -10,7 +10,9 @@ import {
   calculateClientDiscount,
   normalizeCategoryDiscounts,
   normalizeDiscountPercent,
+  normalizeProductDiscounts,
   type CategoryDiscountRule,
+  type ProductDiscountRule,
 } from "@/lib/discounts"
 import { getRelationshipId } from "@/lib/product-types"
 import { revalidatePath } from "next/cache"
@@ -55,6 +57,8 @@ interface PayloadOrderItem {
   quantity?: number | string
   unitPrice?: number | string
   totalPrice?: number | string
+  discountPercent?: number | string
+  discountAmount?: number | string
   stockProductMoyskladId?: string | null
   stockQuantityKg?: number | string | null
   stockPricePerKg?: number | string | null
@@ -103,6 +107,10 @@ interface PayloadClientDoc {
   discountPercent?: number | string
   categoryDiscounts?: {
     category?: { id?: string | number; name?: string } | string | number | null
+    discountPercent?: number | string | null
+  }[] | null
+  productDiscounts?: {
+    products?: ({ id?: string | number; name?: string } | string | number)[] | null
     discountPercent?: number | string | null
   }[] | null
 }
@@ -171,9 +179,10 @@ function buildProportionalDiscountLines(cartItems: Awaited<ReturnType<typeof get
       return {
         cartItemId: item.id,
         discountPercent: normalizeOrderLineDiscount((lineDiscount / lineSubtotal) * 100),
+        discountAmount: lineDiscount,
       }
     })
-    .filter((line): line is { cartItemId: string; discountPercent: number } => Boolean(line))
+    .filter((line): line is { cartItemId: string; discountPercent: number; discountAmount: number } => Boolean(line))
 }
 
 async function sendOrderEmail(email: string, order: OrderEmailSummary, items: OrderEmailItem[], pdfBuffer?: Uint8Array) {
@@ -270,6 +279,9 @@ async function ensureB2bMoyskladSchema() {
       add column if not exists moysklad_stock_loss_id varchar,
       add column if not exists moysklad_stock_loss_synced_at timestamptz,
       add column if not exists moysklad_stock_loss_error text;
+    alter table public.order_items
+      add column if not exists discount_percent numeric default 0,
+      add column if not exists discount_amount numeric default 0;
     create index if not exists orders_moysklad_counterparty_id_idx
       on public.orders(moysklad_counterparty_id);
     create index if not exists orders_moysklad_invoice_out_id_idx
@@ -297,6 +309,7 @@ async function getClientDoc(supabaseUserId: string): Promise<{
   moyskladCounterpartyId?: string | null
   discountPercent: number
   categoryDiscounts: CategoryDiscountRule[]
+  productDiscounts: ProductDiscountRule[]
 } | null> {
   try {
     const payload = await getPayloadClient()
@@ -324,6 +337,20 @@ async function getClientDoc(supabaseUserId: string): Promise<{
         }
       })
       .filter((rule): rule is CategoryDiscountRule => rule !== null)
+    const productDiscounts = (client.productDiscounts || []).flatMap((rule) => {
+      const discountPercent = normalizeDiscountPercent(rule.discountPercent)
+      return (rule.products || [])
+        .map((product): ProductDiscountRule | null => {
+          const productId = getRelationshipId(product)
+          if (productId === null) return null
+          return {
+            productId: String(productId),
+            productName: typeof product === "object" && product !== null ? product.name : undefined,
+            discountPercent,
+          }
+        })
+        .filter((entry): entry is ProductDiscountRule => entry !== null)
+    })
 
     return {
       id: client.id,
@@ -333,6 +360,7 @@ async function getClientDoc(supabaseUserId: string): Promise<{
       moyskladCounterpartyId: client.moyskladCounterpartyId,
       discountPercent: normalizeDiscountPercent(client.discountPercent),
       categoryDiscounts: normalizeCategoryDiscounts(categoryDiscounts),
+      productDiscounts: normalizeProductDiscounts(productDiscounts),
     }
   } catch {
     return null
@@ -360,6 +388,8 @@ function transformOrderItem(item: PayloadOrderItem): OrderItem {
     quantity: Number(item.quantity) || 0,
     unit_price: Number(item.unitPrice) || 0,
     total_price: Number(item.totalPrice) || 0,
+    discount_percent: Number(item.discountPercent) || 0,
+    discount_amount: Number(item.discountAmount) || 0,
     weight_grams: null,
     stock_product_moysklad_id: item.stockProductMoyskladId || null,
     stock_quantity_kg: Number(item.stockQuantityKg) || null,
@@ -488,28 +518,91 @@ export async function createOrder(params: {
     return sum + (item.variant?.weight_grams ?? 0) * item.quantity
   }, 0)
 
-  // Apply personal client discount if no promo (or promo is smaller)
+  // Recalculate the promo on the server. Never trust the amount sent by the browser.
+  let payloadPromoId: string | number | undefined
+  let promoDiscountAmount = 0
+  let promoDiscountLines: { cartItemId: string; discountPercent: number; discountAmount: number }[] = []
+
+  if (params.promoCodeId) {
+    const payloadClient = await getPayloadClient()
+    const { docs } = await payloadClient.find({
+      collection: "promo-codes",
+      where: { id: { equals: params.promoCodeId } },
+      limit: 1,
+      depth: 0,
+    })
+    const promo = docs[0] as Record<string, unknown> | undefined
+    if (!promo) return { error: "Промокод не найден" }
+    if (!promo.isActive) return { error: "Промокод неактивен" }
+    if (promo.startsAt && new Date(promo.startsAt as string) > new Date()) return { error: "Промокод ещё не активен" }
+    if (promo.expiresAt && new Date(promo.expiresAt as string) < new Date()) return { error: "Промокод истёк" }
+    if (promo.maxUses != null && Number(promo.currentUses || 0) >= Number(promo.maxUses)) return { error: "Промокод исчерпан" }
+    if (promo.restrictedToEmail && String(promo.restrictedToEmail).toLowerCase() !== String(user.email || "").toLowerCase()) {
+      return { error: "Промокод недоступен для вашего аккаунта" }
+    }
+    if (promo.minOrderAmount && subtotal < Number(promo.minOrderAmount)) {
+      return { error: `Минимальная сумма заказа: ${Number(promo.minOrderAmount).toLocaleString("ru-RU")} ₽` }
+    }
+
+    if (promo.isSingleUse) {
+      const { data: usages } = await adminDb
+        .from("promo_code_usages")
+        .select("id")
+        .eq("promo_code_id", String(promo.id))
+        .eq("client_id", user.id)
+        .limit(1)
+      if (usages?.length) return { error: "Вы уже использовали этот промокод" }
+    }
+
+    const applicableProductIds = new Set(
+      (Array.isArray(promo.applicableProducts) ? promo.applicableProducts : [])
+        .map((value) => getRelationshipId(value))
+        .filter((value): value is string | number => value !== null)
+        .map(String)
+    )
+    const eligibleCartItems = applicableProductIds.size > 0
+      ? cartItems.filter((item) => applicableProductIds.has(String(item.product_id)))
+      : cartItems
+    const eligibleSubtotal = eligibleCartItems.reduce((sum, item) => {
+      return sum + (item.variant?.price ?? 0) * item.quantity
+    }, 0)
+    if (applicableProductIds.size > 0 && eligibleSubtotal <= 0) {
+      return { error: "В корзине нет товаров, участвующих в промокоде" }
+    }
+
+    const discountValue = Number(promo.discountValue) || 0
+    promoDiscountAmount = promo.discountType === "fixed_amount"
+      ? Math.min(discountValue, eligibleSubtotal)
+      : Math.round((eligibleSubtotal * discountValue) / 100)
+    promoDiscountLines = buildProportionalDiscountLines(eligibleCartItems, promoDiscountAmount)
+    payloadPromoId = promo.id as string | number
+  }
+
+  // Apply the greater of the personal discount and the validated promo.
   const clientDiscountResult = calculateClientDiscount(cartItems, {
     discountPercent: clientDoc.discountPercent,
     categoryDiscounts: clientDoc.categoryDiscounts,
+    productDiscounts: clientDoc.productDiscounts,
   })
   const clientDiscountAmount = clientDiscountResult.amount
-  const promoDiscountAmount = params.discountAmount ?? 0
   const discountAmount = Math.max(clientDiscountAmount, promoDiscountAmount)
-  const discountLines = promoDiscountAmount > clientDiscountAmount
-    ? buildProportionalDiscountLines(cartItems, promoDiscountAmount)
+  const promoWins = Boolean(payloadPromoId) && promoDiscountAmount > 0 && promoDiscountAmount >= clientDiscountAmount
+  const discountLines = promoWins
+    ? promoDiscountLines
     : clientDiscountResult.lines.map((line) => ({
         cartItemId: line.cartItemId,
         discountPercent: normalizeOrderLineDiscount(line.discountPercent),
+        discountAmount: line.discountAmount,
       }))
-  const appliedDiscountPercent = discountAmount === clientDiscountAmount &&
+  const appliedDiscountPercent = !promoWins && discountAmount === clientDiscountAmount &&
     clientDiscountResult.hasBaseDiscount &&
-    !clientDiscountResult.hasCategoryDiscount
+    !clientDiscountResult.hasCategoryDiscount &&
+    !clientDiscountResult.hasProductDiscount
     ? clientDoc.discountPercent
     : 0
 
   const deliveryCost = params.deliveryCost ?? 0
-  const total = subtotal - discountAmount + deliveryCost
+  const total = Math.max(0, subtotal - discountAmount) + deliveryCost
 
   // Resolve company name/inn from Supabase companies table
   let companyName: string | undefined
@@ -590,9 +683,13 @@ export async function createOrder(params: {
   }
 
   // Build items array for Payload
+  const discountPercentByItem = new Map(discountLines.map((line) => [line.cartItemId, line.discountPercent]))
+  const discountAmountByItem = new Map(discountLines.map((line) => [line.cartItemId, line.discountAmount]))
   const items = cartItems.map((item) => {
     const stockLossLine = buildMoyskladStockLossLines([item])[0]
     const lineSubtotal = (item.variant?.price ?? 0) * item.quantity
+    const lineDiscountPercent = discountPercentByItem.get(item.id) || 0
+    const lineDiscountAmount = discountAmountByItem.get(item.id) || 0
 
     return {
       productName: item.product?.name || "",
@@ -601,28 +698,13 @@ export async function createOrder(params: {
       quantity: item.quantity,
       unitPrice: item.variant?.price ?? 0,
       totalPrice: lineSubtotal,
+      discountPercent: lineDiscountPercent,
+      discountAmount: lineDiscountAmount,
       stockProductMoyskladId: stockLossLine?.productMoyskladId || "",
       stockQuantityKg: stockLossLine?.quantityKg || 0,
       stockPricePerKg: stockLossLine?.pricePerKg || 0,
     }
   })
-
-  // Resolve promo code Payload ID
-  let payloadPromoId: string | number | undefined
-  if (params.promoCodeId) {
-    try {
-      const payloadClient = await getPayloadClient()
-      const { docs } = await payloadClient.find({
-        collection: "promo-codes",
-        where: { id: { equals: params.promoCodeId } },
-        limit: 1,
-        depth: 0,
-      })
-      if (docs[0]) payloadPromoId = docs[0].id
-    } catch {
-      // Promo code not found in Payload, skip
-    }
-  }
 
   // Create order via Payload API
   const payload = await getPayloadClient()
@@ -642,7 +724,7 @@ export async function createOrder(params: {
   if (appliedDiscountPercent > 0) orderData.discountPercent = appliedDiscountPercent
   if (companyName) orderData.companyName = companyName
   if (companyInn) orderData.companyInn = companyInn
-  if (payloadPromoId) orderData.promoCode = payloadPromoId
+  if (promoWins && payloadPromoId) orderData.promoCode = payloadPromoId
 
   const doc = await payload.create({
     collection: "orders",
@@ -650,18 +732,24 @@ export async function createOrder(params: {
   }) as PayloadOrderDoc
 
   // Also populate order_items Supabase table (reliable source for repeat orders)
-  const orderItemsRows = cartItems.map((item) => ({
-    order_id: String(doc.id),
-    product_id: item.product_id,
-    variant_id: item.variant_id,
-    product_name: item.product?.name || "",
-    variant_name: item.variant?.name || "",
-    grind_option: item.grind_option || null,
-    quantity: item.quantity,
-    unit_price: item.variant?.price ?? 0,
-    total_price: (item.variant?.price ?? 0) * item.quantity,
-    weight_grams: item.variant?.weight_grams ?? null,
-  }))
+  const orderItemsRows = cartItems.map((item) => {
+    const lineSubtotal = (item.variant?.price ?? 0) * item.quantity
+    const lineDiscountPercent = discountPercentByItem.get(item.id) || 0
+    return {
+      order_id: String(doc.id),
+      product_id: item.product_id,
+      variant_id: item.variant_id,
+      product_name: item.product?.name || "",
+      variant_name: item.variant?.name || "",
+      grind_option: item.grind_option || null,
+      quantity: item.quantity,
+      unit_price: item.variant?.price ?? 0,
+      total_price: lineSubtotal,
+      discount_percent: lineDiscountPercent,
+      discount_amount: discountAmountByItem.get(item.id) || 0,
+      weight_grams: item.variant?.weight_grams ?? null,
+    }
+  })
 
   await adminDb.from("order_items").insert(orderItemsRows)
 
@@ -762,13 +850,13 @@ export async function createOrder(params: {
   })
 
   // Track promo code usage via Supabase
-  if (params.promoCodeId) {
+  if (promoWins && payloadPromoId) {
     await supabase.from("promo_code_usages").insert({
-      promo_code_id: params.promoCodeId,
+      promo_code_id: String(payloadPromoId),
       client_id: user.id,
       order_id: String(doc.id),
     })
-    await supabase.rpc("increment_promo_uses", { code_id: params.promoCodeId })
+    await supabase.rpc("increment_promo_uses", { code_id: String(payloadPromoId) })
   }
 
   revalidatePath("/dashboard")

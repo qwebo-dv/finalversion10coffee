@@ -6,19 +6,28 @@ export interface CategoryDiscountRule {
   discountPercent: number
 }
 
+export interface ProductDiscountRule {
+  productId: string
+  productName?: string
+  discountPercent: number
+}
+
 export interface ClientDiscountConfig {
   discountPercent: number
   categoryDiscounts: CategoryDiscountRule[]
+  productDiscounts?: ProductDiscountRule[]
 }
 
 export interface ClientDiscountLine {
   cartItemId: string
   categoryId: string
   categoryName?: string
+  productId: string
+  productName?: string
   subtotal: number
   discountPercent: number
   discountAmount: number
-  source: "category" | "base"
+  source: "product" | "category" | "base"
 }
 
 export interface ClientDiscountResult {
@@ -26,12 +35,14 @@ export interface ClientDiscountResult {
   label: string
   lines: ClientDiscountLine[]
   hasCategoryDiscount: boolean
+  hasProductDiscount: boolean
   hasBaseDiscount: boolean
 }
 
 export const EMPTY_CLIENT_DISCOUNT_CONFIG: ClientDiscountConfig = {
   discountPercent: 0,
   categoryDiscounts: [],
+  productDiscounts: [],
 }
 
 export function normalizeDiscountPercent(value: unknown): number {
@@ -60,6 +71,27 @@ export function normalizeCategoryDiscounts(rules: CategoryDiscountRule[]): Categ
   return Array.from(byCategory.values())
 }
 
+export function normalizeProductDiscounts(rules: ProductDiscountRule[]): ProductDiscountRule[] {
+  const byProduct = new Map<string, ProductDiscountRule>()
+
+  for (const rule of rules) {
+    const productId = String(rule.productId || "")
+    const discountPercent = normalizeDiscountPercent(rule.discountPercent)
+    if (!productId || discountPercent <= 0) continue
+
+    const existing = byProduct.get(productId)
+    if (!existing || discountPercent >= existing.discountPercent) {
+      byProduct.set(productId, {
+        productId,
+        productName: rule.productName,
+        discountPercent,
+      })
+    }
+  }
+
+  return Array.from(byProduct.values())
+}
+
 export function calculateClientDiscount(
   items: CartItem[],
   config: ClientDiscountConfig
@@ -67,6 +99,8 @@ export function calculateClientDiscount(
   const basePercent = normalizeDiscountPercent(config.discountPercent)
   const categoryRules = normalizeCategoryDiscounts(config.categoryDiscounts)
   const categoryRuleMap = new Map(categoryRules.map((rule) => [rule.categoryId, rule]))
+  const productRules = normalizeProductDiscounts(config.productDiscounts || [])
+  const productRuleMap = new Map(productRules.map((rule) => [rule.productId, rule]))
   const lines: ClientDiscountLine[] = []
 
   for (const item of items) {
@@ -74,12 +108,14 @@ export function calculateClientDiscount(
       ? item.product.category_ids
       : [item.product?.category_id || ""]
     const categoryId = categoryIds[0] || ""
+    const productId = String(item.product_id || item.product?.id || "")
     const subtotal = (item.variant?.price ?? 0) * item.quantity
+    const productRule = productRuleMap.get(productId)
     const categoryRule = categoryIds
       .map((id) => categoryRuleMap.get(id))
       .find((rule): rule is CategoryDiscountRule => Boolean(rule))
-    const discountPercent = categoryRule?.discountPercent ?? basePercent
-    const source = categoryRule ? "category" : "base"
+    const discountPercent = productRule?.discountPercent ?? categoryRule?.discountPercent ?? basePercent
+    const source = productRule ? "product" : categoryRule ? "category" : "base"
     const discountAmount = discountPercent > 0
       ? Math.round((subtotal * discountPercent) / 100)
       : 0
@@ -89,6 +125,8 @@ export function calculateClientDiscount(
         cartItemId: item.id,
         categoryId,
         categoryName: categoryRule?.categoryName,
+        productId,
+        productName: productRule?.productName || item.product?.name,
         subtotal,
         discountPercent,
         discountAmount,
@@ -99,9 +137,12 @@ export function calculateClientDiscount(
 
   const amount = lines.reduce((sum, line) => sum + line.discountAmount, 0)
   const hasCategoryDiscount = lines.some((line) => line.source === "category")
+  const hasProductDiscount = lines.some((line) => line.source === "product")
   const hasBaseDiscount = lines.some((line) => line.source === "base")
-  const label = hasCategoryDiscount
-    ? "Скидка по категориям"
+  const label = hasProductDiscount
+    ? "Скидка на выбранные товары"
+    : hasCategoryDiscount
+      ? "Скидка по категориям"
     : hasBaseDiscount
       ? `Скидка ${basePercent}%`
       : ""
@@ -111,6 +152,7 @@ export function calculateClientDiscount(
     label,
     lines,
     hasCategoryDiscount,
+    hasProductDiscount,
     hasBaseDiscount,
   }
 }

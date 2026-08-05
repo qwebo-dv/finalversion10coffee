@@ -11,8 +11,10 @@ import {
   EMPTY_CLIENT_DISCOUNT_CONFIG,
   normalizeCategoryDiscounts,
   normalizeDiscountPercent,
+  normalizeProductDiscounts,
   type CategoryDiscountRule,
   type ClientDiscountConfig,
+  type ProductDiscountRule,
 } from "@/lib/discounts"
 import type { Product, ProductVariant, ProductType, ProductTypeOption, ProductTag, AttachedFile, ProductDetailsSchema } from "@/types"
 
@@ -130,9 +132,15 @@ interface PayloadClientCategoryDiscount {
   discountPercent?: number | string | null
 }
 
+interface PayloadClientProductDiscount {
+  products?: ({ id?: string | number; name?: string } | string | number)[] | null
+  discountPercent?: number | string | null
+}
+
 interface PayloadClientDiscountDoc {
   discountPercent?: number | string | null
   categoryDiscounts?: PayloadClientCategoryDiscount[] | null
+  productDiscounts?: PayloadClientProductDiscount[] | null
 }
 
 interface PayloadCategoryDoc {
@@ -655,9 +663,26 @@ export async function getClientDiscountConfig(): Promise<ClientDiscountConfig> {
       })
       .filter((rule): rule is CategoryDiscountRule => rule !== null)
 
+    const productDiscounts = (client.productDiscounts || []).flatMap((rule) => {
+      const discountPercent = normalizeDiscountPercent(rule.discountPercent)
+      return (rule.products || [])
+        .map((product): ProductDiscountRule | null => {
+          const productId = getRelationshipId(product)
+          if (productId === null) return null
+
+          return {
+            productId: String(productId),
+            productName: typeof product === "object" && product !== null ? product.name : undefined,
+            discountPercent,
+          }
+        })
+        .filter((entry): entry is ProductDiscountRule => entry !== null)
+    })
+
     return {
       discountPercent: normalizeDiscountPercent(client.discountPercent),
       categoryDiscounts: normalizeCategoryDiscounts(categoryDiscounts),
+      productDiscounts: normalizeProductDiscounts(productDiscounts),
     }
   } catch {
     return EMPTY_CLIENT_DISCOUNT_CONFIG
