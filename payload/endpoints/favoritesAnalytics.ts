@@ -1,5 +1,5 @@
-import { sql } from "@payloadcms/db-postgres"
 import type { Endpoint } from "payload"
+import { dbQuery } from "@/lib/db"
 
 type Period = "7" | "30" | "90" | "all"
 
@@ -63,6 +63,7 @@ export const favoritesAnalyticsHandler: Endpoint["handler"] = async (req) => {
     return Response.json({ error: "Доступ разрешён только администраторам" }, { status: 403 })
   }
 
+  try {
   const requestedPeriod = req.url ? new URL(req.url).searchParams.get("period") : null
   const period: Period = requestedPeriod === "7" || requestedPeriod === "30" || requestedPeriod === "90"
     ? requestedPeriod
@@ -76,25 +77,22 @@ export const favoritesAnalyticsHandler: Endpoint["handler"] = async (req) => {
   }
   const previousStart = currentStart && days ? new Date(currentStart) : null
   if (previousStart && days) previousStart.setDate(previousStart.getDate() - days)
-  const db = req.payload.db.drizzle
-
-  const currentFilter = currentStart
-    ? sql`WHERE f.created_at >= ${currentStart}`
-    : sql``
+  const currentFilter = currentStart ? "WHERE f.created_at >= $1" : ""
+  const currentParams = currentStart ? [currentStart] : []
 
   const metricsResult = currentStart && previousStart
-    ? await db.execute<MetricRow>(sql`
+    ? await dbQuery<MetricRow>(`
         SELECT
-          COUNT(*) FILTER (WHERE f.created_at >= ${currentStart}) AS total,
-          COUNT(DISTINCT f.client_id) FILTER (WHERE f.created_at >= ${currentStart}) AS unique_clients,
-          COUNT(DISTINCT f.product_id) FILTER (WHERE f.created_at >= ${currentStart}) AS unique_products,
+          COUNT(*) FILTER (WHERE f.created_at >= $1) AS total,
+          COUNT(DISTINCT f.client_id) FILTER (WHERE f.created_at >= $1) AS unique_clients,
+          COUNT(DISTINCT f.product_id) FILTER (WHERE f.created_at >= $1) AS unique_products,
           COUNT(*) FILTER (
-            WHERE f.created_at >= ${previousStart} AND f.created_at < ${currentStart}
+            WHERE f.created_at >= $2 AND f.created_at < $1
           ) AS previous_total
         FROM favorites f
-        WHERE f.created_at >= ${previousStart}
-      `)
-    : await db.execute<MetricRow>(sql`
+        WHERE f.created_at >= $2
+      `, [currentStart, previousStart])
+    : await dbQuery<MetricRow>(`
         SELECT
           COUNT(*) AS total,
           COUNT(DISTINCT f.client_id) AS unique_clients,
@@ -103,7 +101,7 @@ export const favoritesAnalyticsHandler: Endpoint["handler"] = async (req) => {
         FROM favorites f
       `)
 
-  const productsResult = await db.execute<ProductRow>(sql`
+  const productsResult = await dbQuery<ProductRow>(`
     SELECT
       f.product_id AS id,
       COALESCE(p.name, 'Удалённый товар') AS name,
@@ -115,16 +113,16 @@ export const favoritesAnalyticsHandler: Endpoint["handler"] = async (req) => {
     GROUP BY f.product_id, p.name
     ORDER BY count DESC, name ASC
     LIMIT 10
-  `)
+  `, currentParams)
 
   const topProductIds = productsResult.rows.map((row) => Number(row.id)).filter(Number.isFinite)
   const productClientsResult = topProductIds.length > 0
-    ? await db.execute<ClientRow>(sql`
+    ? await dbQuery<ClientRow>(`
         WITH distinct_favorites AS (
           SELECT f.product_id, f.client_id, MAX(f.created_at) AS created_at
           FROM favorites f
-          WHERE f.product_id = ANY(${topProductIds}::int[])
-            ${currentStart ? sql`AND f.created_at >= ${currentStart}` : sql``}
+          WHERE f.product_id = ANY($1::int[])
+            ${currentStart ? "AND f.created_at >= $2" : ""}
           GROUP BY f.product_id, f.client_id
         ), ranked_clients AS (
           SELECT
@@ -141,7 +139,7 @@ export const favoritesAnalyticsHandler: Endpoint["handler"] = async (req) => {
         FROM ranked_clients
         WHERE position <= 5
         ORDER BY product_id, position
-      `)
+      `, currentStart ? [topProductIds, currentStart] : [topProductIds])
     : { rows: [] as ClientRow[] }
 
   const clientsByProduct = new Map<string, ReturnType<typeof clientSummary>[]>()
@@ -152,7 +150,7 @@ export const favoritesAnalyticsHandler: Endpoint["handler"] = async (req) => {
     clientsByProduct.set(productId, clients)
   }
 
-  const clientsResult = await db.execute<ClientRow>(sql`
+  const clientsResult = await dbQuery<ClientRow>(`
     SELECT
       f.client_id AS id,
       c.id AS payload_id,
@@ -166,9 +164,9 @@ export const favoritesAnalyticsHandler: Endpoint["handler"] = async (req) => {
     GROUP BY f.client_id, c.id, c.full_name, c.email
     ORDER BY count DESC, name ASC NULLS LAST
     LIMIT 8
-  `)
+  `, currentParams)
 
-  const recentResult = await db.execute<RecentRow>(sql`
+  const recentResult = await dbQuery<RecentRow>(`
     SELECT
       f.id,
       f.product_id,
@@ -184,28 +182,28 @@ export const favoritesAnalyticsHandler: Endpoint["handler"] = async (req) => {
     ${currentFilter}
     ORDER BY f.created_at DESC
     LIMIT 8
-  `)
+  `, currentParams)
 
   const timelineResult = days
-    ? await db.execute<TimelineRow>(sql`
+    ? await dbQuery<TimelineRow>(`
         WITH buckets AS (
           SELECT GENERATE_SERIES(
-            CURRENT_DATE - (${days - 1} * INTERVAL '1 day'),
+            CURRENT_DATE - ($1 * INTERVAL '1 day'),
             CURRENT_DATE,
             INTERVAL '1 day'
           )::date AS bucket
         ), totals AS (
           SELECT f.created_at::date AS bucket, COUNT(*) AS count
           FROM favorites f
-          WHERE f.created_at >= CURRENT_DATE - (${days - 1} * INTERVAL '1 day')
+          WHERE f.created_at >= CURRENT_DATE - ($1 * INTERVAL '1 day')
           GROUP BY f.created_at::date
         )
         SELECT buckets.bucket, COALESCE(totals.count, 0) AS count
         FROM buckets
         LEFT JOIN totals USING (bucket)
         ORDER BY buckets.bucket
-      `)
-    : await db.execute<TimelineRow>(sql`
+      `, [days - 1])
+    : await dbQuery<TimelineRow>(`
         WITH bounds AS (
           SELECT COALESCE(DATE_TRUNC('month', MIN(created_at)), DATE_TRUNC('month', CURRENT_DATE)) AS first_month
           FROM favorites
@@ -282,4 +280,8 @@ export const favoritesAnalyticsHandler: Endpoint["handler"] = async (req) => {
       createdAt: new Date(favorite.created_at).toISOString(),
     })),
   })
+  } catch (error) {
+    req.payload.logger.error({ err: error, msg: "Не удалось построить аналитику избранного" })
+    return Response.json({ error: "Не удалось загрузить аналитику. Подробности записаны в журнал сервера." }, { status: 500 })
+  }
 }
