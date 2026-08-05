@@ -96,9 +96,11 @@ interface PayloadOrderDoc {
 
 interface PayloadClientDoc {
   id: number
+  customerType?: "individual" | "business" | null
   fullName?: string
   email?: string
   phone?: string | null
+  address?: string | null
   moyskladCounterpartyId?: string | null
   discountPercent?: number | string
   categoryDiscounts?: {
@@ -628,6 +630,12 @@ export async function createOrder(params: {
   const payload = await getPayloadClient()
   const orderData: Record<string, unknown> = {
     client: clientDocId,
+    customerType: "business",
+    checkoutMode: "account",
+    paymentMethod: "invoice",
+    customerFullName: clientDoc.fullName || "",
+    customerEmail: clientDoc.email || user.email || "",
+    customerPhone: clientDoc.phone || "",
     deliveryMethod: params.deliveryMethod,
     deliveryAddress: params.deliveryAddress || "",
     subtotal,

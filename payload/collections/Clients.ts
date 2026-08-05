@@ -32,7 +32,7 @@ export const Clients: CollectionConfig = {
     group: "Клиенты",
     description: "Клиенты платформы",
     listSearchableFields: ["fullName", "email", "phone"],
-    defaultColumns: ["fullName", "email", "phone", "createdAt"],
+    defaultColumns: ["fullName", "customerType", "email", "phone", "createdAt"],
   },
   labels: {
     singular: "Клиент",
@@ -40,6 +40,22 @@ export const Clients: CollectionConfig = {
   },
   fields: [
     // === Sidebar ===
+    {
+      name: "customerType",
+      type: "select",
+      label: "Тип клиента",
+      required: true,
+      defaultValue: "business",
+      index: true,
+      options: [
+        { label: "Физическое лицо", value: "individual" },
+        { label: "Юридическое лицо / оптовик", value: "business" },
+      ],
+      admin: {
+        position: "sidebar",
+        description: "Существующие клиенты считаются юридическими лицами. Розничная регистрация создаёт физлицо.",
+      },
+    },
     {
       name: "supabaseId",
       type: "text",
@@ -114,6 +130,14 @@ export const Clients: CollectionConfig = {
               ],
             },
             {
+              name: "address",
+              type: "text",
+              label: "Адрес",
+              admin: {
+                description: "Основной адрес физлица или контактный адрес представителя компании.",
+              },
+            },
+            {
               name: "notes",
               type: "textarea",
               label: "Заметки менеджера",
@@ -131,6 +155,10 @@ export const Clients: CollectionConfig = {
               type: "array",
               label: "Компании",
               labels: { singular: "Компания", plural: "Компании" },
+              admin: {
+                condition: (data) => data?.customerType !== "individual",
+                description: "Доступно только для юридических лиц и оптовиков.",
+              },
               fields: [
                 { name: "name", type: "text", label: "Название" },
                 {
@@ -237,8 +265,9 @@ export const Clients: CollectionConfig = {
   hooks: {
     afterRead: [
       async ({ doc }) => {
+        doc.customerType = doc.customerType || "business"
         // Always merge companies from Supabase companies table
-        if (doc.supabaseId) {
+        if (doc.supabaseId && doc.customerType !== "individual") {
           try {
             const { createAdminClient } = await import("@/lib/supabase/admin")
             const admin = createAdminClient()
@@ -277,7 +306,7 @@ export const Clients: CollectionConfig = {
     afterChange: [
       async ({ doc }) => {
         // Sync Payload companies → Supabase (add new + delete removed)
-        if (doc.supabaseId) {
+        if (doc.supabaseId && doc.customerType !== "individual") {
           try {
             const { createAdminClient } = await import("@/lib/supabase/admin")
             const admin = createAdminClient()

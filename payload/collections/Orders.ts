@@ -48,8 +48,10 @@ export const Orders: CollectionConfig = {
     listSearchableFields: ["orderId", "companyName", "companyInn"],
     defaultColumns: [
       "orderId",
+      "customerType",
       "client",
       "status",
+      "paymentMethod",
       "paymentStatus",
       "deliveryMethod",
       "total",
@@ -188,6 +190,42 @@ export const Orders: CollectionConfig = {
   fields: [
     // === Sidebar (always visible) ===
     {
+      name: "customerType",
+      type: "select",
+      label: "Тип покупателя",
+      required: true,
+      defaultValue: "business",
+      options: [
+        { label: "Физическое лицо", value: "individual" },
+        { label: "Юридическое лицо / оптовик", value: "business" },
+      ],
+      admin: { position: "sidebar" },
+    },
+    {
+      name: "checkoutMode",
+      type: "select",
+      label: "Оформление",
+      required: true,
+      defaultValue: "account",
+      options: [
+        { label: "Через личный кабинет", value: "account" },
+        { label: "Гостевой заказ", value: "guest" },
+      ],
+      admin: { position: "sidebar" },
+    },
+    {
+      name: "paymentMethod",
+      type: "select",
+      label: "Способ оплаты",
+      required: true,
+      defaultValue: "invoice",
+      options: [
+        { label: "Счёт для юридического лица", value: "invoice" },
+        { label: "Онлайн-оплата Сбер", value: "sber_online" },
+      ],
+      admin: { position: "sidebar" },
+    },
+    {
       name: "paymentStatus",
       type: "select",
       label: "Статус оплаты",
@@ -199,8 +237,28 @@ export const Orders: CollectionConfig = {
         { label: "Частично оплачен", value: "partial" },
         { label: "Оплачен", value: "paid" },
         { label: "Возврат", value: "refunded" },
+        { label: "Отменён", value: "cancelled" },
+        { label: "Ошибка оплаты", value: "failed" },
       ],
       admin: { position: "sidebar" },
+    },
+    {
+      name: "paymentExternalId",
+      type: "text",
+      label: "ID платежа",
+      admin: { position: "sidebar", readOnly: true },
+    },
+    {
+      name: "paymentUrl",
+      type: "text",
+      label: "Ссылка на оплату",
+      admin: { position: "sidebar", readOnly: true },
+    },
+    {
+      name: "paymentUpdatedAt",
+      type: "date",
+      label: "Платёж обновлён",
+      admin: { position: "sidebar", readOnly: true },
     },
     {
       name: "subtotal",
@@ -430,8 +488,22 @@ export const Orders: CollectionConfig = {
                   type: "relationship",
                   label: "Клиент",
                   relationTo: "clients",
-                  required: true,
                   admin: { width: "34%" },
+                },
+              ],
+            },
+            {
+              type: "collapsible",
+              label: "Контакты покупателя",
+              admin: { initCollapsed: false },
+              fields: [
+                {
+                  type: "row",
+                  fields: [
+                    { name: "customerFullName", type: "text", label: "ФИО", admin: { width: "34%" } },
+                    { name: "customerEmail", type: "email", label: "Email", admin: { width: "33%" } },
+                    { name: "customerPhone", type: "text", label: "Телефон", admin: { width: "33%" } },
+                  ],
                 },
               ],
             },
@@ -439,6 +511,7 @@ export const Orders: CollectionConfig = {
               name: "clientCompanyPicker",
               type: "ui",
               admin: {
+                condition: (data) => data?.customerType !== "individual",
                 components: {
                   Field: "/payload/components/OrderClientCompanyField",
                 },
@@ -451,13 +524,13 @@ export const Orders: CollectionConfig = {
                   name: "companyName",
                   type: "text",
                   label: "Компания",
-                  admin: { width: "50%" },
+                  admin: { width: "50%", condition: (data) => data?.customerType !== "individual" },
                 },
                 {
                   name: "companyInn",
                   type: "text",
                   label: "ИНН",
-                  admin: { width: "50%" },
+                  admin: { width: "50%", condition: (data) => data?.customerType !== "individual" },
                 },
               ],
             },

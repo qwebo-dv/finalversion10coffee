@@ -613,6 +613,21 @@ export async function searchProducts(query: string): Promise<Product[]> {
     .filter((product) => product.variants?.some(isAvailableVariant))
 }
 
+export async function getShopProducts(): Promise<Product[]> {
+  const payload = await getPayloadClient()
+  const { docs } = await payload.find({
+    collection: "products",
+    where: { isVisible: { equals: true } },
+    sort: "sortOrder",
+    limit: 1000,
+    depth: 2,
+  })
+
+  return (docs as PayloadProductDoc[])
+    .map(transformProduct)
+    .filter((product) => product.variants?.some(isAvailableVariant))
+}
+
 // ============================================================
 // Client discount
 // ============================================================

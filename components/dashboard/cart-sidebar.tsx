@@ -119,7 +119,14 @@ export function CartSidebar({
   async function handleApplyPromo() {
     if (!promoInput.trim()) return
     setPromoLoading(true)
-    const result = await validatePromoCode(promoInput.trim(), totalPrice)
+    const result = await validatePromoCode(
+      promoInput.trim(),
+      totalPrice,
+      items.map((item) => ({
+        productId: item.product_id,
+        subtotal: (item.variant?.price ?? 0) * item.quantity,
+      }))
+    )
     if (result.valid) {
       setAppliedPromo({
         promoCodeId: result.promoCodeId,

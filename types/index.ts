@@ -43,6 +43,7 @@ export interface ProductTag {
 export type NotificationType = "order_update" | "news" | "product_restock"
 
 export type PromoDiscountType = "percentage" | "fixed_amount"
+export type CustomerType = "individual" | "business"
 
 // ============================================================
 // User types
@@ -53,6 +54,8 @@ export interface ClientProfile {
   email: string
   full_name: string
   phone: string | null
+  address?: string | null
+  customer_type?: CustomerType
   created_at: string
   updated_at: string
 }
@@ -233,6 +236,14 @@ export interface Order {
   id: string
   order_id: string
   client_id: string
+  customer_type?: CustomerType
+  checkout_mode?: "account" | "guest"
+  customer_full_name?: string | null
+  customer_email?: string | null
+  customer_phone?: string | null
+  payment_method?: "invoice" | "sber_online"
+  payment_external_id?: string | null
+  payment_url?: string | null
   company_name: string | null
   company_inn: string | null
   status: OrderStatus
@@ -303,6 +314,8 @@ export interface PromoCode {
   code: string
   discount_type: PromoDiscountType
   discount_value: number
+  audience?: "all" | CustomerType
+  applicable_products?: string[]
   is_single_use: boolean
   max_uses: number | null
   current_uses: number

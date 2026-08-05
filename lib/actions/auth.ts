@@ -55,6 +55,8 @@ export async function signUp(formData: {
   email: string
   full_name: string
   phone: string
+  address?: string
+  customer_type?: "individual" | "business"
 }) {
   const adminClient = createAdminClient()
   const phone = normalizeRussianPhone(formData.phone)
@@ -74,6 +76,8 @@ export async function signUp(formData: {
       user_type: "client",
       full_name: formData.full_name,
       phone,
+      address: formData.address || "",
+      customer_type: formData.customer_type || "business",
     },
   })
 
@@ -110,6 +114,8 @@ export async function signUp(formData: {
         email: formData.email,
         phone,
         supabaseId: data.user?.id || "",
+        address: formData.address || "",
+        customerType: formData.customer_type || "business",
       },
     })
   } catch (syncError) {
@@ -144,6 +150,7 @@ export async function signUp(formData: {
     success: true,
     message: `Регистрация успешна! Пароль отправлен на ${formData.email}. Проверьте почту.`,
     password,
+    userId: data.user?.id,
   }
 }
 

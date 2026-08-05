@@ -50,6 +50,7 @@ export const PromoCodes: CollectionConfig = {
     description: "Промокоды и скидки",
     defaultColumns: [
       "code",
+      "audience",
       "discountType",
       "discountValue",
       "currentUses",
@@ -78,13 +79,22 @@ export const PromoCodes: CollectionConfig = {
         }
 
         let targetEmail = typeof clientEmail === "string" ? clientEmail.trim() : ""
+        let audience: "individual" | "business" = "business"
         if (!targetEmail && clientId) {
           const client = await req.payload.findByID({
             collection: "clients",
             id: clientId,
             depth: 0,
-          }) as { email?: string | null }
+          }) as { email?: string | null; customerType?: "individual" | "business" | null }
           targetEmail = client.email || ""
+          audience = client.customerType === "individual" ? "individual" : "business"
+        } else if (clientId) {
+          const client = await req.payload.findByID({
+            collection: "clients",
+            id: clientId,
+            depth: 0,
+          }) as { customerType?: "individual" | "business" | null }
+          audience = client.customerType === "individual" ? "individual" : "business"
         }
 
         const code = `10C-${preset.id.replace("_", "").toUpperCase().slice(0, 6)}-${createPromoSuffix()}`
@@ -104,6 +114,7 @@ export const PromoCodes: CollectionConfig = {
             maxUses: preset.maxUses,
             minOrderAmount: preset.minOrderAmount || 0,
             restrictedToEmail: targetEmail || undefined,
+            audience,
             startsAt,
             expiresAt,
             isActive: true,
@@ -131,6 +142,12 @@ export const PromoCodes: CollectionConfig = {
     },
   ],
   hooks: {
+    afterRead: [
+      ({ doc }) => {
+        doc.audience = doc.audience || "business"
+        return doc
+      },
+    ],
     beforeValidate: [
       ({ data }) => {
         if (data?.code && typeof data.code === "string") {
@@ -172,6 +189,31 @@ export const PromoCodes: CollectionConfig = {
       name: "description",
       type: "textarea",
       label: "Описание (для менеджера)",
+    },
+    {
+      name: "audience",
+      type: "select",
+      label: "Для кого действует",
+      required: true,
+      defaultValue: "business",
+      options: [
+        { label: "Для всех покупателей", value: "all" },
+        { label: "Только для физических лиц", value: "individual" },
+        { label: "Только для юридических лиц", value: "business" },
+      ],
+      admin: {
+        description: "Существующие промокоды по умолчанию относятся к оптовому магазину.",
+      },
+    },
+    {
+      name: "applicableProducts",
+      type: "relationship",
+      label: "Товары, участвующие в акции",
+      relationTo: "products",
+      hasMany: true,
+      admin: {
+        description: "Оставьте пустым, чтобы промокод действовал на все товары выбранной аудитории.",
+      },
     },
     {
       type: "row",

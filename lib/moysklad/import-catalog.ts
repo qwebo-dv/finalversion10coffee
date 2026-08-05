@@ -270,7 +270,7 @@ async function hideExcludedCatalogEntries(params: {
   payload: Payload
   folders: MoyskladProductFolder[]
   products: MoyskladProduct[]
-  folderById: Map<string | undefined, MoyskladProductFolder>
+  folderById: Map<string, MoyskladProductFolder>
   folderByFullName: Map<string, MoyskladProductFolder>
   stats: ImportStats
 }) {
@@ -774,7 +774,11 @@ export async function importMoyskladCatalog(payload: Payload) {
   const sortedFolders = [...activeFolders].sort((a, b) => {
     return getFolderDepth(a) - getFolderDepth(b) || getFolderFullName(a).localeCompare(getFolderFullName(b), "ru")
   })
-  const folderById = new Map(allActiveFolders.map((folder) => [getFolderId(folder), folder]))
+  const folderById = new Map(
+    allActiveFolders
+      .map((folder) => [getFolderId(folder), folder] as const)
+      .filter((entry): entry is readonly [string, MoyskladProductFolder] => Boolean(entry[0]))
+  )
 
   await hideExcludedCatalogEntries({
     payload,
