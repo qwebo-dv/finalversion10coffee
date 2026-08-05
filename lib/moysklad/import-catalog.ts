@@ -152,6 +152,12 @@ function getFolderRootName(folder: MoyskladProductFolder) {
   return pathName.split(/\s*\/\s*|\s*>\s*/)[0] || folder.name || "Каталог"
 }
 
+const EXCLUDED_ROOT_FOLDER_NAMES = new Set(["служебное", "поставщики"])
+
+function isExcludedFolder(folder: MoyskladProductFolder) {
+  return EXCLUDED_ROOT_FOLDER_NAMES.has(getFolderRootName(folder).trim().toLocaleLowerCase("ru-RU"))
+}
+
 function getFolderFullName(folder: MoyskladProductFolder) {
   return folder.pathName ? `${folder.pathName}/${folder.name}` : folder.name || ""
 }
@@ -693,16 +699,18 @@ export async function importMoyskladCatalog(payload: Payload) {
     fetchAll(fetchMoyskladAssortment),
   ])
 
-  const activeFolders = folders.filter((folder) => !folder.archived && folder.name)
+  const allActiveFolders = folders.filter((folder) => !folder.archived && folder.name)
+  const activeFolders = allActiveFolders.filter((folder) => !isExcludedFolder(folder))
   const sortedFolders = [...activeFolders].sort((a, b) => {
     return getFolderDepth(a) - getFolderDepth(b) || getFolderFullName(a).localeCompare(getFolderFullName(b), "ru")
   })
-  const folderById = new Map(activeFolders.map((folder) => [getFolderId(folder), folder]))
+  const folderById = new Map(allActiveFolders.map((folder) => [getFolderId(folder), folder]))
   const folderByFullName = new Map(activeFolders.map((folder) => [getFolderFullName(folder), folder]))
   const rootFolders = activeFolders.filter((folder) => !folder.pathName)
-  const rootFolderIds = new Set(rootFolders.map(getFolderId).filter(Boolean) as string[])
+  const allRootFolders = allActiveFolders.filter((folder) => !folder.pathName)
+  const rootFolderIds = new Set(allRootFolders.map(getFolderId).filter(Boolean) as string[])
   const activeCategoryFolderIds = new Set(
-    activeFolders
+    allActiveFolders
       .map((folder) => getFolderId(folder))
       .filter((folderId): folderId is string => {
         if (!folderId) return false
@@ -769,6 +777,11 @@ export async function importMoyskladCatalog(payload: Payload) {
     const productId = getEntityId(product)
     const productFolderId = extractMoyskladId(product.productFolder)
     const folder = productFolderId ? folderById.get(productFolderId) : null
+
+    if (folder && isExcludedFolder(folder)) {
+      if (productId) validProductIds.add(productId)
+      continue
+    }
 
     let productType: PayloadProductTypeDoc | undefined
     let category: PayloadCategoryDoc | undefined
