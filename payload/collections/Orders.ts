@@ -547,6 +547,13 @@ export const Orders: CollectionConfig = {
                 {
                   type: "row",
                   fields: [
+                    { name: "discountPercent", type: "number", label: "Скидка на позицию (%)", defaultValue: 0, admin: { width: "50%", readOnly: true } },
+                    { name: "discountAmount", type: "number", label: "Скидка на позицию", defaultValue: 0, admin: { width: "50%", readOnly: true } },
+                  ],
+                },
+                {
+                  type: "row",
+                  fields: [
                     {
                       name: "stockProductMoyskladId",
                       type: "text",

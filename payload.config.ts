@@ -7,6 +7,7 @@ import { ru } from "@payloadcms/translations/languages/ru"
 import type { EmailAdapter, SendEmailOptions } from "payload"
 import nodemailer from "nodemailer"
 import sharp from "sharp"
+import { migrations } from "./migrations"
 
 import { Categories } from "./payload/collections/Categories"
 import { ProductTypes } from "./payload/collections/ProductTypes"
@@ -102,6 +103,7 @@ export default buildConfig({
   },
 
   db: postgresAdapter({
+    prodMigrations: migrations,
     pool: {
       connectionString: process.env.DATABASE_URL || "",
     },
