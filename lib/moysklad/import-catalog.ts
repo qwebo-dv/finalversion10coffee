@@ -25,6 +25,7 @@ interface PayloadProductTypeDoc {
   name?: string
   slug?: string
   moyskladId?: string | null
+  isVisible?: boolean | null
   sortOrder?: number | null
 }
 
@@ -33,6 +34,7 @@ interface PayloadCategoryDoc {
   name?: string
   slug?: string
   moyskladId?: string | null
+  isVisible?: boolean | null
   sortOrder?: number | null
   parent?: Id | PayloadCategoryDoc | null
 }
@@ -43,6 +45,7 @@ interface PayloadProductDoc {
   slug?: string
   moyskladId?: string | null
   detailsSchema?: ProductDetailsSchema
+  isVisible?: boolean | null
   sortOrder?: number | null
 }
 
@@ -152,10 +155,18 @@ function getFolderRootName(folder: MoyskladProductFolder) {
   return pathName.split(/\s*\/\s*|\s*>\s*/)[0] || folder.name || "Каталог"
 }
 
-const EXCLUDED_ROOT_FOLDER_NAMES = new Set(["служебное", "поставщики"])
+const EXCLUDED_ROOT_FOLDER_IDS = new Set([
+  "a8efcb73-4f9b-11f1-0a80-1c98002087fe", // Служебное
+  "adf79fb0-8ff2-11f1-0a80-1e92000d1e3c", // Оприходование и ТО (бывшая «поставщики»)
+])
 
-function isExcludedFolder(folder: MoyskladProductFolder) {
-  return EXCLUDED_ROOT_FOLDER_NAMES.has(getFolderRootName(folder).trim().toLocaleLowerCase("ru-RU"))
+function isExcludedFolder(
+  folder: MoyskladProductFolder,
+  folderByFullName: Map<string, MoyskladProductFolder>
+) {
+  const rootFolder = folder.pathName ? folderByFullName.get(getFolderRootName(folder)) : folder
+  const rootFolderId = getFolderId(rootFolder)
+  return Boolean(rootFolderId && EXCLUDED_ROOT_FOLDER_IDS.has(rootFolderId))
 }
 
 function getFolderFullName(folder: MoyskladProductFolder) {
@@ -253,6 +264,64 @@ async function findBySlug<T extends { id: Id }>(
     depth: 0,
   })
   return (result.docs[0] as T | undefined) || null
+}
+
+async function hideExcludedCatalogEntries(params: {
+  payload: Payload
+  folders: MoyskladProductFolder[]
+  products: MoyskladProduct[]
+  folderById: Map<string | undefined, MoyskladProductFolder>
+  folderByFullName: Map<string, MoyskladProductFolder>
+  stats: ImportStats
+}) {
+  for (const folder of params.folders) {
+    if (!isExcludedFolder(folder, params.folderByFullName)) continue
+
+    const moyskladId = getFolderId(folder)
+    if (!moyskladId) continue
+
+    if (!folder.pathName) {
+      const existing = await findByMoyskladId<PayloadProductTypeDoc>(params.payload, "product-types", moyskladId)
+      if (!existing || existing.isVisible === false) continue
+
+      await params.payload.update({
+        collection: "product-types",
+        id: existing.id,
+        data: { isVisible: false },
+      })
+      params.stats.productTypesUpdated += 1
+      continue
+    }
+
+    const existing = await findByMoyskladId<PayloadCategoryDoc>(params.payload, "categories", moyskladId)
+    if (!existing || existing.isVisible === false) continue
+
+    await params.payload.update({
+      collection: "categories",
+      id: existing.id,
+      data: { isVisible: false },
+    })
+    params.stats.categoriesUpdated += 1
+  }
+
+  for (const product of params.products) {
+    const productFolderId = extractMoyskladId(product.productFolder)
+    const folder = productFolderId ? params.folderById.get(productFolderId) : null
+    if (!folder || !isExcludedFolder(folder, params.folderByFullName)) continue
+
+    const moyskladId = getEntityId(product)
+    if (!moyskladId) continue
+
+    const existing = await findByMoyskladId<PayloadProductDoc>(params.payload, "products", moyskladId)
+    if (!existing || existing.isVisible === false) continue
+
+    await params.payload.update({
+      collection: "products",
+      id: existing.id,
+      data: { isVisible: false },
+    })
+    params.stats.productsHidden += 1
+  }
 }
 
 async function getNextProductTypeSortOrder(payload: Payload) {
@@ -700,11 +769,22 @@ export async function importMoyskladCatalog(payload: Payload) {
   ])
 
   const allActiveFolders = folders.filter((folder) => !folder.archived && folder.name)
-  const activeFolders = allActiveFolders.filter((folder) => !isExcludedFolder(folder))
+  const allFolderByFullName = new Map(allActiveFolders.map((folder) => [getFolderFullName(folder), folder]))
+  const activeFolders = allActiveFolders.filter((folder) => !isExcludedFolder(folder, allFolderByFullName))
   const sortedFolders = [...activeFolders].sort((a, b) => {
     return getFolderDepth(a) - getFolderDepth(b) || getFolderFullName(a).localeCompare(getFolderFullName(b), "ru")
   })
   const folderById = new Map(allActiveFolders.map((folder) => [getFolderId(folder), folder]))
+
+  await hideExcludedCatalogEntries({
+    payload,
+    folders: allActiveFolders,
+    products,
+    folderById,
+    folderByFullName: allFolderByFullName,
+    stats,
+  })
+
   const folderByFullName = new Map(activeFolders.map((folder) => [getFolderFullName(folder), folder]))
   const rootFolders = activeFolders.filter((folder) => !folder.pathName)
   const allRootFolders = allActiveFolders.filter((folder) => !folder.pathName)
@@ -778,7 +858,7 @@ export async function importMoyskladCatalog(payload: Payload) {
     const productFolderId = extractMoyskladId(product.productFolder)
     const folder = productFolderId ? folderById.get(productFolderId) : null
 
-    if (folder && isExcludedFolder(folder)) {
+    if (folder && isExcludedFolder(folder, allFolderByFullName)) {
       if (productId) validProductIds.add(productId)
       continue
     }
