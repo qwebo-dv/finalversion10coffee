@@ -25,6 +25,11 @@ const DESCRIPTION_HTML_CLASSNAME = [
   "[&_img]:my-4 [&_img]:rounded-2xl [&_img]:shadow-md",
 ].join(" ")
 
+interface SpecRow {
+  label: string
+  value: string
+}
+
 export function ShopProduct({ product, products }: { product: Product; products: Product[] }) {
   const variants = product.variants || []
   const [variant, setVariant] = useState(variants[0] || null)
@@ -34,15 +39,16 @@ export function ShopProduct({ product, products }: { product: Product; products:
   const { addItem } = useGuestCart()
 
   const images = product.images.length > 0 ? product.images : []
+  const subtitle = [product.region, product.processing_method].filter(Boolean).join(" · ")
 
-  const details = [
-    product.roaster ? { label: "Обжарка", value: product.roaster } : null,
+  const specs: SpecRow[] = [
+    typeof product.q_grader_rating === "number" ? { label: "Оценка Q-грейдера", value: String(product.q_grader_rating) } : null,
+    product.roast_level ? { label: "Степень обжарки", value: product.roast_level } : null,
     product.region ? { label: "Регион", value: product.region } : null,
-    product.processing_method ? { label: "Обработка", value: product.processing_method } : null,
-    product.growing_height ? { label: "Высота", value: product.growing_height } : null,
-    product.roast_level ? { label: "Обжарка", value: product.roast_level } : null,
-    typeof product.q_grader_rating === "number" ? { label: "Q-грейдер", value: String(product.q_grader_rating) } : null,
-  ].filter((entry): entry is { label: string; value: string } => entry !== null)
+    product.processing_method ? { label: "Способ обработки", value: product.processing_method } : null,
+    product.roaster ? { label: "Ростер", value: product.roaster } : null,
+    product.growing_height ? { label: "Высота произрастания", value: product.growing_height } : null,
+  ].filter((entry): entry is SpecRow => entry !== null)
 
   function addToCart() {
     if (!variant) return
@@ -58,22 +64,25 @@ export function ShopProduct({ product, products }: { product: Product; products:
     <main className="min-h-screen bg-[#f8f5f1] text-[#1d1d1b]">
       <ShopHeader products={products} />
 
-      <div className="mx-auto max-w-[1480px] px-5 pb-24 pt-8 lg:px-10">
-        <Link href="/shop" className="inline-flex items-center gap-2 text-sm font-bold text-[#6f655e] transition hover:text-[#5b328a]"><ArrowLeft className="h-4 w-4" /> Вернуться в каталог</Link>
+      <div className="mx-auto max-w-[1480px] px-5 pb-28 pt-10 lg:px-10">
+        {/* Breadcrumb */}
+        <nav className="flex flex-wrap items-center gap-2 text-sm text-[#8d827a]">
+          <Link href="/shop" className="font-bold text-[#6f655e] transition hover:text-[#5b328a]">Каталог</Link>
+          <span className="text-[#c3b8af]">/</span>
+          <span>{product.product_type_name}</span>
+          <span className="text-[#c3b8af]">/</span>
+          <span className="font-bold text-[#1d1d1b]">{product.name}</span>
+        </nav>
 
-        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_480px] lg:gap-12">
+        {/* Hero: gallery + buy panel */}
+        <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-16">
           {/* Gallery */}
-          <div>
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[32px] border border-black/[0.06] bg-[#faead5] shadow-[0_24px_80px_rgba(45,27,17,0.1)]">
+          <div className="lg:sticky lg:top-28 lg:self-start">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-[32px] bg-[#faead5] shadow-[0_30px_90px_rgba(45,27,17,0.12)]">
               {images[imageIndex] ? (
-                <Image src={images[imageIndex]} alt={product.name} fill className="object-cover" sizes="(min-width: 1024px) 60vw, 100vw" priority />
+                <Image src={images[imageIndex]} alt={product.name} fill className="object-cover" sizes="(min-width: 1024px) 55vw, 100vw" priority />
               ) : (
-                <div className="flex h-full items-center justify-center"><Coffee className="h-24 w-24 text-[#e6610d]/30" /></div>
-              )}
-              {product.stickers.length > 0 && (
-                <div className="absolute left-5 top-5 flex flex-wrap gap-2">
-                  {product.stickers.map((sticker) => <span key={sticker.id} className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-[#2d1b11] shadow-sm backdrop-blur">{sticker.name}</span>)}
-                </div>
+                <div className="flex h-full items-center justify-center"><Coffee className="h-28 w-28 text-[#e6610d]/30" /></div>
               )}
             </div>
             {images.length > 1 && (
@@ -87,110 +96,119 @@ export function ShopProduct({ product, products }: { product: Product; products:
             )}
           </div>
 
-          {/* Info */}
-          <div className="flex flex-col">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#e6610d]">{product.product_type_name}</p>
-            <h1 className="mt-3 text-4xl font-black leading-[1.02] tracking-[-0.04em] sm:text-5xl">{product.name}</h1>
-
-            {details.length > 0 && (
-              <div className="mt-6 flex flex-wrap gap-2">
-                {details.map((entry) => (
-                  <span key={entry.label} className="rounded-full bg-white px-4 py-2 text-xs font-bold text-[#625950] shadow-sm"><span className="text-[#9b9087]">{entry.label}: </span>{entry.value}</span>
-                ))}
+          {/* Buy panel */}
+          <div>
+            {product.stickers.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {product.stickers.map((sticker) => <span key={sticker.id} className="rounded-full border border-[#e6610d]/25 bg-[#fff4e8] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#b0531a]">{sticker.name}</span>)}
               </div>
             )}
+            <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#e6610d]">{product.product_type_name}</p>
+            <h1 className="mt-3 text-5xl font-black leading-[0.98] tracking-[-0.05em] sm:text-6xl">{product.name}</h1>
+            {subtitle && <p className="mt-4 text-lg text-[#6e655e]">{subtitle}</p>}
 
-            <div className="mt-8">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#91867d]">Фасовка</p>
-              <div className="mt-3 flex flex-wrap gap-2">
+            {/* Packaging */}
+            <div className="mt-10">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8d827a]">Фасовка</p>
+              <div className="mt-4 flex flex-wrap gap-3">
                 {variants.map((item) => (
-                  <button key={item.id} type="button" onClick={() => { setVariant(item); setQuantity(1) }} className={`rounded-2xl border px-5 py-3 text-sm font-bold transition ${variant?.id === item.id ? "border-[#5b328a] bg-[#5b328a] text-white" : "border-black/10 bg-white text-[#625950] hover:border-[#5b328a]/40"}`}>
-                    {item.name}{item.weight_grams ? ` · ${formatWeight(item.weight_grams)}` : ""}
+                  <button key={item.id} type="button" onClick={() => { setVariant(item); setQuantity(1) }} className={`min-w-[96px] rounded-2xl border-2 px-5 py-4 text-left transition ${variant?.id === item.id ? "border-[#5b328a] bg-white shadow-[0_10px_30px_rgba(91,50,138,0.12)]" : "border-black/10 bg-white/60 hover:border-black/25"}`}>
+                    <span className={`block text-sm font-black ${variant?.id === item.id ? "text-[#5b328a]" : "text-[#1d1d1b]"}`}>{item.name}</span>
+                    {item.weight_grams && <span className="mt-1 block text-xs font-semibold text-[#9b9087]">{formatWeight(item.weight_grams)}</span>}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="mt-8 flex items-end justify-between gap-6">
+            {/* Price + quantity + CTA */}
+            <div className="mt-10 flex items-end justify-between gap-6">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#91867d]">Количество</p>
-                <div className="mt-3 flex items-center rounded-full bg-white p-1 shadow-sm">
-                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="h-10 w-10 rounded-full text-[#6f655e] transition hover:bg-[#f5f1ed]"><Minus className="mx-auto h-4 w-4" /></button>
-                  <span className="w-10 text-center text-sm font-black">{quantity}</span>
-                  <button onClick={() => setQuantity(quantity + 1)} className="h-10 w-10 rounded-full text-[#6f655e] transition hover:bg-[#f5f1ed]"><Plus className="mx-auto h-4 w-4" /></button>
-                </div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8d827a]">Цена</p>
+                <p className="mt-2 text-5xl font-black tracking-tight">{variant ? formatPrice(variant.price) : "—"}</p>
               </div>
-              <div className="text-right">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#91867d]">Цена</p>
-                <p className="mt-1 text-4xl font-black tracking-tight">{variant ? formatPrice(variant.price) : "—"}</p>
+              <div className="flex items-center rounded-full bg-white p-1 shadow-sm">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="h-11 w-11 rounded-full text-[#6f655e] transition hover:bg-[#f5f1ed]"><Minus className="mx-auto h-4 w-4" /></button>
+                <span className="w-10 text-center text-sm font-black">{quantity}</span>
+                <button onClick={() => setQuantity(quantity + 1)} className="h-11 w-11 rounded-full text-[#6f655e] transition hover:bg-[#f5f1ed]"><Plus className="mx-auto h-4 w-4" /></button>
               </div>
             </div>
 
-            <button type="button" onClick={addToCart} disabled={!variant} className="mt-8 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#5b328a] text-sm font-black text-white transition hover:bg-[#47256e] disabled:opacity-40">
+            <button type="button" onClick={addToCart} disabled={!variant} className="mt-8 flex h-16 w-full items-center justify-center gap-3 rounded-full bg-[#1d1d1b] text-base font-black text-white transition hover:bg-[#000] disabled:opacity-40">
               {added ? <Check className="h-5 w-5" /> : <ShoppingBag className="h-5 w-5" />}{added ? "Добавлено в корзину" : `Добавить в корзину · ${variant ? formatPrice(variant.price * quantity) : "—"}`}
             </button>
-
-            {product.description && (
-              <div className="mt-10 rounded-[28px] bg-white p-6 shadow-[0_16px_50px_rgba(45,27,17,0.06)] sm:p-8">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#e6610d]">Описание</p>
-                <div className={DESCRIPTION_HTML_CLASSNAME} dangerouslySetInnerHTML={{ __html: product.description }} />
-              </div>
-            )}
+            <p className="mt-4 text-center text-sm text-[#9b9087]">Оформление без регистрации, оплата при получении или онлайн</p>
           </div>
         </div>
 
-        {/* Brewing methods (coffee) */}
-        {isCoffee && product.brewing_methods && product.brewing_methods.length > 0 && (
-          <section className="mt-14">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#faead5]"><Coffee className="h-5 w-5 text-[#5b328a]" /></div>
-              <h2 className="text-2xl font-black tracking-tight">Способы приготовления</h2>
-            </div>
-            <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {product.brewing_methods.map((method, index) => (
-                <div key={index} className="overflow-hidden rounded-[28px] border border-black/[0.06] bg-white shadow-[0_16px_50px_rgba(45,27,17,0.05)]">
-                  {method.image_url && <div className="relative aspect-video bg-[#faead5]"><Image src={method.image_url} alt={method.method} fill className="object-cover" sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw" /></div>}
-                  <div className="p-5">
-                    <div className="flex items-center gap-2"><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#faead5]/60"><Droplets className="h-3.5 w-3.5 text-[#5b328a]" /></div><h4 className="font-bold">{method.method}</h4></div>
-                    <p className="mt-2 text-sm leading-6 text-[#6e655e]">{method.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Lower: description + characteristics */}
+        <div className="mt-24 grid gap-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16">
+          <section>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#e6610d]">Описание</p>
+            <h2 className="mt-3 text-3xl font-black tracking-[-0.03em]">{product.name}</h2>
+            {product.description ? (
+              <div className={DESCRIPTION_HTML_CLASSNAME} dangerouslySetInnerHTML={{ __html: product.description }} />
+            ) : (
+              <p className="mt-6 text-[15px] leading-7 text-[#6e655e]">Описание скоро появится. Свежая обжарка, отличное качество — проверьте другие характеристики товара.</p>
+            )}
           </section>
-        )}
 
-        {/* Brewing instructions (tea) */}
-        {isTea && product.brewing_instructions && product.brewing_instructions.length > 0 && (
-          <section className="mt-14">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#faead5]"><Leaf className="h-5 w-5 text-[#5b328a]" /></div>
-              <h2 className="text-2xl font-black tracking-tight">Как заваривать</h2>
-            </div>
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {product.brewing_instructions.map((instruction, index) => (
-                <div key={index} className="flex gap-4 rounded-[28px] border border-black/[0.06] bg-white p-6 shadow-[0_16px_50px_rgba(45,27,17,0.05)]">
-                  {instruction.image_url && <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-[#faead5]"><Image src={instruction.image_url} alt={instruction.title} fill className="object-cover" sizes="80px" /></div>}
-                  <div><h4 className="font-bold">{instruction.title}</h4><p className="mt-1.5 text-sm leading-6 text-[#6e655e]">{instruction.text}</p></div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+          <aside className="space-y-10">
+            {specs.length > 0 && (
+              <div className="rounded-[28px] bg-white p-8 shadow-[0_20px_60px_rgba(45,27,17,0.07)]">
+                <h2 className="text-xl font-black tracking-tight">Характеристики</h2>
+                <dl className="mt-5 divide-y divide-black/[0.05]">
+                  {specs.map((spec) => (
+                    <div key={spec.label} className="flex items-baseline justify-between gap-6 py-3.5">
+                      <dt className="text-sm text-[#9b9087]">{spec.label}</dt>
+                      <dd className="text-right text-sm font-bold">{spec.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
 
-        {/* Attached files */}
-        {product.attached_files && product.attached_files.length > 0 && (
-          <section className="mt-14">
-            <h2 className="text-2xl font-black tracking-tight">Документы и файлы</h2>
-            <div className="mt-6 flex flex-wrap gap-3">
-              {product.attached_files.map((file) => (
-                <a key={file.name} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-full bg-white px-5 py-3 text-sm font-bold text-[#5b328a] shadow-sm transition hover:shadow-md">
-                  <Paperclip className="h-4 w-4" /> {file.name}{file.size ? <span className="text-xs font-semibold text-[#9b9087]">{(file.size / 1024).toFixed(0)} КБ</span> : null}
-                </a>
-              ))}
-            </div>
-          </section>
-        )}
+            {isCoffee && product.brewing_methods && product.brewing_methods.length > 0 && (
+              <div>
+                <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#faead5]"><Coffee className="h-5 w-5 text-[#5b328a]" /></div><h2 className="text-xl font-black tracking-tight">Способы приготовления</h2></div>
+                <div className="mt-5 space-y-3">
+                  {product.brewing_methods.map((method, index) => (
+                    <div key={index} className="flex items-center gap-4 rounded-[20px] border border-black/[0.06] bg-white p-4 shadow-sm">
+                      {method.image_url && <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#faead5]"><Image src={method.image_url} alt={method.method} fill className="object-cover" sizes="64px" /></div>}
+                      <div className="min-w-0"><h4 className="font-bold">{method.method}</h4><p className="mt-0.5 line-clamp-2 text-sm leading-5 text-[#6e655e]">{method.description}</p></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isTea && product.brewing_instructions && product.brewing_instructions.length > 0 && (
+              <div>
+                <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#faead5]"><Leaf className="h-5 w-5 text-[#5b328a]" /></div><h2 className="text-xl font-black tracking-tight">Как заваривать</h2></div>
+                <div className="mt-5 space-y-3">
+                  {product.brewing_instructions.map((instruction, index) => (
+                    <div key={index} className="flex items-center gap-4 rounded-[20px] border border-black/[0.06] bg-white p-4 shadow-sm">
+                      {instruction.image_url && <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#faead5]"><Image src={instruction.image_url} alt={instruction.title} fill className="object-cover" sizes="64px" /></div>}
+                      <div className="min-w-0"><h4 className="font-bold">{instruction.title}</h4><p className="mt-0.5 line-clamp-2 text-sm leading-5 text-[#6e655e]">{instruction.text}</p></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {product.attached_files && product.attached_files.length > 0 && (
+              <div>
+                <h2 className="text-xl font-black tracking-tight">Документы</h2>
+                <div className="mt-4 space-y-2">
+                  {product.attached_files.map((file) => (
+                    <a key={file.name} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm font-bold text-[#5b328a] shadow-sm transition hover:shadow-md">
+                      <Paperclip className="h-4 w-4" /> {file.name}{file.size ? <span className="ml-auto text-xs font-semibold text-[#9b9087]">{(file.size / 1024).toFixed(0)} КБ</span> : null}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
       </div>
     </main>
   )
