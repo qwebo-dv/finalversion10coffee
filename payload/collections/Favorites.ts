@@ -1,11 +1,16 @@
 import type { CollectionConfig } from "payload"
+import { favoritesAnalyticsHandler } from "../endpoints/favoritesAnalytics"
 
 export const Favorites: CollectionConfig = {
   slug: "favorites",
+  defaultSort: "-createdAt",
   admin: {
     group: "Клиенты",
     description: "Избранные товары клиентов",
-    defaultColumns: ["clientId", "product"],
+    defaultColumns: ["clientId", "product", "createdAt"],
+    components: {
+      beforeList: ["/payload/components/FavoritesAnalyticsDashboard"],
+    },
   },
   labels: {
     singular: "Избранное",
@@ -25,6 +30,13 @@ export const Favorites: CollectionConfig = {
       label: "Товар",
       relationTo: "products",
       required: true,
+    },
+  ],
+  endpoints: [
+    {
+      path: "/analytics",
+      method: "get",
+      handler: favoritesAnalyticsHandler,
     },
   ],
   access: {

@@ -39,7 +39,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { formatDateTime } from "@/lib/utils/format"
-import type { CategoryDiscountRule } from "@/lib/discounts"
+import type { CategoryDiscountRule, ProductDiscountRule } from "@/lib/discounts"
 import type { Product, NotificationType } from "@/types"
 
 type SlidePanel = "favorites" | "notifications" | "cart" | null
@@ -78,6 +78,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [priceListUrl, setPriceListUrl] = useState("")
   const [clientDiscount, setClientDiscount] = useState(0)
   const [categoryDiscounts, setCategoryDiscounts] = useState<CategoryDiscountRule[]>([])
+  const [productDiscounts, setProductDiscounts] = useState<ProductDiscountRule[]>([])
 
   useEffect(() => {
     getSiteSettings().then((s) => {
@@ -86,6 +87,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     getClientDiscountConfig().then((config) => {
       setClientDiscount(config.discountPercent)
       setCategoryDiscounts(config.categoryDiscounts)
+      setProductDiscounts(config.productDiscounts || [])
     })
   }, [])
 
@@ -320,6 +322,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             priceListUrl={priceListUrl}
             clientDiscount={clientDiscount}
             categoryDiscounts={categoryDiscounts}
+            productDiscounts={productDiscounts}
           />
 
           {/* ── SLIDE-OVER PANEL ── */}
@@ -411,6 +414,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                       priceListUrl={priceListUrl}
                       clientDiscount={clientDiscount}
                       categoryDiscounts={categoryDiscounts}
+                      productDiscounts={productDiscounts}
                     />
                   ) : activePanel === "favorites" ? (
                     <FavoritesContent favorites={favorites} loading={favsLoading} onClose={() => setActivePanel(null)} />

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
 import { useCart } from "@/providers/cart-provider"
 import { validatePromoCode } from "@/lib/actions/promo"
-import { calculateClientDiscount, type CategoryDiscountRule, type ClientDiscountResult } from "@/lib/discounts"
+import { calculateClientDiscount, type CategoryDiscountRule, type ClientDiscountResult, type ProductDiscountRule } from "@/lib/discounts"
 import { toast } from "sonner"
 import type { CartItem } from "@/types"
 
@@ -22,6 +22,7 @@ interface CartSidebarProps {
   priceListUrl?: string
   clientDiscount?: number
   categoryDiscounts?: CategoryDiscountRule[]
+  productDiscounts?: ProductDiscountRule[]
 }
 
 interface CartDiscountLine {
@@ -40,14 +41,19 @@ function buildClientDiscountLines(result: ClientDiscountResult): CartDiscountLin
   const grouped = new Map<string, CartDiscountLine>()
 
   for (const line of result.lines) {
+    const isProductDiscount = line.source === "product"
     const isCategoryDiscount = line.source === "category"
-    const key = isCategoryDiscount
+    const key = isProductDiscount
+      ? `product:${line.productId}:${line.discountPercent}`
+      : isCategoryDiscount
       ? `category:${line.categoryId}:${line.discountPercent}`
       : `base:${line.discountPercent}`
-    const categorySuffix = isCategoryDiscount && line.categoryName
-      ? ` · ${line.categoryName}`
-      : ""
-    const label = `Скидка ${formatDiscountPercent(line.discountPercent)}%${categorySuffix}`
+    const scopeSuffix = isProductDiscount
+      ? ` · ${line.productName || "выбранный товар"}`
+      : isCategoryDiscount && line.categoryName
+        ? ` · ${line.categoryName}`
+        : ""
+    const label = `Скидка ${formatDiscountPercent(line.discountPercent)}%${scopeSuffix}`
     const existing = grouped.get(key)
 
     if (existing) {
@@ -74,6 +80,7 @@ export function CartSidebar({
   priceListUrl,
   clientDiscount = 0,
   categoryDiscounts = [],
+  productDiscounts = [],
 }: CartSidebarProps) {
   const { appliedPromo, setAppliedPromo } = useCart()
   const [promoInput, setPromoInput] = useState("")
@@ -89,15 +96,22 @@ export function CartSidebar({
   }, 0)
 
   // Promo discount
+  const promoEligibleItems = appliedPromo?.applicableProductIds.length
+    ? items.filter((item) => appliedPromo.applicableProductIds.includes(item.product_id))
+    : items
+  const promoEligibleSubtotal = promoEligibleItems.reduce((sum, item) => {
+    return sum + (item.variant?.price ?? 0) * item.quantity
+  }, 0)
   const promoDiscount = appliedPromo
     ? appliedPromo.discountType === "percentage"
-      ? Math.round((totalPrice * appliedPromo.discountValue) / 100)
-      : Math.min(appliedPromo.discountValue, totalPrice)
+      ? Math.round((promoEligibleSubtotal * appliedPromo.discountValue) / 100)
+      : Math.min(appliedPromo.discountValue, promoEligibleSubtotal)
     : 0
 
   const clientDiscountResult = calculateClientDiscount(items, {
     discountPercent: clientDiscount,
     categoryDiscounts,
+    productDiscounts,
   })
   const clientDiscountAmount = clientDiscountResult.amount
 
@@ -109,8 +123,8 @@ export function CartSidebar({
       ? [{
           key: "promo",
           label: appliedPromo?.discountType === "percentage"
-            ? `Промокод ${formatDiscountPercent(appliedPromo.discountValue)}%`
-            : "Промокод",
+            ? `Промокод ${formatDiscountPercent(appliedPromo.discountValue)}%${appliedPromo.applicableProductNames.length ? ` · ${appliedPromo.applicableProductNames.join(", ")}` : ""}`
+            : `Промокод${appliedPromo?.applicableProductNames.length ? ` · ${appliedPromo.applicableProductNames.join(", ")}` : ""}`,
           amount: promoDiscount,
         }]
       : []
@@ -133,6 +147,8 @@ export function CartSidebar({
         discountAmount: result.calculatedDiscount,
         discountType: result.discountType,
         discountValue: result.discountValue,
+        applicableProductIds: result.applicableProductIds,
+        applicableProductNames: result.applicableProductNames,
       })
       toast.success(`Промокод применён! Скидка: ${result.calculatedDiscount.toLocaleString("ru-RU")} ₽`)
       setPromoExpanded(false)

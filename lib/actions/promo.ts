@@ -11,6 +11,8 @@ export type PromoValidationResult =
       discountType: "percentage" | "fixed_amount"
       discountValue: number
       calculatedDiscount: number
+      applicableProductIds: string[]
+      applicableProductNames: string[]
     }
   | {
       valid: false
@@ -76,7 +78,7 @@ export async function validatePromoCode(
     return { valid: false, error: "Промокод исчерпан" }
   }
 
-  if (promo.restrictedToEmail && user.email !== promo.restrictedToEmail) {
+  if (promo.restrictedToEmail && String(user.email || "").toLowerCase() !== String(promo.restrictedToEmail).toLowerCase()) {
     return {
       valid: false,
       error: "Промокод недоступен для вашего аккаунта",
@@ -108,18 +110,23 @@ export async function validatePromoCode(
 
   const discountType = promo.discountType as "percentage" | "fixed_amount"
   const discountValue = promo.discountValue as number
-  const applicableProducts = Array.isArray(promo.applicableProducts)
+  const applicableProductIds = Array.isArray(promo.applicableProducts)
     ? (promo.applicableProducts as ({ id?: string | number } | string | number)[])
       .map((value) => String(typeof value === "object" ? value.id ?? "" : value))
       .filter(Boolean)
     : []
-  const eligibleSubtotal = applicableProducts.length === 0
+  const applicableProductNames = Array.isArray(promo.applicableProducts)
+    ? (promo.applicableProducts as ({ name?: string } | string | number)[])
+      .map((value) => typeof value === "object" ? String(value.name || "") : "")
+      .filter(Boolean)
+    : []
+  const eligibleSubtotal = applicableProductIds.length === 0
     ? subtotal
     : cartLines
-      .filter((line) => applicableProducts.includes(line.productId))
+      .filter((line) => applicableProductIds.includes(line.productId))
       .reduce((sum, line) => sum + line.subtotal, 0)
 
-  if (applicableProducts.length > 0 && eligibleSubtotal <= 0) {
+  if (applicableProductIds.length > 0 && eligibleSubtotal <= 0) {
     return { valid: false, error: "В корзине нет товаров, участвующих в промокоде" }
   }
   let calculatedDiscount = 0
@@ -136,5 +143,7 @@ export async function validatePromoCode(
     discountType,
     discountValue,
     calculatedDiscount,
+    applicableProductIds,
+    applicableProductNames,
   }
 }

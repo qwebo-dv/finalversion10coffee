@@ -2,6 +2,7 @@ import { default as default_a7a591272d1175fa6786d0420d4a2476 } from '../../../pa
 import { default as default_b29d5d4bafbb0e734603f6b3f2ac2235 } from '../../../payload/components/ProductTypeRelationshipField'
 import { default as default_c8d81c80c3d2740af2d1d7f821470379 } from '../../../payload/components/MoyskladCatalogSyncButton'
 import { default as default_ae28d88f8f82cd60af7c36e6bdf5678a } from '../../../payload/components/MoyskladOrderRetryButton'
+import { default as FavoritesAnalyticsDashboard_custom } from '../../../payload/components/FavoritesAnalyticsDashboard'
 import { default as ColorPickerField_custom } from '../../../payload/components/ColorPickerField'
 import { default as OrderItemProductPicker_custom } from '../../../payload/components/OrderItemProductPicker'
 import { default as OrderClientCompanyField_custom } from '../../../payload/components/OrderClientCompanyField'
@@ -38,6 +39,7 @@ export const importMap = {
   "/payload/components/ProductTypeRelationshipField#default": default_b29d5d4bafbb0e734603f6b3f2ac2235,
   "/payload/components/MoyskladCatalogSyncButton#default": default_c8d81c80c3d2740af2d1d7f821470379,
   "/payload/components/MoyskladOrderRetryButton#default": default_ae28d88f8f82cd60af7c36e6bdf5678a,
+  "/payload/components/FavoritesAnalyticsDashboard#default": FavoritesAnalyticsDashboard_custom,
   "/payload/components/ColorPickerField#default": ColorPickerField_custom,
   "/payload/components/OrderItemProductPicker#default": OrderItemProductPicker_custom,
   "/payload/components/OrderClientCompanyField#default": OrderClientCompanyField_custom,

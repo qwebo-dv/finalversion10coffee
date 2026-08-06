@@ -289,6 +289,8 @@ export interface OrderItem {
   quantity: number
   unit_price: number
   total_price: number
+  discount_percent?: number
+  discount_amount?: number
   weight_grams: number | null
   stock_product_moysklad_id?: string | null
   stock_quantity_kg?: number | null

@@ -368,10 +368,22 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                             {item.grind_option ? ` · ${item.grind_option}` : ""}
                             {" · "}x{item.quantity}
                           </p>
+                          {(item.discount_amount || 0) > 0 && (
+                            <p className="text-xs font-medium text-green-600">
+                              Скидка {item.discount_percent || 0}%: −{formatPrice(item.discount_amount || 0)}
+                            </p>
+                          )}
                         </div>
-                        <span className="font-semibold tabular-nums shrink-0">
-                          {formatPrice(item.total_price)}
-                        </span>
+                        <div className="text-right shrink-0">
+                          <span className="font-semibold tabular-nums block">
+                            {formatPrice(Math.max(0, item.total_price - (item.discount_amount || 0)))}
+                          </span>
+                          {(item.discount_amount || 0) > 0 && (
+                            <span className="text-xs text-muted-foreground line-through">
+                              {formatPrice(item.total_price)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

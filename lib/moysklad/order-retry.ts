@@ -1,7 +1,7 @@
 import type { Payload } from "payload"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { normalizeProductDetailsSchema } from "@/lib/product-types"
-import { calculateClientDiscount, normalizeCategoryDiscounts, normalizeDiscountPercent, type CategoryDiscountRule } from "@/lib/discounts"
+import { calculateClientDiscount, normalizeCategoryDiscounts, normalizeDiscountPercent, normalizeProductDiscounts, type CategoryDiscountRule, type ProductDiscountRule } from "@/lib/discounts"
 import { syncOrderToMoysklad, MoyskladTrashedOrderError } from "./sync"
 import { computeOrderContentHash } from "./order-hash"
 import { writeMoyskladLog } from "./logs"
@@ -49,6 +49,10 @@ interface PayloadClientDoc {
     category?: { id?: string | number; name?: string } | string | number | null
     discountPercent?: number | string | null
   }[] | null
+  productDiscounts?: {
+    products?: ({ id?: string | number; name?: string } | string | number)[] | null
+    discountPercent?: number | string | null
+  }[] | null
 }
 
 interface SupabaseCompanyRow {
@@ -85,6 +89,8 @@ interface PayloadOrderItemDoc {
   quantity?: number | string
   unitPrice?: number | string
   totalPrice?: number | string
+  discountPercent?: number | string | null
+  discountAmount?: number | string | null
   stockProductMoyskladId?: string | null
   stockQuantityKg?: number | string | null
   stockPricePerKg?: number | string | null
@@ -197,6 +203,25 @@ function getClientCategoryDiscounts(client: PayloadClientDoc): CategoryDiscountR
     .filter((rule): rule is CategoryDiscountRule => rule !== null)
 
   return normalizeCategoryDiscounts(rules)
+}
+
+function getClientProductDiscounts(client: PayloadClientDoc): ProductDiscountRule[] {
+  const rules = (client.productDiscounts || []).flatMap((rule) => {
+    const discountPercent = normalizeDiscountPercent(rule.discountPercent)
+    return (rule.products || [])
+      .map((product): ProductDiscountRule | null => {
+        const productId = getRelationshipId(product)
+        if (!productId) return null
+        return {
+          productId,
+          productName: typeof product === "object" && product !== null ? product.name : undefined,
+          discountPercent,
+        }
+      })
+      .filter((entry): entry is ProductDiscountRule => entry !== null)
+  })
+
+  return normalizeProductDiscounts(rules)
 }
 
 
@@ -585,10 +610,21 @@ function buildDiscountLines(order: PayloadOrderDoc, cartItems: CartItem[], clien
   const discountAmount = numberValue(order.discountAmount)
   if (subtotal <= 0 || discountAmount <= 0) return []
 
+  const storedLines = (order.items || [])
+    .map((item, index) => {
+      const cartItem = cartItems[index]
+      const discountPercent = normalizeRetryDiscountPercent(item.discountPercent)
+      if (!cartItem || discountPercent <= 0) return null
+      return { cartItemId: cartItem.id, discountPercent }
+    })
+    .filter((line): line is { cartItemId: string; discountPercent: number } => line !== null)
+  if (storedLines.length > 0) return storedLines
+
 
   const recalculatedClientDiscount = calculateClientDiscount(cartItems, {
     discountPercent: normalizeDiscountPercent(client.discountPercent),
     categoryDiscounts: getClientCategoryDiscounts(client),
+    productDiscounts: getClientProductDiscounts(client),
   })
   if (
     recalculatedClientDiscount.lines.length > 0 &&

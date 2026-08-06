@@ -7,6 +7,7 @@ import { ru } from "@payloadcms/translations/languages/ru"
 import type { EmailAdapter, SendEmailOptions } from "payload"
 import nodemailer from "nodemailer"
 import sharp from "sharp"
+import { ensureProductDiscountSchema } from "./migrations/20260805_172254_product_discounts"
 
 import { Categories } from "./payload/collections/Categories"
 import { ProductTypes } from "./payload/collections/ProductTypes"
@@ -49,6 +50,11 @@ const smtpEmailAdapter: EmailAdapter = () => {
 
 export default buildConfig({
   serverURL: process.env.NEXT_PUBLIC_SERVER_URL || "",
+
+  onInit: async (payload) => {
+    if (process.env.NEXT_PHASE === "phase-production-build") return
+    await ensureProductDiscountSchema(payload.db.drizzle)
+  },
 
   admin: {
     user: Admins.slug,

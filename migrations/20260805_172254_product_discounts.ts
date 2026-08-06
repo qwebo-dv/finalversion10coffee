@@ -1,0 +1,73 @@
+import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
+
+export async function ensureProductDiscountSchema(db: MigrateUpArgs['db']): Promise<void> {
+  await db.execute(sql`
+   CREATE TABLE IF NOT EXISTS "promo_codes_rels" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"order" integer,
+  	"parent_id" integer NOT NULL,
+  	"path" varchar NOT NULL,
+  	"products_id" integer
+  );
+  
+  CREATE TABLE IF NOT EXISTS "clients_product_discounts" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" integer NOT NULL,
+  	"id" varchar PRIMARY KEY NOT NULL,
+  	"discount_percent" numeric NOT NULL
+  );
+  
+  CREATE TABLE IF NOT EXISTS "clients_rels" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"order" integer,
+  	"parent_id" integer NOT NULL,
+  	"path" varchar NOT NULL,
+  	"products_id" integer
+  );
+  
+  ALTER TABLE "orders_items" ADD COLUMN IF NOT EXISTS "discount_percent" numeric DEFAULT 0;
+  ALTER TABLE "orders_items" ADD COLUMN IF NOT EXISTS "discount_amount" numeric DEFAULT 0;
+
+  DO $$
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'promo_codes_rels_parent_fk') THEN
+      ALTER TABLE "promo_codes_rels" ADD CONSTRAINT "promo_codes_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."promo_codes"("id") ON DELETE cascade ON UPDATE no action;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'promo_codes_rels_products_fk') THEN
+      ALTER TABLE "promo_codes_rels" ADD CONSTRAINT "promo_codes_rels_products_fk" FOREIGN KEY ("products_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'clients_product_discounts_parent_id_fk') THEN
+      ALTER TABLE "clients_product_discounts" ADD CONSTRAINT "clients_product_discounts_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'clients_rels_parent_fk') THEN
+      ALTER TABLE "clients_rels" ADD CONSTRAINT "clients_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'clients_rels_products_fk') THEN
+      ALTER TABLE "clients_rels" ADD CONSTRAINT "clients_rels_products_fk" FOREIGN KEY ("products_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;
+    END IF;
+  END $$;
+
+  CREATE INDEX IF NOT EXISTS "promo_codes_rels_order_idx" ON "promo_codes_rels" USING btree ("order");
+  CREATE INDEX IF NOT EXISTS "promo_codes_rels_parent_idx" ON "promo_codes_rels" USING btree ("parent_id");
+  CREATE INDEX IF NOT EXISTS "promo_codes_rels_path_idx" ON "promo_codes_rels" USING btree ("path");
+  CREATE INDEX IF NOT EXISTS "promo_codes_rels_products_id_idx" ON "promo_codes_rels" USING btree ("products_id");
+  CREATE INDEX IF NOT EXISTS "clients_product_discounts_order_idx" ON "clients_product_discounts" USING btree ("_order");
+  CREATE INDEX IF NOT EXISTS "clients_product_discounts_parent_id_idx" ON "clients_product_discounts" USING btree ("_parent_id");
+  CREATE INDEX IF NOT EXISTS "clients_rels_order_idx" ON "clients_rels" USING btree ("order");
+  CREATE INDEX IF NOT EXISTS "clients_rels_parent_idx" ON "clients_rels" USING btree ("parent_id");
+  CREATE INDEX IF NOT EXISTS "clients_rels_path_idx" ON "clients_rels" USING btree ("path");
+  CREATE INDEX IF NOT EXISTS "clients_rels_products_id_idx" ON "clients_rels" USING btree ("products_id");`)
+}
+
+export async function up({ db }: MigrateUpArgs): Promise<void> {
+  await ensureProductDiscountSchema(db)
+}
+
+export async function down({ db }: MigrateDownArgs): Promise<void> {
+  await db.execute(sql`
+   DROP TABLE "promo_codes_rels" CASCADE;
+  DROP TABLE "clients_product_discounts" CASCADE;
+  DROP TABLE "clients_rels" CASCADE;
+  ALTER TABLE "orders_items" DROP COLUMN "discount_percent";
+  ALTER TABLE "orders_items" DROP COLUMN "discount_amount";`)
+}
