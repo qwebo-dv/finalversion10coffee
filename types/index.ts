@@ -148,6 +148,14 @@ export interface AttachedFile {
   size: number
 }
 
+export interface ProductReview {
+  id: string
+  author_name: string | null
+  rating: number
+  comment: string | null
+  created_at: string
+}
+
 export interface Product {
   id: string
   category_id: string
@@ -163,6 +171,11 @@ export interface Product {
   sort_order: number
   is_visible: boolean
   stickers: ProductTag[]
+
+  // Rating & reviews
+  rating?: number
+  reviews_count?: number
+  reviews?: ProductReview[]
 
   // Coffee-specific
   roaster: string | null

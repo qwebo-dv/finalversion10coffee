@@ -2,10 +2,12 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { ArrowLeft, Check, Coffee, Droplets, Leaf, Minus, Paperclip, Plus, ShoppingBag } from "lucide-react"
+import { Check, CheckCircle2, Coffee, Leaf, Loader2, Minus, Paperclip, Plus, ShoppingBag } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { ShopHeader } from "@/components/shop/shop-header"
+import { StarRating } from "@/components/shop/star-rating"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
 import type { Product } from "@/types"
 
@@ -30,7 +32,22 @@ interface SpecRow {
   value: string
 }
 
+function starWord(count: number): string {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  if (mod10 === 1 && mod100 !== 11) return "звезда"
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "звезды"
+  return "звёзд"
+}
+
+function formatReviewDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ""
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(date)
+}
+
 export function ShopProduct({ product, products }: { product: Product; products: Product[] }) {
+  const router = useRouter()
   const variants = product.variants || []
   const [variant, setVariant] = useState(variants[0] || null)
   const [quantity, setQuantity] = useState(1)
@@ -38,8 +55,16 @@ export function ShopProduct({ product, products }: { product: Product; products:
   const [added, setAdded] = useState(false)
   const { addItem } = useGuestCart()
 
+  const [vote, setVote] = useState(0)
+  const [authorName, setAuthorName] = useState("")
+  const [comment, setComment] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const [voteError, setVoteError] = useState<string | null>(null)
+  const [voteDone, setVoteDone] = useState(false)
+
   const images = product.images.length > 0 ? product.images : []
   const subtitle = [product.region, product.processing_method].filter(Boolean).join(" · ")
+  const reviews = product.reviews || []
 
   const specs: SpecRow[] = [
     typeof product.q_grader_rating === "number" ? { label: "Оценка Q-грейдера", value: String(product.q_grader_rating) } : null,
@@ -57,6 +82,36 @@ export function ShopProduct({ product, products }: { product: Product; products:
     window.setTimeout(() => setAdded(false), 1400)
   }
 
+  async function submitVote() {
+    if (!vote) return
+    setSubmitting(true)
+    setVoteError(null)
+    try {
+      const response = await fetch("/api/product-reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product: product.id,
+          rating: vote,
+          authorName: authorName.trim() || undefined,
+          comment: comment.trim() || undefined,
+        }),
+      })
+      if (!response.ok) {
+        const body = await response.text().catch(() => "")
+        console.error("[review] POST failed", response.status, body)
+        throw new Error(`Review POST failed: ${response.status}`)
+      }
+      setVoteDone(true)
+      router.refresh()
+    } catch (error) {
+      console.error("[review] submit error", error)
+      setVoteError("Что-то пошло не так. Попробуйте ещё раз.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const isCoffee = product.product_type_schema === "coffee"
   const isTea = product.product_type_schema === "tea"
 
@@ -69,7 +124,7 @@ export function ShopProduct({ product, products }: { product: Product; products:
         <nav className="flex flex-wrap items-center gap-2 text-sm text-[#8d827a]">
           <Link href="/shop" className="font-bold text-[#6f655e] transition hover:text-[#5b328a]">Каталог</Link>
           <span className="text-[#c3b8af]">/</span>
-          <span>{product.product_type_name}</span>
+          <Link href={`/shop?type=${product.product_type}`} className="font-semibold text-[#6f655e] transition hover:text-[#5b328a]">{product.product_type_name}</Link>
           <span className="text-[#c3b8af]">/</span>
           <span className="font-bold text-[#1d1d1b]">{product.name}</span>
         </nav>
@@ -106,6 +161,7 @@ export function ShopProduct({ product, products }: { product: Product; products:
             <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#e6610d]">{product.product_type_name}</p>
             <h1 className="mt-3 text-5xl font-black leading-[0.98] tracking-[-0.05em] sm:text-6xl">{product.name}</h1>
             {subtitle && <p className="mt-4 text-lg text-[#6e655e]">{subtitle}</p>}
+            <div className="mt-5"><StarRating value={product.rating} count={product.reviews_count} size="lg" /></div>
 
             {/* Packaging */}
             <div className="mt-10">
@@ -118,6 +174,7 @@ export function ShopProduct({ product, products }: { product: Product; products:
                   </button>
                 ))}
               </div>
+              <p className="mt-3 text-xs text-[#9b9087]">В зернах и в молотом виде — по одной цене. Помол бесплатно.</p>
             </div>
 
             {/* Price + quantity + CTA */}
@@ -208,6 +265,62 @@ export function ShopProduct({ product, products }: { product: Product; products:
               </div>
             )}
           </aside>
+        </div>
+
+        {/* Reviews */}
+        <div className="mt-24 grid gap-12 lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-16">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#e6610d]">Отзывы</p>
+            <h2 className="mt-3 text-3xl font-black tracking-[-0.03em]">Оценки покупателей</h2>
+            <div className="mt-7 flex items-end gap-4">
+              <span className="text-7xl font-black leading-none tracking-tight">{typeof product.rating === "number" ? product.rating.toFixed(1) : "—"}</span>
+              <div className="pb-1.5"><StarRating value={product.rating} count={product.reviews_count} size="lg" showValue={false} /></div>
+            </div>
+            {reviews.length > 0 && <p className="mt-3 text-sm text-[#8d827a]">Средняя оценка из {reviews.length} отзывов</p>}
+
+            <div className="mt-9 rounded-[28px] bg-white p-7 shadow-[0_20px_60px_rgba(45,27,17,0.07)]">
+              <h3 className="text-lg font-black">Оцените товар</h3>
+              {voteDone ? (
+                <div className="mt-4 flex items-center gap-3 rounded-2xl bg-[#e8f5e9] p-4 text-sm font-bold text-[#2e7d32]"><CheckCircle2 className="h-5 w-5 shrink-0" /> Спасибо! Ваша оценка учтена.</div>
+              ) : (
+                <>
+                  <div className="mt-4"><StarRating interactive onRate={setVote} size="lg" showValue={false} /></div>
+                  <p className="mt-2 text-sm text-[#8d827a]">{vote > 0 ? `Выбрано: ${vote} ${starWord(vote)}` : "Нажмите на звёзды, чтобы поставить оценку"}</p>
+                  <input value={authorName} onChange={(event) => setAuthorName(event.target.value)} placeholder="Ваше имя (необязательно)" className="mt-5 h-12 w-full rounded-2xl border border-black/10 bg-[#f8f5f1] px-4 text-sm outline-none transition focus:border-[#5b328a]" />
+                  <textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Напишите отзыв (необязательно)" rows={3} className="mt-3 w-full resize-none rounded-2xl border border-black/10 bg-[#f8f5f1] px-4 py-3 text-sm outline-none transition focus:border-[#5b328a]" />
+                  <button type="button" onClick={submitVote} disabled={!vote || submitting} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#5b328a] px-6 py-4 text-sm font-black text-white transition hover:bg-[#47256e] disabled:opacity-40">
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Отправить оценку"}
+                  </button>
+                  {voteError && <p className="mt-3 text-sm font-semibold text-red-600">{voteError}</p>}
+                </>
+              )}
+            </div>
+          </div>
+
+          <div>
+            {reviews.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center rounded-[32px] border border-dashed border-black/10 bg-white/60 px-8 py-20 text-center">
+                <Coffee className="h-12 w-12 text-[#e6610d]/40" />
+                <p className="mt-5 max-w-sm text-sm leading-6 text-[#8d827a]">Отзывов пока нет. Поставьте оценку — это займёт 10 секунд.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reviews.map((review) => (
+                  <div key={review.id} className="rounded-[24px] bg-white p-6 shadow-[0_14px_40px_rgba(45,27,17,0.05)]">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#faead5] text-sm font-black text-[#b0531a]">{(review.author_name || "Г").charAt(0).toUpperCase()}</span>
+                        <span className="truncate font-bold">{review.author_name || "Гость"}</span>
+                      </div>
+                      <StarRating value={review.rating} showValue={false} size="sm" />
+                    </div>
+                    {review.comment && <p className="mt-3 text-sm leading-6 text-[#554b43]">{review.comment}</p>}
+                    <p className="mt-3 text-xs text-[#aaa098]">{formatReviewDate(review.created_at)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </main>

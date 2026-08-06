@@ -8,10 +8,12 @@ import type { EmailAdapter, SendEmailOptions } from "payload"
 import nodemailer from "nodemailer"
 import sharp from "sharp"
 import { ensureProductDiscountSchema } from "./migrations/20260805_172254_product_discounts"
+import { ensureProductReviewsSchema } from "./migrations/20260806_172254_product_reviews"
 
 import { Categories } from "./payload/collections/Categories"
 import { ProductTypes } from "./payload/collections/ProductTypes"
 import { Products } from "./payload/collections/Products"
+import { ProductReviews } from "./payload/collections/ProductReviews"
 import { Orders } from "./payload/collections/Orders"
 import { PromoCodes } from "./payload/collections/PromoCodes"
 import { News } from "./payload/collections/News"
@@ -54,6 +56,7 @@ export default buildConfig({
   onInit: async (payload) => {
     if (process.env.NEXT_PHASE === "phase-production-build") return
     await ensureProductDiscountSchema(payload.db.drizzle)
+    await ensureProductReviewsSchema(payload.db.drizzle)
   },
 
   admin: {
@@ -75,6 +78,7 @@ export default buildConfig({
     Tags,
     ProductTypes,
     Products,
+    ProductReviews,
     Categories,
     News,
     MapLocations,

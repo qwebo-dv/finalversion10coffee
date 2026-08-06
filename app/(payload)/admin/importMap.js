@@ -1,17 +1,16 @@
+import { default as default_2c0fc6b26878d090320397abae54b471 } from '../../../payload/components/OrderSubtotalField'
+import { default as default_85e396daa2ab3886aa9428cc84e9471e } from '../../../payload/components/OrderClientCompanyField'
+import { default as default_0f3c28c0f569dde18fb1427e58cc1418 } from '../../../payload/components/OrderItemProductPicker'
+import { default as default_0ef052de648d309538212e8af9eb37d1 } from '../../../payload/components/MoyskladOrderRetryButton'
 import { default as default_a7a591272d1175fa6786d0420d4a2476 } from '../../../payload/components/IssuePromoButton'
-import { default as default_b29d5d4bafbb0e734603f6b3f2ac2235 } from '../../../payload/components/ProductTypeRelationshipField'
-import { default as default_c8d81c80c3d2740af2d1d7f821470379 } from '../../../payload/components/MoyskladCatalogSyncButton'
-import { default as default_ae28d88f8f82cd60af7c36e6bdf5678a } from '../../../payload/components/MoyskladOrderRetryButton'
-import { default as FavoritesAnalyticsDashboard_custom } from '../../../payload/components/FavoritesAnalyticsDashboard'
-import { default as ColorPickerField_custom } from '../../../payload/components/ColorPickerField'
-import { default as OrderItemProductPicker_custom } from '../../../payload/components/OrderItemProductPicker'
-import { default as OrderClientCompanyField_custom } from '../../../payload/components/OrderClientCompanyField'
-import { default as OrderSubtotalField_custom } from '../../../payload/components/OrderSubtotalField'
+import { default as default_2b51eb54bf9dc710843a5d5856532549 } from '../../../payload/components/FavoritesAnalyticsDashboard'
+import { default as default_eb55fc0d6925e2087ac3430be89eece1 } from '../../../payload/components/ColorPickerField'
+import { default as default_962b746cf9d9bea7babbcdc52aec30df } from '../../../payload/components/ProductTypeRelationshipField'
 import { RscEntryLexicalCell as RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { RscEntryLexicalField as RscEntryLexicalField_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { LexicalDiffComponent as LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
-import { InlineToolbarFeatureClient as InlineToolbarFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { FixedToolbarFeatureClient as FixedToolbarFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { InlineToolbarFeatureClient as InlineToolbarFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { UploadFeatureClient as UploadFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { BlockquoteFeatureClient as BlockquoteFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -31,24 +30,24 @@ import { StrikethroughFeatureClient as StrikethroughFeatureClient_e70f5e05f09f93
 import { UnderlineFeatureClient as UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { BoldFeatureClient as BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ItalicFeatureClient as ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { default as default_6e6a3ba665b4a0e4a4c9d853e6fe8fe4 } from '../../../payload/components/MoyskladCatalogSyncButton'
 import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 export const importMap = {
+  "/payload/components/OrderSubtotalField#default": default_2c0fc6b26878d090320397abae54b471,
+  "/payload/components/OrderClientCompanyField#default": default_85e396daa2ab3886aa9428cc84e9471e,
+  "/payload/components/OrderItemProductPicker#default": default_0f3c28c0f569dde18fb1427e58cc1418,
+  "/payload/components/MoyskladOrderRetryButton#default": default_0ef052de648d309538212e8af9eb37d1,
   "/payload/components/IssuePromoButton#default": default_a7a591272d1175fa6786d0420d4a2476,
-  "/payload/components/ProductTypeRelationshipField#default": default_b29d5d4bafbb0e734603f6b3f2ac2235,
-  "/payload/components/MoyskladCatalogSyncButton#default": default_c8d81c80c3d2740af2d1d7f821470379,
-  "/payload/components/MoyskladOrderRetryButton#default": default_ae28d88f8f82cd60af7c36e6bdf5678a,
-  "/payload/components/FavoritesAnalyticsDashboard#default": FavoritesAnalyticsDashboard_custom,
-  "/payload/components/ColorPickerField#default": ColorPickerField_custom,
-  "/payload/components/OrderItemProductPicker#default": OrderItemProductPicker_custom,
-  "/payload/components/OrderClientCompanyField#default": OrderClientCompanyField_custom,
-  "/payload/components/OrderSubtotalField#default": OrderSubtotalField_custom,
+  "/payload/components/FavoritesAnalyticsDashboard#default": default_2b51eb54bf9dc710843a5d5856532549,
+  "/payload/components/ColorPickerField#default": default_eb55fc0d6925e2087ac3430be89eece1,
+  "/payload/components/ProductTypeRelationshipField#default": default_962b746cf9d9bea7babbcdc52aec30df,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalField": RscEntryLexicalField_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/rsc#LexicalDiffComponent": LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e,
-  "@payloadcms/richtext-lexical/client#InlineToolbarFeatureClient": InlineToolbarFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#FixedToolbarFeatureClient": FixedToolbarFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
+  "@payloadcms/richtext-lexical/client#InlineToolbarFeatureClient": InlineToolbarFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#UploadFeatureClient": UploadFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#BlockquoteFeatureClient": BlockquoteFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
@@ -68,6 +67,7 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#UnderlineFeatureClient": UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#BoldFeatureClient": BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ItalicFeatureClient": ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
+  "/payload/components/MoyskladCatalogSyncButton#default": default_6e6a3ba665b4a0e4a4c9d853e6fe8fe4,
   "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

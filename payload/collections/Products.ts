@@ -159,6 +159,27 @@ export const Products: CollectionConfig = {
       },
     },
     {
+      name: "manualRating",
+      type: "number",
+      label: "Рейтинг (ручной)",
+      min: 0,
+      max: 5,
+      admin: {
+        position: "sidebar",
+        description: "Оставьте пустым, чтобы рейтинг считался автоматически из оценок в разделе «Отзывы». Укажите значение, чтобы зафиксировать рейтинг вручную (например, 4.9).",
+      },
+    },
+    {
+      name: "manualRatingCount",
+      type: "number",
+      label: "Кол-во оценок (ручное)",
+      min: 0,
+      admin: {
+        position: "sidebar",
+        description: "Сколько оценок показывать рядом с рейтингом. Если пусто — используется реальное количество отзывов.",
+      },
+    },
+    {
       name: "moyskladId",
       type: "text",
       label: "ID товара в МойСклад",

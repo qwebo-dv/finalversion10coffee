@@ -16,7 +16,7 @@ import {
   type ClientDiscountConfig,
   type ProductDiscountRule,
 } from "@/lib/discounts"
-import type { Product, ProductVariant, ProductType, ProductTypeOption, ProductTag, AttachedFile, ProductDetailsSchema } from "@/types"
+import type { Product, ProductVariant, ProductType, ProductTypeOption, ProductTag, AttachedFile, ProductDetailsSchema, ProductReview } from "@/types"
 
 async function getPayloadClient() {
   return getPayload({ config: configPromise })
@@ -125,6 +125,17 @@ interface PayloadProductDoc {
   variants?: PayloadVariant[]
   createdAt?: string
   updatedAt?: string
+  manualRating?: number
+  manualRatingCount?: number
+}
+
+interface PayloadReviewDoc {
+  id?: string | number
+  product?: PayloadProductDoc | string | number | null
+  authorName?: string
+  rating?: number
+  comment?: string
+  createdAt?: string
 }
 
 interface PayloadClientCategoryDiscount {
@@ -368,7 +379,54 @@ function resolveProductTypeSchema(doc: { detailsSchema?: ProductDetailsSchema; p
   return normalizeProductDetailsSchema(doc.detailsSchema)
 }
 
-function transformProduct(doc: PayloadProductDoc): Product {
+function getProductRating(reviews: ProductReview[], manualRating?: number | null, manualRatingCount?: number | null) {
+  if (typeof manualRating === "number" && manualRating > 0) {
+    return {
+      rating: Math.round(manualRating * 10) / 10,
+      reviews_count: typeof manualRatingCount === "number" && manualRatingCount > 0 ? manualRatingCount : reviews.length,
+    }
+  }
+  if (reviews.length > 0) {
+    const average = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+    return { rating: Math.round(average * 10) / 10, reviews_count: reviews.length }
+  }
+  if (typeof manualRatingCount === "number" && manualRatingCount > 0) {
+    return { rating: undefined, reviews_count: manualRatingCount }
+  }
+  return { rating: undefined, reviews_count: undefined }
+}
+
+async function fetchReviewsMap(): Promise<Map<string, ProductReview[]>> {
+  const payload = await getPayloadClient()
+  try {
+    const { docs } = await payload.find({
+      collection: "product-reviews",
+      limit: 20000,
+      depth: 0,
+      sort: "-createdAt",
+    })
+    const map = new Map<string, ProductReview[]>()
+    for (const doc of docs as PayloadReviewDoc[]) {
+      const productId = getRelationshipId(doc.product)
+      if (productId === null) continue
+      const review: ProductReview = {
+        id: String(doc.id),
+        author_name: doc.authorName || null,
+        rating: typeof doc.rating === "number" ? doc.rating : 0,
+        comment: doc.comment || null,
+        created_at: doc.createdAt || "",
+      }
+      const list = map.get(String(productId)) || []
+      list.push(review)
+      map.set(String(productId), list)
+    }
+    return map
+  } catch {
+    return new Map()
+  }
+}
+
+function transformProduct(doc: PayloadProductDoc, reviews: ProductReview[] = []): Product {
   const productId = String(doc.id)
   const categoryIds = getCategoryIds(doc.category)
   const categoryId = categoryIds[0] || ""
@@ -391,6 +449,10 @@ function transformProduct(doc: PayloadProductDoc): Product {
     sort_order: doc.sortOrder || 0,
     is_visible: doc.isVisible ?? true,
     stickers: (doc.stickers || []).map(transformTag).filter(isDefined),
+
+    // Rating & reviews
+    ...getProductRating(reviews, doc.manualRating, doc.manualRatingCount),
+    reviews,
 
     // Coffee details (flattened from coffeeDetails group)
     roaster: coffee.roaster || null,
@@ -564,8 +626,9 @@ export async function getProductsByCategory(categoryId: number | string): Promis
     depth: 2,
   })
 
+  const reviewsMap = await fetchReviewsMap()
   return (docs as PayloadProductDoc[])
-    .map(transformProduct)
+    .map((doc) => transformProduct(doc, reviewsMap.get(String(doc.id)) || []))
     .filter((product) => product.variants?.some(isAvailableVariant))
 }
 
@@ -578,7 +641,8 @@ export async function getProductById(id: number | string): Promise<Product | nul
       id: id,
       depth: 2,
     })
-    const product = transformProduct(doc as PayloadProductDoc)
+    const reviewsMap = await fetchReviewsMap()
+    const product = transformProduct(doc as PayloadProductDoc, reviewsMap.get(String(doc.id)) || [])
     if (!product.is_visible || !product.variants?.some(isAvailableVariant)) return null
     return product
   } catch {
@@ -597,7 +661,8 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   })
 
   if (!docs[0]) return null
-  const product = transformProduct(docs[0] as PayloadProductDoc)
+  const reviewsMap = await fetchReviewsMap()
+  const product = transformProduct(docs[0] as PayloadProductDoc, reviewsMap.get(String(docs[0].id)) || [])
   if (!product.is_visible || !product.variants?.some(isAvailableVariant)) return null
   return product
 }
@@ -616,8 +681,9 @@ export async function searchProducts(query: string): Promise<Product[]> {
     depth: 2,
   })
 
+  const reviewsMap = await fetchReviewsMap()
   return (docs as PayloadProductDoc[])
-    .map(transformProduct)
+    .map((doc) => transformProduct(doc, reviewsMap.get(String(doc.id)) || []))
     .filter((product) => product.variants?.some(isAvailableVariant))
 }
 
@@ -631,8 +697,9 @@ export async function getShopProducts(): Promise<Product[]> {
     depth: 2,
   })
 
+  const reviewsMap = await fetchReviewsMap()
   return (docs as PayloadProductDoc[])
-    .map(transformProduct)
+    .map((doc) => transformProduct(doc, reviewsMap.get(String(doc.id)) || []))
     .filter((product) => product.variants?.some(isAvailableVariant))
 }
 
@@ -735,10 +802,13 @@ export async function getFavoriteProducts(): Promise<Product[]> {
     depth: 2,
   })
 
+  const reviewsMap = await fetchReviewsMap()
   return (docs as PayloadFavoriteDoc[])
     .map((d) => {
       const raw = typeof d.product === "object" ? d.product : null
-      return raw ? transformProduct(raw as PayloadProductDoc) : null
+      if (!raw) return null
+      const productId = getRelationshipId(d.product)
+      return transformProduct(raw as PayloadProductDoc, productId === null ? [] : reviewsMap.get(String(productId)) || [])
     })
     .filter((product): product is Product => Boolean(product?.is_visible && product.variants?.some(isAvailableVariant)))
 }
