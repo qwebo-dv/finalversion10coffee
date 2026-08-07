@@ -109,7 +109,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || ""
   const avatarUrl: string | null = user?.user_metadata?.avatar_url || null
 
-  const isCatalog = pathname.startsWith("/dashboard/catalog") || pathname.startsWith("/dashboard/product") || pathname === "/dashboard/favorites"
+  const isCatalog = pathname.startsWith("/dashboard/catalog") || pathname.startsWith("/dashboard/product")
   const isDashboard = !isCatalog
 
   const loadFavorites = useCallback(async () => {
