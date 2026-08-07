@@ -27,6 +27,9 @@ import {
   GraduationCap,
   Globe,
   Trash2,
+  History,
+  Star,
+  Truck,
 } from "lucide-react"
 import { getSiteSettings } from "@/lib/actions/site-settings"
 import { cn } from "@/lib/utils"
@@ -49,7 +52,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const RETAIL_FORBIDDEN_PREFIXES = [
     "/dashboard/catalog",
     "/dashboard/product",
-    "/dashboard/favorites",
     "/dashboard/news",
     "/dashboard/blog",
     "/dashboard/checkout",
@@ -135,12 +137,33 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
           {/* Left sidebar - Cabinet navigation */}
           {isDashboard && (
-            <aside className="hidden lg:flex w-[210px] shrink-0 flex-col pt-6 pb-6 pl-5 pr-2 lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+            <aside className="hidden lg:flex w-[220px] shrink-0 flex-col pt-6 pb-6 pl-5 pr-2 lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+              {/* User block */}
+              <div className="flex items-center gap-2.5 px-3 py-2">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-[12px] font-bold text-white">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    displayName.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-semibold text-neutral-900">{displayName}</p>
+                  <p className="truncate text-[10px] text-neutral-400">{user?.email}</p>
+                </div>
+              </div>
+
+              <div className="h-px bg-neutral-200/50 my-4 mx-1" />
+
               <nav className="space-y-0.5">
                 {(
                   isIndividual
                     ? [
                         { href: "/dashboard/orders", label: "Заказы", icon: Package },
+                        { href: "/dashboard/recently-viewed", label: "Просмотренные товары", icon: History },
+                        { href: "/dashboard/favorites", label: "Избранные", icon: Heart },
+                        { href: "/dashboard/reviews", label: "Мои отзывы", icon: Star },
+                        { href: "/dashboard/delivery", label: "Способы доставки", icon: Truck },
                         { href: "/dashboard/settings", label: "Настройки", icon: Settings },
                       ]
                     : [
@@ -217,74 +240,57 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 </>
               )}
 
-              <div className="h-px bg-neutral-200/50 my-4 mx-1" />
+              {!isIndividual && (
+                <>
+                  <div className="h-px bg-neutral-200/50 my-4 mx-1" />
 
-              {isIndividual ? (
-                <div className="space-y-0.5">
-                  <Link
-                    href="/shop"
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
-                  >
-                    <ShoppingBag className="h-4 w-4 text-neutral-300 shrink-0" />
-                    Интернет-магазин
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  <a
-                    href="/obuchenie"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
-                  >
-                    <GraduationCap className="h-4 w-4 text-neutral-300 shrink-0" />
-                    Обучение
-                  </a>
-                  <a
-                    href={priceListUrl || "/Прайс 10coffee_ Март 2026г. (1).pdf"}
-                    download
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
-                  >
-                    <FileText className="h-4 w-4 text-neutral-300 shrink-0" />
-                    Прайс-лист
-                  </a>
-                  <a
-                    href="tg://resolve?domain=local10coffee"
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
-                  >
-                    <Send className="h-3.5 w-3.5 text-neutral-300 shrink-0" />
-                    Telegram-канал
-                  </a>
-                </div>
+                  <div className="space-y-0.5">
+                    <a
+                      href="/obuchenie"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
+                    >
+                      <GraduationCap className="h-4 w-4 text-neutral-300 shrink-0" />
+                      Обучение
+                    </a>
+                    <a
+                      href={priceListUrl || "/Прайс 10coffee_ Март 2026г. (1).pdf"}
+                      download
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
+                    >
+                      <FileText className="h-4 w-4 text-neutral-300 shrink-0" />
+                      Прайс-лист
+                    </a>
+                    <a
+                      href="tg://resolve?domain=local10coffee"
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
+                    >
+                      <Send className="h-3.5 w-3.5 text-neutral-300 shrink-0" />
+                      Telegram-канал
+                    </a>
+                  </div>
+                </>
+              )}
+
+              {!isIndividual && (
+                <>
+                  <div className="h-px bg-neutral-200/50 my-4 mx-1" />
+
+                  <div className="space-y-0.5">
+                    <Link
+                      href="/"
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
+                    >
+                      <Globe className="h-4 w-4 text-neutral-300 shrink-0" />
+                      Оптовый сайт
+                    </Link>
+                  </div>
+                </>
               )}
 
               <div className="h-px bg-neutral-200/50 my-4 mx-1" />
 
-              <div className="space-y-0.5">
-                <Link
-                  href={isIndividual ? "/shop" : "/"}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
-                >
-                  <Globe className="h-4 w-4 text-neutral-300 shrink-0" />
-                  {isIndividual ? "Перейти в магазин" : "Оптовый сайт"}
-                </Link>
-              </div>
-
-              <div className="h-px bg-neutral-200/50 my-4 mx-1" />
-
-              <div className="flex items-center gap-2.5 px-3 py-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-[11px] font-bold text-white">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    displayName.charAt(0).toUpperCase()
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-semibold text-neutral-900">{displayName}</p>
-                  <p className="truncate text-[10px] text-neutral-400">{user?.email}</p>
-                </div>
-              </div>
               <button
                 type="button"
                 onClick={() => signOut()}
@@ -443,16 +449,28 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <span className="text-[10px] font-medium">Заказы</span>
             </Link>
             {isIndividual ? (
-              <Link
-                href="/shop"
-                className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
-                  pathname.startsWith("/shop") ? "text-[#5b328a]" : "text-neutral-400"
-                )}
-              >
-                <ShoppingBag className="h-5 w-5" />
-                <span className="text-[10px] font-medium">Магазин</span>
-              </Link>
+              <>
+                <Link
+                  href="/dashboard/recently-viewed"
+                  className={cn(
+                    "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
+                    pathname.startsWith("/dashboard/recently-viewed") ? "text-[#5b328a]" : "text-neutral-400"
+                  )}
+                >
+                  <History className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Просмотрено</span>
+                </Link>
+                <Link
+                  href="/dashboard/favorites"
+                  className={cn(
+                    "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
+                    pathname.startsWith("/dashboard/favorites") ? "text-[#5b328a]" : "text-neutral-400"
+                  )}
+                >
+                  <Heart className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Избранное</span>
+                </Link>
+              </>
             ) : (
               <Link
                 href="/dashboard/catalog"

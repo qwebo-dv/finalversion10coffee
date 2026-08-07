@@ -5,10 +5,13 @@ import { Heart, Coffee, Loader2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/providers/auth-provider"
 import { toggleFavorite, getFavoriteProducts } from "@/lib/actions/products"
 import type { Product } from "@/types"
 
 export default function FavoritesPage() {
+  const { user } = useAuth()
+  const isIndividual = user?.user_metadata?.customer_type === "individual"
   const [favorites, setFavorites] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [removingId, setRemovingId] = useState<string | null>(null)
@@ -53,7 +56,7 @@ export default function FavoritesPage() {
             Нажмите на сердечко рядом с товаром, чтобы добавить его в избранное
           </p>
           <Button className="mt-4" asChild>
-            <Link href="/dashboard/catalog">Перейти в каталог</Link>
+            <Link href={isIndividual ? "/shop" : "/dashboard/catalog"}>Перейти в каталог</Link>
           </Button>
         </div>
       ) : (
@@ -73,7 +76,7 @@ export default function FavoritesPage() {
 
               <div className="flex-1 min-w-0">
                 <Link
-                  href={`/dashboard/product/${product.id}`}
+                  href={isIndividual ? `/shop/${product.slug}` : `/dashboard/product/${product.id}`}
                   className="font-medium hover:text-primary transition-colors"
                 >
                   {product.name}

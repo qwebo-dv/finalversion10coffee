@@ -133,6 +133,7 @@ interface PayloadReviewDoc {
   id?: string | number
   product?: PayloadProductDoc | string | number | null
   authorName?: string
+  clientId?: string | null
   rating?: number
   comment?: string
   createdAt?: string
@@ -412,6 +413,7 @@ async function fetchReviewsMap(): Promise<Map<string, ProductReview[]>> {
       const review: ProductReview = {
         id: String(doc.id),
         author_name: doc.authorName || null,
+        client_id: doc.clientId || null,
         rating: typeof doc.rating === "number" ? doc.rating : 0,
         comment: doc.comment || null,
         created_at: doc.createdAt || "",
@@ -703,6 +705,32 @@ export async function getShopProducts(): Promise<Product[]> {
     .filter((product) => product.variants?.some(isAvailableVariant))
 }
 
+export async function getProductsByIds(ids: string[]): Promise<Product[]> {
+  if (ids.length === 0) return []
+
+  const payload = await getPayloadClient()
+  const numericIds = ids.map(Number).filter((id) => Number.isInteger(id))
+  if (numericIds.length === 0) return []
+
+  const { docs } = await payload.find({
+    collection: "products",
+    where: { id: { in: numericIds } },
+    limit: 100,
+    depth: 2,
+  })
+
+  const reviewsMap = await fetchReviewsMap()
+  const order = new Map(numericIds.map((id, index) => [id, index]))
+  return (docs as PayloadProductDoc[])
+    .map((doc) => transformProduct(doc, reviewsMap.get(String(doc.id)) || []))
+    .filter((product) => product.is_visible && product.variants?.some(isAvailableVariant))
+    .sort((a, b) => {
+      const ai = order.get(Number(a.id)) ?? Number.MAX_SAFE_INTEGER
+      const bi = order.get(Number(b.id)) ?? Number.MAX_SAFE_INTEGER
+      return ai - bi
+    })
+}
+
 // ============================================================
 // Client discount
 // ============================================================
@@ -858,6 +886,59 @@ export async function getTags() {
       slug: tag.slug || "",
       color: normalizeTagColor(tag.color),
     }))
+  } catch {
+    return []
+  }
+}
+
+export interface MyReview {
+  id: string
+  rating: number
+  comment: string | null
+  created_at: string
+  product: {
+    id: string
+    name: string
+    slug: string
+    image: string | null
+  }
+}
+
+export async function getMyReviews(): Promise<MyReview[]> {
+  const clientId = await getCurrentUserId()
+  if (!clientId) return []
+
+  try {
+    const payload = await getPayloadClient()
+    const { docs } = await payload.find({
+      collection: "product-reviews",
+      where: { clientId: { equals: clientId } },
+      limit: 500,
+      sort: "-createdAt",
+      depth: 1,
+    })
+
+    return (docs as PayloadReviewDoc[])
+      .map((doc): MyReview | null => {
+        const rawProduct = typeof doc.product === "object" ? doc.product : null
+        if (!rawProduct) return null
+        const productId = getRelationshipId(doc.product)
+        if (productId === null) return null
+
+        return {
+          id: String(doc.id),
+          rating: typeof doc.rating === "number" ? doc.rating : 0,
+          comment: doc.comment || null,
+          created_at: doc.createdAt || "",
+          product: {
+            id: String(productId),
+            name: rawProduct.name || "",
+            slug: rawProduct.slug || String(productId),
+            image: extractImageUrls(rawProduct.images)[0] || null,
+          },
+        }
+      })
+      .filter((entry): entry is MyReview => entry !== null)
   } catch {
     return []
   }

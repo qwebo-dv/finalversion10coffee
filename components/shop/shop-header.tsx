@@ -88,7 +88,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
       <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-[#f8f5f1]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-20 max-w-[1480px] items-center gap-6 px-5 lg:px-10">
           <button type="button" onClick={() => setMenuOpen(true)} className="flex h-11 w-11 items-center justify-center rounded-full text-[#1d1d1b] transition hover:bg-black/[0.05] lg:hidden"><Menu className="h-5 w-5" /></button>
-          <Link href="/shop" className="text-2xl font-black tracking-[-0.08em] text-[#5b328a]">10COFFEE</Link>
+          <Link href="/shop" className="flex shrink-0 items-center"><img src="/logo.svg" alt="10COFFEE" className="h-9 w-auto" /></Link>
 
           {/* Desktop nav */}
           <nav className="ml-4 hidden items-center gap-1 lg:flex">
@@ -123,7 +123,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
         <div className="fixed inset-0 z-50 bg-black/35 backdrop-blur-sm lg:hidden" onMouseDown={() => setMenuOpen(false)}>
           <aside className="flex h-full w-full max-w-sm flex-col bg-[#f8f5f1] shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
             <div className="flex items-center border-b border-black/[0.06] px-6 py-5">
-              <Link href="/shop" onClick={() => setMenuOpen(false)} className="text-2xl font-black tracking-[-0.08em] text-[#5b328a]">10COFFEE</Link>
+              <Link href="/shop" onClick={() => setMenuOpen(false)} className="flex shrink-0 items-center"><img src="/logo.svg" alt="10COFFEE" className="h-9 w-auto" /></Link>
               <button onClick={() => setMenuOpen(false)} className="ml-auto rounded-full p-2 hover:bg-black/[0.05]"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={submitSearch} className="flex items-center gap-3 px-6 pt-5"><div className="flex flex-1 items-center gap-3 rounded-full bg-white px-5 py-3 shadow-sm"><Search className="h-4 w-4 text-[#8c8178]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по каталогу" className="w-full bg-transparent text-sm outline-none placeholder:text-[#aaa098]" /></div><button type="submit" className="rounded-full bg-[#5b328a] px-5 py-3 text-sm font-bold text-white">Найти</button></form>

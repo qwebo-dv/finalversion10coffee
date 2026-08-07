@@ -6,11 +6,23 @@ export const dynamic = "force-dynamic"
 import { getClientOrders } from "@/lib/actions/orders"
 import { getClientCompanies } from "@/lib/actions/companies"
 import { getNewsPaginated } from "@/lib/actions/news"
+import { getFavoriteProductIds, getMyReviews } from "@/lib/actions/products"
 import { getCurrentUser } from "@/lib/auth/local"
 import { ORDER_STATUS_LABELS } from "@/lib/utils/constants"
 import { formatPrice, formatDate, formatOrderNumber } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
-import { ArrowUpRight, Coffee } from "lucide-react"
+import {
+  ArrowUpRight,
+  CalendarDays,
+  Coffee,
+  Heart,
+  MessageSquare,
+  Package,
+  ReceiptText,
+  ShoppingBag,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react"
 import type { News, OrderStatus } from "@/types"
 
 const STATUS_DOTS: Record<OrderStatus, string> = {
@@ -26,6 +38,84 @@ const STATUS_DOTS: Record<OrderStatus, string> = {
   cancelled: "bg-neutral-300",
 }
 
+function plural(n: number, one: string, few: string, many: string): string {
+  const m10 = n % 10
+  const m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return one
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
+  return many
+}
+
+interface StatCardProps {
+  label: string
+  value: string
+  sub?: string
+  icon: LucideIcon
+  tone?: "cream" | "purple"
+  href?: string
+  className?: string
+}
+
+function StatCard({ label, value, sub, icon: Icon, tone = "cream", href, className }: StatCardProps) {
+  const card = (
+    <div
+      className={cn(
+        "relative flex h-full flex-col overflow-hidden rounded-2xl p-4 sm:p-5",
+        tone === "purple" ? "bg-[#5b328a] text-white" : "bg-[#f8f5f1] text-neutral-900"
+      )}
+    >
+      {tone === "purple" && (
+        <>
+          <div className="absolute -top-10 -right-10 h-36 w-36 rounded-full bg-white/5" />
+          <div className="absolute -bottom-14 -right-4 h-32 w-32 rounded-full bg-white/5" />
+        </>
+      )}
+      <div className="relative flex items-center justify-between">
+        <span
+          className={cn(
+            "text-[10px] font-bold uppercase tracking-[0.18em]",
+            tone === "purple" ? "text-white/60" : "text-neutral-400"
+          )}
+        >
+          {label}
+        </span>
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-xl",
+            tone === "purple" ? "bg-white/15" : "bg-[#faead5]"
+          )}
+        >
+          <Icon className={cn("h-4 w-4", tone === "purple" ? "text-white/80" : "text-[#e6610d]")} />
+        </span>
+      </div>
+      <div className="relative mt-auto pt-3">
+        <p
+          className={cn(
+            "text-[22px] sm:text-[26px] font-black tracking-tight tabular-nums leading-none",
+            tone === "purple" ? "text-white" : "text-neutral-900"
+          )}
+        >
+          {value}
+        </p>
+        {sub && (
+          <p className={cn("mt-1.5 text-[11px] font-medium", tone === "purple" ? "text-white/55" : "text-neutral-400")}>
+            {sub}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+
+  if (href) {
+    return (
+      <Link href={href} className={cn("group block h-full min-w-0", className)}>
+        {card}
+      </Link>
+    )
+  }
+  return <div className={cn("h-full min-w-0", className)}>{card}</div>
+}
+
 export default async function DashboardPage() {
   const currentUser = await getCurrentUser()
   const isIndividual = currentUser?.user_metadata?.customer_type === "individual"
@@ -36,11 +126,45 @@ export default async function DashboardPage() {
     getNewsPaginated(0, 3),
   ])
 
-  const recentOrders = orders.slice(0, 6)
+  const [favoriteIds, myReviews] = isIndividual
+    ? await Promise.all([getFavoriteProductIds(), getMyReviews()])
+    : [null, null]
+
+  const recentOrders = orders.slice(0, 5)
   const news = (newsResult.items as News[]) || []
-  const activeOrders = orders.filter(
-    (o) => !["delivered", "cancelled"].includes(o.status)
-  ).length
+
+  // ── Stats (individuals) ──
+  const settledOrders = orders.filter((o) => o.status !== "cancelled" && o.status !== "returned")
+  const activeOrders = orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length
+
+  const totalSpent = settledOrders.reduce((s, o) => s + o.total, 0)
+  const totalItems = settledOrders.reduce(
+    (s, o) => s + (o.items?.reduce((a, i) => a + i.quantity, 0) ?? 0),
+    0
+  )
+  const avgCheck = settledOrders.length > 0 ? Math.round(totalSpent / settledOrders.length) : 0
+
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const dayOfWeek = now.getDay()
+  const weekStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)
+  )
+  weekStart.setHours(0, 0, 0, 0)
+
+  const weekOrders = orders.filter(
+    (o) => o.status !== "cancelled" && new Date(o.created_at) >= weekStart
+  )
+  const monthOrders = orders.filter(
+    (o) => o.status !== "cancelled" && new Date(o.created_at) >= monthStart
+  )
+  const weekSpent = weekOrders.reduce((s, o) => s + o.total, 0)
+  const monthSpent = monthOrders.reduce((s, o) => s + o.total, 0)
+
+  const favoritesCount = favoriteIds?.length ?? 0
+  const reviewsCount = myReviews?.length ?? 0
 
   const today = new Date().toLocaleDateString("ru-RU", {
     day: "numeric",
@@ -50,39 +174,110 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* ── Header ── */}
-      <div>
-        <p className="text-[10px] font-medium text-neutral-300 tracking-[0.25em] uppercase">
-          {today}
-        </p>
-        <div className="flex items-end justify-between mt-1">
-          <h1 className="text-[22px] sm:text-[28px] font-black text-neutral-900 tracking-tight leading-none">
-            Обзор
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-medium text-neutral-300 tracking-[0.25em] uppercase">
+            {today}
+          </p>
+          <h1 className="text-[22px] sm:text-[28px] font-black text-neutral-900 tracking-tight leading-none mt-1">
+            {isIndividual ? "Мои покупки" : "Обзор"}
           </h1>
-          {(activeOrders > 0 || (!isIndividual && companies.length > 0)) && (
-            <p className="text-[12px] text-neutral-400 pb-0.5">
-              {activeOrders > 0 && (
-                <span>
-                  <span className="font-bold text-neutral-900 tabular-nums">
-                    {activeOrders}
-                  </span>{" "}
-                  активн.
-                </span>
-              )}
-              {activeOrders > 0 && !isIndividual && companies.length > 0 && (
-                <span className="mx-2 text-neutral-200">·</span>
-              )}
-              {!isIndividual && companies.length > 0 && (
-                <span>
-                  <span className="font-bold text-neutral-900 tabular-nums">
-                    {companies.length}
-                  </span>{" "}
-                  комп.
-                </span>
-              )}
+          {isIndividual && (
+            <p className="text-[12px] text-neutral-400 mt-1.5">
+              Статистика заказов в 10coffee
             </p>
           )}
         </div>
+        {!isIndividual && (activeOrders > 0 || companies.length > 0) && (
+          <p className="text-[12px] text-neutral-400 pb-0.5 shrink-0">
+            {activeOrders > 0 && (
+              <span>
+                <span className="font-bold text-neutral-900 tabular-nums">{activeOrders}</span> активн.
+              </span>
+            )}
+            {activeOrders > 0 && companies.length > 0 && <span className="mx-2 text-neutral-200">·</span>}
+            {companies.length > 0 && (
+              <span>
+                <span className="font-bold text-neutral-900 tabular-nums">{companies.length}</span> комп.
+              </span>
+            )}
+          </p>
+        )}
       </div>
+
+      {/* ── Stats grid (individuals) ── */}
+      {isIndividual && (
+        <section>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <StatCard
+              label="Сумма покупок"
+              value={formatPrice(totalSpent)}
+              sub={`за всё время · ${settledOrders.length} ${plural(settledOrders.length, "заказ", "заказа", "заказов")}`}
+              icon={Wallet}
+              tone="purple"
+              href="/dashboard/orders"
+              className="col-span-2 lg:row-span-2"
+            />
+
+            <StatCard
+              label="Заказано товаров"
+              value={totalItems.toLocaleString("ru-RU")}
+              sub={`${plural(totalItems, "позиция", "позиции", "позиций")} в заказах`}
+              icon={Package}
+              href="/dashboard/orders"
+            />
+
+            <StatCard
+              label="Любимые товары"
+              value={favoritesCount.toLocaleString("ru-RU")}
+              sub={favoritesCount > 0 ? "в вашем избранном" : "пока пусто"}
+              icon={Heart}
+              href="/dashboard/favorites"
+            />
+
+            <StatCard
+              label="Заказов за неделю"
+              value={weekOrders.length.toLocaleString("ru-RU")}
+              sub={`на ${formatPrice(weekSpent)}`}
+              icon={CalendarDays}
+              href="/dashboard/orders"
+            />
+
+            <StatCard
+              label="Заказов за месяц"
+              value={monthOrders.length.toLocaleString("ru-RU")}
+              sub={`на ${formatPrice(monthSpent)}`}
+              icon={CalendarDays}
+              href="/dashboard/orders"
+            />
+
+            <StatCard
+              label="Активные заказы"
+              value={activeOrders.toLocaleString("ru-RU")}
+              sub={activeOrders > 0 ? "в работе" : "сейчас нет"}
+              icon={ShoppingBag}
+              href="/dashboard/orders"
+            />
+
+            <StatCard
+              label="Отзывов оставлено"
+              value={reviewsCount.toLocaleString("ru-RU")}
+              sub={reviewsCount > 0 ? "благодарим за обратную связь" : "ещё нет отзывов"}
+              icon={MessageSquare}
+              href="/dashboard/reviews"
+            />
+
+            <StatCard
+              label="Средний чек"
+              value={formatPrice(avgCheck)}
+              sub={avgCheck > 0 ? "по всем заказам" : "после первого заказа"}
+              icon={ReceiptText}
+              href="/dashboard/orders"
+              className="col-span-2"
+            />
+          </div>
+        </section>
+      )}
 
       {/* ── Orders ── */}
       <section>
@@ -106,9 +301,7 @@ export default async function DashboardPage() {
             <div className="h-14 w-14 rounded-2xl bg-[#faead5] flex items-center justify-center mx-auto mb-4">
               <Coffee className="h-6 w-6 text-[#5b328a]/40" />
             </div>
-            <p className="text-[14px] font-bold text-neutral-900">
-              Нет заказов
-            </p>
+            <p className="text-[14px] font-bold text-neutral-900">Нет заказов</p>
             <p className="text-[12px] text-neutral-400 mt-1">
               {isIndividual
                 ? "Оформите первый заказ в интернет-магазине"
@@ -144,12 +337,7 @@ export default async function DashboardPage() {
                           {formatOrderNumber(order.order_id)}
                         </span>
                         <div className="flex items-center gap-1.5">
-                          <div
-                            className={cn(
-                              "h-1.5 w-1.5 rounded-full",
-                              STATUS_DOTS[order.status]
-                            )}
-                          />
+                          <div className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOTS[order.status])} />
                           <span className="text-[11px] font-medium text-neutral-400">
                             {ORDER_STATUS_LABELS[order.status]}
                           </span>
@@ -164,9 +352,7 @@ export default async function DashboardPage() {
                       <p className="text-[16px] font-black text-neutral-900 tabular-nums">
                         {formatPrice(order.total)}
                       </p>
-                      <p className="text-[10px] text-neutral-300 mt-1">
-                        {formatDate(order.created_at)}
-                      </p>
+                      <p className="text-[10px] text-neutral-300 mt-1">{formatDate(order.created_at)}</p>
                     </div>
                   </div>
                 </Link>
@@ -176,13 +362,11 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      {/* ── News ── */}
+      {/* ── News (legal entities) ── */}
       {!isIndividual && news.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[10px] font-bold text-neutral-400 tracking-[0.2em] uppercase">
-              Новости
-            </h2>
+            <h2 className="text-[10px] font-bold text-neutral-400 tracking-[0.2em] uppercase">Новости</h2>
             <Link
               href="/dashboard/news"
               className="text-[11px] font-semibold text-neutral-400 hover:text-neutral-900 transition-colors flex items-center gap-1"
@@ -200,13 +384,7 @@ export default async function DashboardPage() {
               >
                 {item.cover_image && (
                   <div className="relative h-16 w-20 rounded-lg bg-neutral-100 shrink-0 overflow-hidden">
-                    <Image
-                      src={item.cover_image}
-                      alt=""
-                      fill
-                      sizes="80px"
-                      className="object-cover"
-                    />
+                    <Image src={item.cover_image} alt="" fill sizes="80px" className="object-cover" />
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
@@ -219,9 +397,7 @@ export default async function DashboardPage() {
                     </p>
                   )}
                   {item.published_at && (
-                    <p className="text-[10px] text-neutral-300 mt-1.5">
-                      {formatDate(item.published_at)}
-                    </p>
+                    <p className="text-[10px] text-neutral-300 mt-1.5">{formatDate(item.published_at)}</p>
                   )}
                 </div>
               </Link>
@@ -230,13 +406,11 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* ── Companies ── */}
+      {/* ── Companies (legal entities) ── */}
       {!isIndividual && companies.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[10px] font-bold text-neutral-400 tracking-[0.2em] uppercase">
-              Компании
-            </h2>
+            <h2 className="text-[10px] font-bold text-neutral-400 tracking-[0.2em] uppercase">Компании</h2>
             <Link
               href="/dashboard/companies"
               className="text-[11px] font-semibold text-neutral-400 hover:text-neutral-900 transition-colors flex items-center gap-1"
@@ -257,12 +431,8 @@ export default async function DashboardPage() {
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-neutral-900 truncate">
-                    {company.name}
-                  </p>
-                  <p className="text-[10px] text-neutral-400 tabular-nums">
-                    ИНН {company.inn}
-                  </p>
+                  <p className="text-[13px] font-bold text-neutral-900 truncate">{company.name}</p>
+                  <p className="text-[10px] text-neutral-400 tabular-nums">ИНН {company.inn}</p>
                 </div>
               </div>
             ))}

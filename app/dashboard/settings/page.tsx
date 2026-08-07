@@ -45,6 +45,7 @@ export default function SettingsPage() {
   const [avatarLoading, setAvatarLoading] = useState(false)
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
+  const [address, setAddress] = useState("")
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [quickComments, setQuickComments] = useState<string[]>([])
   const [newComment, setNewComment] = useState("")
@@ -54,6 +55,7 @@ export default function SettingsPage() {
     if (user) {
       setFullName(user.user_metadata?.full_name || "")
       setPhone(user.user_metadata?.phone || "")
+      setAddress((user.user_metadata?.address as string) || "")
       setAvatarUrl(user.user_metadata?.avatar_url || null)
 
       // Load settings via server action (bypasses RLS)
@@ -104,7 +106,7 @@ export default function SettingsPage() {
       const normalizedPhone = normalizeRussianPhone(phone)
       // Update auth metadata so values persist across sessions
       const { error: authError } = await supabase.auth.updateUser({
-        data: { full_name: fullName, phone: normalizedPhone },
+        data: { full_name: fullName, phone: normalizedPhone, address: address.trim() },
       })
       if (authError) throw authError
 
@@ -215,6 +217,17 @@ export default function SettingsPage() {
               className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
             />
           </div>
+          {isIndividual && (
+            <div>
+              <Label>Адрес доставки</Label>
+              <Input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Город, улица, дом, квартира"
+                className="mt-1.5"
+              />
+            </div>
+          )}
           <Button onClick={handleSaveProfile} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Сохранить

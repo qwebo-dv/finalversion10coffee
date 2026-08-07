@@ -28,7 +28,7 @@ export function ShopFooter() {
       <div className="mx-auto grid max-w-[1480px] gap-12 px-5 py-16 lg:grid-cols-[1.2fr_1fr_1fr_1fr] lg:px-10">
         {/* Brand */}
         <div>
-          <Link href="/shop" className="text-3xl font-black tracking-[-0.08em] text-[#5b328a]">10COFFEE</Link>
+          <Link href="/shop" className="inline-block"><img src="/logo.svg" alt="10COFFEE" className="h-10 w-auto" /></Link>
           <p className="mt-4 max-w-xs text-sm leading-6 text-[#6e655e]">Свежеобжаренный кофе, чай и аксессуары с доставкой по всей России. Обжариваем на ростерах Loring и отправляем в день заказа.</p>
           <div className="mt-6 space-y-2.5 text-sm text-[#554b43]">
             <p className="flex items-center gap-2.5"><Phone className="h-4 w-4 text-[#e6610d]" /><a href="tel:+79384537060" className="hover:text-[#5b328a]">+7 (938) 453-70-60</a></p>

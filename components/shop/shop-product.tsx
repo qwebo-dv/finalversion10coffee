@@ -3,12 +3,14 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Check, CheckCircle2, Coffee, Leaf, Loader2, Minus, Paperclip, Plus, ShoppingBag } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
+import { useAuth } from "@/providers/auth-provider"
 import { ShopHeader } from "@/components/shop/shop-header"
 import { StarRating } from "@/components/shop/star-rating"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
+import { addRecentlyViewed } from "@/lib/recently-viewed"
 import type { Product } from "@/types"
 
 const DESCRIPTION_HTML_CLASSNAME = [
@@ -48,12 +50,17 @@ function formatReviewDate(value: string): string {
 
 export function ShopProduct({ product, products }: { product: Product; products: Product[] }) {
   const router = useRouter()
+  const { user } = useAuth()
   const variants = product.variants || []
   const [variant, setVariant] = useState(variants[0] || null)
   const [quantity, setQuantity] = useState(1)
   const [imageIndex, setImageIndex] = useState(0)
   const [added, setAdded] = useState(false)
   const { addItem } = useGuestCart()
+
+  useEffect(() => {
+    addRecentlyViewed(product.id, product.slug)
+  }, [product.id, product.slug])
 
   const [vote, setVote] = useState(0)
   const [authorName, setAuthorName] = useState("")
@@ -95,6 +102,7 @@ export function ShopProduct({ product, products }: { product: Product; products:
           rating: vote,
           authorName: authorName.trim() || undefined,
           comment: comment.trim() || undefined,
+          clientId: user?.id || undefined,
         }),
       })
       if (!response.ok) {

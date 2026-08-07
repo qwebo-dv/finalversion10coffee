@@ -9,6 +9,7 @@ interface PhoneInputProps {
   className?: string
   placeholder?: string
   value?: string
+  defaultValue?: string
   onChange?: (value: string) => void
 }
 
@@ -18,11 +19,14 @@ export default function PhoneInput({
   className,
   placeholder = "+7 (___) ___-__-__",
   value: controlledValue,
+  defaultValue,
   onChange,
 }: PhoneInputProps) {
   const isControlled = controlledValue !== undefined
   const [focused, setFocused] = useState(false)
-  const [uncontrolledDisplay, setUncontrolledDisplay] = useState("")
+  const [uncontrolledDisplay, setUncontrolledDisplay] = useState(
+    defaultValue ? formatRussianPhone(defaultValue) : ""
+  )
   const display = isControlled
     ? controlledValue
       ? formatRussianPhone(controlledValue)

@@ -154,6 +154,7 @@ export interface ProductReview {
   rating: number
   comment: string | null
   created_at: string
+  client_id?: string | null
 }
 
 export interface Product {

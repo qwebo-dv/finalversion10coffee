@@ -35,6 +35,15 @@ export const ProductReviews: CollectionConfig = {
       label: "Имя",
     },
     {
+      name: "clientId",
+      type: "text",
+      label: "ID клиента (Supabase)",
+      index: true,
+      admin: {
+        description: "ID пользователя, оставившего отзыв (для личного кабинета).",
+      },
+    },
+    {
       name: "rating",
       type: "number",
       label: "Оценка (звёзд)",

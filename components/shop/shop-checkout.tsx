@@ -1,20 +1,34 @@
 "use client"
 
 import Link from "next/link"
-import { FormEvent, useMemo, useState } from "react"
+import { FormEvent, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, CheckCircle2, Loader2, LockKeyhole, ShoppingBag } from "lucide-react"
 import { createShopOrder } from "@/lib/actions/shop-orders"
 import { useGuestCart } from "@/providers/guest-cart-provider"
+import { useAuth } from "@/providers/auth-provider"
 import PhoneInput from "@/components/shared/phone-input"
 import { formatPrice } from "@/lib/utils/format"
 import type { DeliveryMethod, Product } from "@/types"
 
 export function ShopCheckout({ products }: { products: Product[] }) {
   const { items, clearCart, hydrated } = useGuestCart()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ orderNumber: string; warning?: string; paymentPendingSetup?: boolean } | null>(null)
-  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("cdek")
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(
+    (user?.user_metadata?.delivery_method as DeliveryMethod) || "cdek"
+  )
+
+  const defaultPhone = user?.user_metadata?.phone || ""
+  const defaultAddress = (user?.user_metadata?.address as string) || ""
+  const defaultName = user?.user_metadata?.full_name || ""
+  const defaultEmail = user?.email || ""
+
+  useEffect(() => {
+    const saved = user?.user_metadata?.delivery_method as DeliveryMethod | undefined
+    if (saved) setDeliveryMethod(saved)
+  }, [user])
 
   const lines = useMemo(() => items.map((item) => {
     const product = products.find((entry) => entry.id === item.productId)
@@ -92,14 +106,14 @@ export function ShopCheckout({ products }: { products: Product[] }) {
             {error && <div className="mt-6 rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-700">{error}</div>}
 
             <div className="mt-8 grid gap-5 sm:grid-cols-2">
-              <label className="sm:col-span-2"><span className="mb-2 block text-xs font-bold text-[#655c55]">ФИО</span><input name="fullName" required autoComplete="name" className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="Иванов Иван Иванович" /></label>
-              <label><span className="mb-2 block text-xs font-bold text-[#655c55]">Телефон</span><PhoneInput name="phone" required className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" /></label>
-              <label><span className="mb-2 block text-xs font-bold text-[#655c55]">Email</span><input name="email" type="email" required autoComplete="email" className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="mail@example.ru" /></label>
+              <label className="sm:col-span-2"><span className="mb-2 block text-xs font-bold text-[#655c55]">ФИО</span><input name="fullName" required autoComplete="name" defaultValue={defaultName} className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="Иванов Иван Иванович" /></label>
+              <label><span className="mb-2 block text-xs font-bold text-[#655c55]">Телефон</span><PhoneInput name="phone" required defaultValue={defaultPhone} className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" /></label>
+              <label><span className="mb-2 block text-xs font-bold text-[#655c55]">Email</span><input name="email" type="email" required autoComplete="email" defaultValue={defaultEmail} className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="mail@example.ru" /></label>
             </div>
 
             <fieldset className="mt-8"><legend className="text-sm font-black">Способ получения</legend><div className="mt-3 grid gap-3 sm:grid-cols-3">{([['cdek','СДЭК'],['sochi_delivery','По Сочи'],['self_pickup','Самовывоз']] as [DeliveryMethod,string][]).map(([value,label]) => <button key={value} type="button" onClick={() => setDeliveryMethod(value)} className={`rounded-2xl border px-4 py-4 text-sm font-bold ${deliveryMethod === value ? "border-[#5b328a] bg-[#f4edfa] text-[#5b328a]" : "border-black/10"}`}>{label}</button>)}</div></fieldset>
 
-            {deliveryMethod !== "self_pickup" && <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><input name="address" required autoComplete="street-address" className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="Город, улица, дом, квартира" /></label>}
+            {deliveryMethod !== "self_pickup" && <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><input name="address" required autoComplete="street-address" defaultValue={defaultAddress} className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="Город, улица, дом, квартира" /></label>}
             <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Комментарий</span><textarea name="comment" rows={3} className="w-full rounded-2xl border border-black/10 p-4 outline-none focus:border-[#5b328a]" placeholder="Пожелания к заказу" /></label>
             <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Промокод</span><input name="promoCode" className="h-12 w-full rounded-2xl border border-black/10 px-4 uppercase outline-none focus:border-[#5b328a]" placeholder="Необязательно" /></label>
 

@@ -10,6 +10,7 @@ export async function ensureProductReviewsSchema(db: MigrateUpArgs['db']): Promi
    	"author_name" varchar,
    	"rating" numeric,
    	"comment" text,
+   	"client_id" varchar,
    	"created_at" timestamptz NOT NULL DEFAULT now(),
    	"updated_at" timestamptz NOT NULL DEFAULT now(),
    	PRIMARY KEY ("id")
@@ -27,8 +28,11 @@ export async function ensureProductReviewsSchema(db: MigrateUpArgs['db']): Promi
      END IF;
    END $$;
 
+   ALTER TABLE "product_reviews" ADD COLUMN IF NOT EXISTS "client_id" varchar;
+
    CREATE INDEX IF NOT EXISTS "product_reviews_product_idx" ON "product_reviews" USING btree ("product_id");
-   CREATE INDEX IF NOT EXISTS "product_reviews_created_at_idx" ON "product_reviews" USING btree ("created_at" DESC);`)
+   CREATE INDEX IF NOT EXISTS "product_reviews_created_at_idx" ON "product_reviews" USING btree ("created_at" DESC);
+   CREATE INDEX IF NOT EXISTS "product_reviews_client_id_idx" ON "product_reviews" USING btree ("client_id");`)
 }
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
