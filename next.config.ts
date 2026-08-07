@@ -61,6 +61,13 @@ const nextConfig: NextConfig = {
     },
     proxyClientMaxBodySize: "100mb",
   },
+  async redirects() {
+    return [
+      { source: "/login", destination: "/?auth=login", permanent: false },
+      { source: "/register", destination: "/?auth=register", permanent: false },
+      { source: "/forgot-password", destination: "/?auth=forgot", permanent: false },
+    ]
+  },
   async headers() {
     return [
       {

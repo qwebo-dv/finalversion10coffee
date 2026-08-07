@@ -12,6 +12,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form"
 import { Loader2, CheckCircle2 } from "lucide-react"
+import { SocialAuthButtons } from "./social-auth-buttons"
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void
@@ -146,6 +147,8 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           </Button>
         </form>
       </Form>
+
+      <SocialAuthButtons />
 
       <p className="text-center text-[12px] text-neutral-400">
         Уже есть аккаунт?{" "}

@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useAuth } from "@/providers/auth-provider"
 import { cn } from "@/lib/utils"
 import {
   LayoutGrid,
@@ -24,6 +25,12 @@ const navItems = [
 
 export function DashboardSidebar() {
   const pathname = usePathname()
+  const { user } = useAuth()
+  const isIndividual = user?.user_metadata?.customer_type === "individual"
+
+  const items = isIndividual
+    ? navItems.filter((item) => item.href === "/dashboard/orders" || item.href === "/dashboard/settings")
+    : navItems
 
   return (
     <aside className="hidden md:flex w-[200px] flex-col border-r border-gray-200 bg-white shrink-0">
@@ -38,7 +45,7 @@ export function DashboardSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 py-3 px-3 space-y-0.5">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/")
 
@@ -62,6 +69,15 @@ export function DashboardSidebar() {
             </Link>
           )
         })}
+        {isIndividual && (
+          <Link
+            href="/shop"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-md text-[12px] font-semibold tracking-wide text-gray-500 hover:text-black hover:bg-gray-50 transition-colors"
+          >
+            <ShoppingBag className="h-4 w-4 shrink-0" />
+            <span>ИНТЕРНЕТ-МАГАЗИН</span>
+          </Link>
+        )}
       </nav>
     </aside>
   )

@@ -55,16 +55,21 @@ function FilterDropdown({ label, options, selected, onToggle, onClear }: {
   onClear: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
-    function close() { setOpen(false) }
+    function close(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
     document.addEventListener("mousedown", close)
     return () => document.removeEventListener("mousedown", close)
   }, [open])
 
   return (
-    <div className="relative" onMouseDown={(event) => event.stopPropagation()}>
+    <div className="relative" ref={containerRef}>
       <button type="button" onClick={() => setOpen((value) => !value)} className={`flex h-12 items-center gap-2 whitespace-nowrap rounded-full border px-5 text-sm font-bold transition ${open ? "border-[#5b328a] bg-[#5b328a]/[0.06] text-[#5b328a]" : "border-black/[0.1] bg-white text-[#554b43] hover:border-black/25"}`}>
         {label}
         {selected.length > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e6610d] px-1.5 text-[10px] font-black text-white">{selected.length}</span>}
@@ -146,6 +151,11 @@ function ShopProductCard({ product }: { product: Product }) {
   )
 }
 
+function matchesSelection(product: Product, group: "roast" | "region" | "processing", selectedValues: string[]) {
+  const field = group === "roast" ? product.roast_level : group === "region" ? product.region : product.processing_method
+  return !selectedValues.length || selectedValues.includes(field || "")
+}
+
 export function ShopCatalog({ productTypes, products }: ShopCatalogProps) {
   const [activeType, setActiveType] = useState("")
   const [query, setQuery] = useState("")
@@ -189,29 +199,57 @@ export function ShopCatalog({ productTypes, products }: ShopCatalogProps) {
     window.history.replaceState(null, "", url)
   }, [activeCollection, activeType, query, selected, sort])
 
-  const roastOptions = useMemo(() => Array.from(new Set(products.map((p) => p.roast_level).filter((value): value is string => Boolean(value)))), [products])
-  const regionOptions = useMemo(() => Array.from(new Set(products.map((p) => p.region).filter((value): value is string => Boolean(value)))), [products])
-  const processingOptions = useMemo(() => Array.from(new Set(products.map((p) => p.processing_method).filter((value): value is string => Boolean(value)))), [products])
-
-  const activeFilters = selected.roast.length + selected.region.length + selected.processing.length
-
   const activeCollectionDef = COLLECTIONS.find((collection) => collection.id === activeCollection)
-  const effectiveSort: SortKey = activeCollectionDef?.sort || sort
 
-  const filtered = useMemo(() => {
+  const basePredicate = useMemo(() => {
     const lowered = query.trim().toLowerCase()
-    const matches = products.filter((product) => {
+    return (product: Product) => {
       if (activeCollectionDef?.type && product.product_type !== activeCollectionDef.type) return false
       if (activeCollectionDef?.roast?.length && !activeCollectionDef.roast.some((roast) => (product.roast_level || "").toLowerCase().includes(roast))) return false
       if (activeCollectionDef?.processingContains?.length && !activeCollectionDef.processingContains.some((method) => (product.processing_method || "").toLowerCase().includes(method))) return false
       if (activeType && product.product_type !== activeType) return false
-      if (selected.roast.length && !selected.roast.includes(product.roast_level || "")) return false
-      if (selected.region.length && !selected.region.includes(product.region || "")) return false
-      if (selected.processing.length && !selected.processing.includes(product.processing_method || "")) return false
       if (lowered) {
         const haystack = `${product.name} ${product.region || ""} ${product.processing_method || ""} ${product.roast_level || ""}`.toLowerCase()
         if (!haystack.includes(lowered)) return false
       }
+      return true
+    }
+  }, [activeCollectionDef, activeType, query])
+
+  const categoryProducts = useMemo(() => products.filter(basePredicate), [products, basePredicate])
+
+  const roastOptions = useMemo(() => {
+    const values = Array.from(new Set(categoryProducts
+      .filter((p) => matchesSelection(p, "region", selected.region) && matchesSelection(p, "processing", selected.processing))
+      .map((p) => p.roast_level).filter((value): value is string => Boolean(value))))
+    return Array.from(new Set([...values, ...selected.roast]))
+  }, [categoryProducts, selected])
+
+  const regionOptions = useMemo(() => {
+    const values = Array.from(new Set(categoryProducts
+      .filter((p) => matchesSelection(p, "roast", selected.roast) && matchesSelection(p, "processing", selected.processing))
+      .map((p) => p.region).filter((value): value is string => Boolean(value))))
+    return Array.from(new Set([...values, ...selected.region]))
+  }, [categoryProducts, selected])
+
+  const processingOptions = useMemo(() => {
+    const values = Array.from(new Set(categoryProducts
+      .filter((p) => matchesSelection(p, "roast", selected.roast) && matchesSelection(p, "region", selected.region))
+      .map((p) => p.processing_method).filter((value): value is string => Boolean(value))))
+    return Array.from(new Set([...values, ...selected.processing]))
+  }, [categoryProducts, selected])
+
+  const hasFilterOptions = roastOptions.length + regionOptions.length + processingOptions.length > 0
+
+  const activeFilters = selected.roast.length + selected.region.length + selected.processing.length
+
+  const effectiveSort: SortKey = activeCollectionDef?.sort || sort
+
+  const filtered = useMemo(() => {
+    const matches = categoryProducts.filter((product) => {
+      if (selected.roast.length && !selected.roast.includes(product.roast_level || "")) return false
+      if (selected.region.length && !selected.region.includes(product.region || "")) return false
+      if (selected.processing.length && !selected.processing.includes(product.processing_method || "")) return false
       return true
     })
 
@@ -227,7 +265,7 @@ export function ShopCatalog({ productTypes, products }: ShopCatalogProps) {
       default:
         return matches
     }
-  }, [activeCollectionDef, activeType, products, query, selected, effectiveSort])
+  }, [categoryProducts, selected, effectiveSort])
 
   function applyCollection(id: string) {
     const collection = COLLECTIONS.find((entry) => entry.id === id)
@@ -249,6 +287,7 @@ export function ShopCatalog({ productTypes, products }: ShopCatalogProps) {
   function handleTypeSelect(slug: string) {
     setActiveType(slug)
     setActiveCollection("")
+    setSelected({ roast: [], region: [], processing: [] })
   }
 
   function toggleFilter(group: "roast" | "region" | "processing", value: string) {
@@ -300,18 +339,20 @@ export function ShopCatalog({ productTypes, products }: ShopCatalogProps) {
         </div>
 
         {/* Filters */}
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-[#91867d]"><SlidersHorizontal className="h-4 w-4" /> Фильтры</span>
-          <FilterDropdown label="Степень обжарки" options={roastOptions} selected={selected.roast} onToggle={(value) => toggleFilter("roast", value)} onClear={() => setSelected((current) => ({ ...current, roast: [] }))} />
-          <FilterDropdown label="Регион / страна" options={regionOptions} selected={selected.region} onToggle={(value) => toggleFilter("region", value)} onClear={() => setSelected((current) => ({ ...current, region: [] }))} />
-          <FilterDropdown label="Способ обработки" options={processingOptions} selected={selected.processing} onToggle={(value) => toggleFilter("processing", value)} onClear={() => setSelected((current) => ({ ...current, processing: [] }))} />
-          {activeFilters > 0 && <button type="button" onClick={resetFilters} className="flex h-12 items-center gap-1.5 rounded-full px-4 text-sm font-bold text-[#e6610d] transition hover:bg-[#e6610d]/10">Сбросить всё <X className="h-4 w-4" /></button>}
-          <div className="ml-auto">
-            <select value={sort} onChange={(event) => { setSort(event.target.value as SortKey); setActiveCollection("") }} className="h-12 rounded-full border border-black/[0.1] bg-white px-5 text-sm font-bold text-[#554b43] outline-none transition hover:border-black/25 focus:border-[#5b328a]">
-              {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+        {hasFilterOptions && (
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-[#91867d]"><SlidersHorizontal className="h-4 w-4" /> Фильтры</span>
+            {roastOptions.length > 0 && <FilterDropdown label="Степень обжарки" options={roastOptions} selected={selected.roast} onToggle={(value) => toggleFilter("roast", value)} onClear={() => setSelected((current) => ({ ...current, roast: [] }))} />}
+            {regionOptions.length > 0 && <FilterDropdown label="Регион / страна" options={regionOptions} selected={selected.region} onToggle={(value) => toggleFilter("region", value)} onClear={() => setSelected((current) => ({ ...current, region: [] }))} />}
+            {processingOptions.length > 0 && <FilterDropdown label="Способ обработки" options={processingOptions} selected={selected.processing} onToggle={(value) => toggleFilter("processing", value)} onClear={() => setSelected((current) => ({ ...current, processing: [] }))} />}
+            {activeFilters > 0 && <button type="button" onClick={resetFilters} className="flex h-12 items-center gap-1.5 rounded-full px-4 text-sm font-bold text-[#e6610d] transition hover:bg-[#e6610d]/10">Сбросить всё <X className="h-4 w-4" /></button>}
+            <div className="ml-auto">
+              <select value={sort} onChange={(event) => { setSort(event.target.value as SortKey); setActiveCollection("") }} className="h-12 rounded-full border border-black/[0.1] bg-white px-5 text-sm font-bold text-[#554b43] outline-none transition hover:border-black/25 focus:border-[#5b328a]">
+                {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       <section className="mx-auto max-w-[1480px] px-5 pb-24 lg:px-10">

@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic"
 import { getClientOrders } from "@/lib/actions/orders"
 import { getClientCompanies } from "@/lib/actions/companies"
 import { getNewsPaginated } from "@/lib/actions/news"
+import { getCurrentUser } from "@/lib/auth/local"
 import { ORDER_STATUS_LABELS } from "@/lib/utils/constants"
 import { formatPrice, formatDate, formatOrderNumber } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
@@ -26,6 +27,9 @@ const STATUS_DOTS: Record<OrderStatus, string> = {
 }
 
 export default async function DashboardPage() {
+  const currentUser = await getCurrentUser()
+  const isIndividual = currentUser?.user_metadata?.customer_type === "individual"
+
   const [orders, companies, newsResult] = await Promise.all([
     getClientOrders(),
     getClientCompanies(),
@@ -54,7 +58,7 @@ export default async function DashboardPage() {
           <h1 className="text-[22px] sm:text-[28px] font-black text-neutral-900 tracking-tight leading-none">
             Обзор
           </h1>
-          {(activeOrders > 0 || companies.length > 0) && (
+          {(activeOrders > 0 || (!isIndividual && companies.length > 0)) && (
             <p className="text-[12px] text-neutral-400 pb-0.5">
               {activeOrders > 0 && (
                 <span>
@@ -64,10 +68,10 @@ export default async function DashboardPage() {
                   активн.
                 </span>
               )}
-              {activeOrders > 0 && companies.length > 0 && (
+              {activeOrders > 0 && !isIndividual && companies.length > 0 && (
                 <span className="mx-2 text-neutral-200">·</span>
               )}
-              {companies.length > 0 && (
+              {!isIndividual && companies.length > 0 && (
                 <span>
                   <span className="font-bold text-neutral-900 tabular-nums">
                     {companies.length}
@@ -106,13 +110,15 @@ export default async function DashboardPage() {
               Нет заказов
             </p>
             <p className="text-[12px] text-neutral-400 mt-1">
-              Оформите первый заказ в каталоге
+              {isIndividual
+                ? "Оформите первый заказ в интернет-магазине"
+                : "Оформите первый заказ в каталоге"}
             </p>
             <Link
-              href="/dashboard/catalog"
+              href={isIndividual ? "/shop" : "/dashboard/catalog"}
               className="inline-flex items-center gap-1.5 mt-4 text-[12px] font-bold text-[#5b328a] hover:text-[#4a2870] transition-colors"
             >
-              Перейти в каталог
+              {isIndividual ? "Перейти в магазин" : "Перейти в каталог"}
               <ArrowUpRight className="h-3 w-3" />
             </Link>
           </div>
@@ -171,7 +177,7 @@ export default async function DashboardPage() {
       </section>
 
       {/* ── News ── */}
-      {news.length > 0 && (
+      {!isIndividual && news.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-[10px] font-bold text-neutral-400 tracking-[0.2em] uppercase">
@@ -225,7 +231,7 @@ export default async function DashboardPage() {
       )}
 
       {/* ── Companies ── */}
-      {companies.length > 0 && (
+      {!isIndividual && companies.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-[10px] font-bold text-neutral-400 tracking-[0.2em] uppercase">

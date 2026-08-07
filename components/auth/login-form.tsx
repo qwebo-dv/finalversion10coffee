@@ -11,6 +11,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form"
 import { Loader2 } from "lucide-react"
+import { SocialAuthButtons } from "./social-auth-buttons"
 
 interface LoginFormProps {
   onSwitchToRegister: () => void
@@ -100,6 +101,8 @@ export function LoginForm({ onSwitchToRegister, onSwitchToForgot }: LoginFormPro
           </Button>
         </form>
       </Form>
+
+      <SocialAuthButtons />
 
       <div className="flex flex-col gap-2 text-center text-[12px]">
         <button

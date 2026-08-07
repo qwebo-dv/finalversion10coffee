@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/providers/auth-provider"
 import { useCart } from "@/providers/cart-provider"
 import { useNotifications } from "@/providers/notification-provider"
@@ -46,9 +46,29 @@ type SlidePanel = "favorites" | "notifications" | "cart" | null
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { user } = useAuth()
   const { items, updateQuantity, removeItem, clearCart } = useCart()
   const { notifications, unreadCount, markAsRead, markAllAsRead, hasNewNotification } = useNotifications()
+
+  const isIndividual = user?.user_metadata?.customer_type === "individual"
+
+  const RETAIL_FORBIDDEN_PREFIXES = [
+    "/dashboard/catalog",
+    "/dashboard/product",
+    "/dashboard/favorites",
+    "/dashboard/news",
+    "/dashboard/blog",
+    "/dashboard/checkout",
+    "/dashboard/companies",
+  ]
+  const isForbiddenRetailPath =
+    isIndividual &&
+    RETAIL_FORBIDDEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))
+
+  useEffect(() => {
+    if (isForbiddenRetailPath) router.replace("/dashboard")
+  }, [isForbiddenRetailPath, router])
 
   // Badge disappear animation
   const [badgeVisible, setBadgeVisible] = useState(unreadCount > 0)
@@ -138,55 +158,61 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               Кабинет
             </Link>
             <Link
-              href="/dashboard/catalog"
+              href={isIndividual ? "/shop" : "/dashboard/catalog"}
               className={cn(
                 "px-5 py-2 rounded-full text-[13px] font-semibold transition-all duration-300",
-                isCatalog
-                  ? "bg-white/15 text-white shadow-sm backdrop-blur-sm"
-                  : "text-white/40 hover:text-white/70"
+                isIndividual
+                  ? "text-white/40 hover:text-white/70"
+                  : isCatalog
+                    ? "bg-white/15 text-white shadow-sm backdrop-blur-sm"
+                    : "text-white/40 hover:text-white/70"
               )}
             >
-              Каталог
+              {isIndividual ? "Интернет-магазин" : "Каталог"}
             </Link>
           </div>
 
           {/* Right: Icons + User */}
           <div className="flex items-center gap-1">
             {/* Favorites */}
-            <button
-              onClick={() => togglePanel("favorites")}
-              className={cn(
-                "h-9 w-9 rounded-xl flex items-center justify-center transition-all",
-                activePanel === "favorites"
-                  ? "bg-[#faead5] text-[#e6610d]"
-                  : "text-neutral-400 hover:text-[#e6610d] hover:bg-[#faead5]/50"
-              )}
-            >
-              <Heart className={cn("h-[18px] w-[18px]", activePanel === "favorites" && "fill-[#e6610d]")} />
-            </button>
+            {!isIndividual && (
+              <button
+                onClick={() => togglePanel("favorites")}
+                className={cn(
+                  "h-9 w-9 rounded-xl flex items-center justify-center transition-all",
+                  activePanel === "favorites"
+                    ? "bg-[#faead5] text-[#e6610d]"
+                    : "text-neutral-400 hover:text-[#e6610d] hover:bg-[#faead5]/50"
+                )}
+              >
+                <Heart className={cn("h-[18px] w-[18px]", activePanel === "favorites" && "fill-[#e6610d]")} />
+              </button>
+            )}
 
             {/* Notifications */}
-            <button
-              onClick={() => togglePanel("notifications")}
-              className={cn(
-                "relative h-9 w-9 rounded-xl flex items-center justify-center transition-all",
-                activePanel === "notifications"
-                  ? "bg-[#faead5] text-[#5b328a]"
-                  : "text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100"
-              )}
-            >
-              <Bell className={cn("h-[18px] w-[18px]", hasNewNotification && "animate-bell-ring")} />
-              {badgeVisible && (
-                <span
-                  className={cn(
-                    "absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e6610d] text-white text-[9px] font-bold px-0.5 transition-all duration-300",
-                    badgeAnimatingOut ? "opacity-0 scale-0" : "opacity-100 scale-100"
-                  )}
-                >
-                  {unreadCount || 1}
-                </span>
-              )}
-            </button>
+            {!isIndividual && (
+              <button
+                onClick={() => togglePanel("notifications")}
+                className={cn(
+                  "relative h-9 w-9 rounded-xl flex items-center justify-center transition-all",
+                  activePanel === "notifications"
+                    ? "bg-[#faead5] text-[#5b328a]"
+                    : "text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100"
+                )}
+              >
+                <Bell className={cn("h-[18px] w-[18px]", hasNewNotification && "animate-bell-ring")} />
+                {badgeVisible && (
+                  <span
+                    className={cn(
+                      "absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e6610d] text-white text-[9px] font-bold px-0.5 transition-all duration-300",
+                      badgeAnimatingOut ? "opacity-0 scale-0" : "opacity-100 scale-100"
+                    )}
+                  >
+                    {unreadCount || 1}
+                  </span>
+                )}
+              </button>
+            )}
 
             <div className="w-px h-6 bg-neutral-200 mx-1.5" />
 
@@ -236,13 +262,20 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {isDashboard && (
             <aside className="w-[210px] shrink-0 hidden lg:flex flex-col pt-4 pb-6 pl-5 pr-2 overflow-y-auto">
               <nav className="space-y-0.5">
-                {[
-                  { href: "/dashboard/orders", label: "Заказы", icon: Package },
-                  { href: "/dashboard/companies", label: "Компании", icon: Building2 },
-                  { href: "/dashboard/news", label: "Новости", icon: Newspaper },
-                  { href: "/dashboard/blog", label: "Блог", icon: BookOpen },
-                  { href: "/dashboard/settings", label: "Настройки", icon: Settings },
-                ].map((item) => {
+                {(
+                  isIndividual
+                    ? [
+                        { href: "/dashboard/orders", label: "Заказы", icon: Package },
+                        { href: "/dashboard/settings", label: "Настройки", icon: Settings },
+                      ]
+                    : [
+                        { href: "/dashboard/orders", label: "Заказы", icon: Package },
+                        { href: "/dashboard/companies", label: "Компании", icon: Building2 },
+                        { href: "/dashboard/news", label: "Новости", icon: Newspaper },
+                        { href: "/dashboard/blog", label: "Блог", icon: BookOpen },
+                        { href: "/dashboard/settings", label: "Настройки", icon: Settings },
+                      ]
+                ).map((item) => {
                   const Icon = item.icon
                   const active = pathname === item.href || pathname.startsWith(item.href + "/")
                   return (
@@ -265,42 +298,54 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
               <div className="h-px bg-neutral-200/50 my-4 mx-1" />
 
-              <div className="space-y-0.5">
-                <a
-                  href="/obuchenie"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
-                >
-                  <GraduationCap className="h-4 w-4 text-neutral-300 shrink-0" />
-                  Обучение
-                </a>
-                <a
-                  href={priceListUrl || "/Прайс 10coffee_ Март 2026г. (1).pdf"}
-                  download
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
-                >
-                  <FileText className="h-4 w-4 text-neutral-300 shrink-0" />
-                  Прайс-лист
-                </a>
-                <a
-                  href="tg://resolve?domain=local10coffee"
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
-                >
-                  <Send className="h-3.5 w-3.5 text-neutral-300 shrink-0" />
-                  Telegram-канал
-                </a>
-              </div>
+              {isIndividual ? (
+                <div className="space-y-0.5">
+                  <Link
+                    href="/shop"
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
+                  >
+                    <ShoppingBag className="h-4 w-4 text-neutral-300 shrink-0" />
+                    Интернет-магазин
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  <a
+                    href="/obuchenie"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
+                  >
+                    <GraduationCap className="h-4 w-4 text-neutral-300 shrink-0" />
+                    Обучение
+                  </a>
+                  <a
+                    href={priceListUrl || "/Прайс 10coffee_ Март 2026г. (1).pdf"}
+                    download
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
+                  >
+                    <FileText className="h-4 w-4 text-neutral-300 shrink-0" />
+                    Прайс-лист
+                  </a>
+                  <a
+                    href="tg://resolve?domain=local10coffee"
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
+                  >
+                    <Send className="h-3.5 w-3.5 text-neutral-300 shrink-0" />
+                    Telegram-канал
+                  </a>
+                </div>
+              )}
 
               <div className="h-px bg-neutral-200/50 my-4 mx-1" />
 
               <div className="space-y-0.5">
                 <Link
-                  href="/"
+                  href={isIndividual ? "/shop" : "/"}
                   className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
                 >
                   <Globe className="h-4 w-4 text-neutral-300 shrink-0" />
-                  Оптовый сайт
+                  {isIndividual ? "Перейти в магазин" : "Оптовый сайт"}
                 </Link>
               </div>
             </aside>
@@ -309,21 +354,33 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {/* Main content */}
           <main className="flex-1 min-w-0 overflow-y-auto">
             <div className="p-3 sm:p-5 md:p-6 pb-20 lg:pb-6">
-              {children}
+              {isForbiddenRetailPath ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <div className="h-16 w-16 rounded-2xl bg-[#faead5] flex items-center justify-center mb-4">
+                    <ShoppingBag className="h-7 w-7 text-[#e6610d]/40" />
+                  </div>
+                  <p className="text-sm font-semibold text-neutral-900">Раздел недоступен</p>
+                  <p className="text-[12px] text-neutral-400 mt-1">Этот раздел доступен только оптовым клиентам</p>
+                </div>
+              ) : (
+                children
+              )}
             </div>
           </main>
 
           {/* Right sidebar - Cart */}
-          <CartSidebar
-            items={items}
-            onUpdateQuantity={updateQuantity}
-            onRemoveItem={removeItem}
-            onClearCart={clearCart}
-            priceListUrl={priceListUrl}
-            clientDiscount={clientDiscount}
-            categoryDiscounts={categoryDiscounts}
-            productDiscounts={productDiscounts}
-          />
+          {!isIndividual && (
+            <CartSidebar
+              items={items}
+              onUpdateQuantity={updateQuantity}
+              onRemoveItem={removeItem}
+              onClearCart={clearCart}
+              priceListUrl={priceListUrl}
+              clientDiscount={clientDiscount}
+              categoryDiscounts={categoryDiscounts}
+              productDiscounts={productDiscounts}
+            />
+          )}
 
           {/* ── SLIDE-OVER PANEL ── */}
           {activePanel && (
@@ -440,41 +497,58 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <Package className="h-5 w-5" />
               <span className="text-[10px] font-medium">Заказы</span>
             </Link>
-            <Link
-              href="/dashboard/catalog"
-              className={cn(
-                "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
-                isCatalog ? "text-[#5b328a]" : "text-neutral-400"
-              )}
-            >
-              <Coffee className="h-5 w-5" />
-              <span className="text-[10px] font-medium">Каталог</span>
-            </Link>
-            <button
-              onClick={() => togglePanel("cart")}
-              className={cn(
-                "relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
-                activePanel === "cart" ? "text-[#5b328a]" : "text-neutral-400"
-              )}
-            >
-              <ShoppingBag className="h-5 w-5" />
-              {items.length > 0 && (
-                <span className="absolute top-0.5 right-1.5 h-4 min-w-4 px-0.5 rounded-full bg-[#e6610d] text-white text-[9px] font-bold flex items-center justify-center">
-                  {items.length}
-                </span>
-              )}
-              <span className="text-[10px] font-medium">Корзина</span>
-            </button>
-            <Link
-              href="/dashboard/companies"
-              className={cn(
-                "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
-                pathname.startsWith("/dashboard/companies") ? "text-[#5b328a]" : "text-neutral-400"
-              )}
-            >
-              <Building2 className="h-5 w-5" />
-              <span className="text-[10px] font-medium">Компании</span>
-            </Link>
+            {isIndividual ? (
+              <Link
+                href="/shop"
+                className={cn(
+                  "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
+                  pathname.startsWith("/shop") ? "text-[#5b328a]" : "text-neutral-400"
+                )}
+              >
+                <ShoppingBag className="h-5 w-5" />
+                <span className="text-[10px] font-medium">Магазин</span>
+              </Link>
+            ) : (
+              <Link
+                href="/dashboard/catalog"
+                className={cn(
+                  "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
+                  isCatalog ? "text-[#5b328a]" : "text-neutral-400"
+                )}
+              >
+                <Coffee className="h-5 w-5" />
+                <span className="text-[10px] font-medium">Каталог</span>
+              </Link>
+            )}
+            {!isIndividual && (
+              <button
+                onClick={() => togglePanel("cart")}
+                className={cn(
+                  "relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
+                  activePanel === "cart" ? "text-[#5b328a]" : "text-neutral-400"
+                )}
+              >
+                <ShoppingBag className="h-5 w-5" />
+                {items.length > 0 && (
+                  <span className="absolute top-0.5 right-1.5 h-4 min-w-4 px-0.5 rounded-full bg-[#e6610d] text-white text-[9px] font-bold flex items-center justify-center">
+                    {items.length}
+                  </span>
+                )}
+                <span className="text-[10px] font-medium">Корзина</span>
+              </button>
+            )}
+            {!isIndividual && (
+              <Link
+                href="/dashboard/companies"
+                className={cn(
+                  "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
+                  pathname.startsWith("/dashboard/companies") ? "text-[#5b328a]" : "text-neutral-400"
+                )}
+              >
+                <Building2 className="h-5 w-5" />
+                <span className="text-[10px] font-medium">Компании</span>
+              </Link>
+            )}
             <Link
               href="/dashboard/settings"
               className={cn(

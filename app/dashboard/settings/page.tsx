@@ -40,6 +40,7 @@ function resizeImage(file: File, maxSize: number): Promise<Blob> {
 export default function SettingsPage() {
   const { user } = useAuth()
   const supabase = createClient()
+  const isIndividual = user?.user_metadata?.customer_type === "individual"
   const [loading, setLoading] = useState(false)
   const [avatarLoading, setAvatarLoading] = useState(false)
   const [fullName, setFullName] = useState("")
@@ -222,49 +223,51 @@ export default function SettingsPage() {
       </Card>
 
       {/* Quick comments */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Быстрые комментарии</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Сохранённые комментарии для быстрого выбора при оформлении заказа
-          </p>
+      {!isIndividual && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Быстрые комментарии</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Сохранённые комментарии для быстрого выбора при оформлении заказа
+            </p>
 
-          {quickComments.length > 0 && (
-            <div className="space-y-2">
-              {quickComments.map((comment, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 p-2 bg-muted rounded-md"
-                >
-                  <span className="text-sm flex-1">{comment}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleRemoveComment(index)}
+            {quickComments.length > 0 && (
+              <div className="space-y-2">
+                {quickComments.map((comment, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 p-2 bg-muted rounded-md"
                   >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+                    <span className="text-sm flex-1">{comment}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleRemoveComment(index)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
 
-          <div className="flex gap-2">
-            <Input
-              placeholder="Новый комментарий"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddComment()}
-            />
-            <Button variant="outline" onClick={handleAddComment}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Новый комментарий"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddComment()}
+              />
+              <Button variant="outline" onClick={handleAddComment}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

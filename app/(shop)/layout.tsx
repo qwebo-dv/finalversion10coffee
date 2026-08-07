@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { HtmlWrapper } from "@/components/shared/html-wrapper"
+import { AuthProvider } from "@/providers/auth-provider"
 import { GuestCartProvider } from "@/providers/guest-cart-provider"
 import { ShopFooter } from "@/components/shop/shop-footer"
 
@@ -13,12 +14,14 @@ export const metadata: Metadata = {
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
   return (
     <HtmlWrapper>
-      <GuestCartProvider>
-        <div className="flex min-h-screen flex-col">
-          <div className="flex-1">{children}</div>
-          <ShopFooter />
-        </div>
-      </GuestCartProvider>
+      <AuthProvider>
+        <GuestCartProvider>
+          <div className="flex min-h-screen flex-col">
+            <div className="flex-1">{children}</div>
+            <ShopFooter />
+          </div>
+        </GuestCartProvider>
+      </AuthProvider>
     </HtmlWrapper>
   )
 }

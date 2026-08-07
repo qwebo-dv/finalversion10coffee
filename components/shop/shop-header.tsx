@@ -3,8 +3,9 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { ChevronDown, ChevronRight, Menu, Minus, Plus, Search, ShoppingBag, User, X } from "lucide-react"
+import { ChevronDown, ChevronRight, LayoutDashboard, Menu, Minus, Plus, Search, ShoppingBag, User, X } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
+import { useAuth } from "@/providers/auth-provider"
 import { formatPrice } from "@/lib/utils/format"
 import type { Product, ProductTypeOption } from "@/types"
 
@@ -29,6 +30,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
   const [buyOpen, setBuyOpen] = useState(false)
   const [query, setQuery] = useState("")
   const { items, itemCount, updateQuantity, removeItem, clearCart } = useGuestCart()
+  const { user } = useAuth()
 
   const cartLines = items.map((item) => {
     const product = products.find((entry) => entry.id === item.productId)
@@ -57,8 +59,12 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
             <Link href="/b2b-servis" className="transition hover:text-[#e6610d]">Оптовым клиентам</Link>
             <Link href="/o-nas" className="hidden transition hover:text-[#e6610d] sm:inline">О нас</Link>
             <Link href="/kontakty" className="hidden transition hover:text-[#e6610d] md:inline">Контакты</Link>
-            <Link href="/login" className="hidden items-center gap-1.5 transition hover:text-[#e6610d] lg:flex"><User className="h-3 w-3" /> Войти</Link>
-            <Link href="/register" className="hidden rounded-full bg-[#e6610d] px-3 py-1 font-bold transition hover:bg-[#cf5206] lg:inline">Регистрация</Link>
+            {user ? (
+              <Link href="/dashboard" className="hidden items-center gap-1.5 transition hover:text-[#e6610d] lg:flex"><LayoutDashboard className="h-3 w-3" /> Кабинет</Link>
+            ) : (
+              <Link href="/login" className="hidden items-center gap-1.5 transition hover:text-[#e6610d] lg:flex"><User className="h-3 w-3" /> Войти</Link>
+            )}
+            {!user && <Link href="/register" className="hidden rounded-full bg-[#e6610d] px-3 py-1 font-bold transition hover:bg-[#cf5206] lg:inline">Регистрация</Link>}
           </div>
         </div>
       </div>
@@ -111,7 +117,10 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
               {typeLinks.map((type) => <Link key={type.slug} href={`/shop?type=${type.slug}`} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{type.name}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
               <Link href="/shop" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl bg-[#5b328a] px-3 py-3 text-base font-bold text-white">{`Весь каталог`}<ChevronRight className="h-4 w-4" /></Link>
               <p className="px-3 pb-1 pt-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Компания</p>
-              {[...NAV_LINKS, { label: "Войти в аккаунт", href: "/login" }, { label: "Регистрация", href: "/register" }].map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
+              {[...NAV_LINKS, ...(user
+                ? [{ label: "Мой кабинет", href: "/dashboard" }]
+                : [{ label: "Войти в аккаунт", href: "/login" }, { label: "Регистрация", href: "/register" }]
+              )].map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
             </nav>
           </aside>
         </div>

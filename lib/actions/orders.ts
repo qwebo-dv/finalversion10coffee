@@ -1,6 +1,6 @@
 "use server"
 
-import { getPayload } from "payload"
+import { getPayload, type Where } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -456,13 +456,34 @@ export async function getClientOrders(): Promise<Order[]> {
   const userId = await getCurrentUserId()
   if (!userId) return []
 
+  let userEmail = ""
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    userEmail = user?.email?.toLowerCase() || ""
+  } catch {}
+
   const clientDocId = await getClientDocId(userId)
-  if (!clientDocId) return []
 
   const payload = await getPayloadClient()
+
+  let where: Where
+  if (clientDocId) {
+    where = {
+      or: [
+        { client: { equals: clientDocId } },
+        ...(userEmail ? [{ customerEmail: { equals: userEmail } }] : []),
+      ],
+    }
+  } else if (userEmail) {
+    where = { customerEmail: { equals: userEmail } }
+  } else {
+    return []
+  }
+
   const { docs } = await payload.find({
     collection: "orders",
-    where: { client: { equals: clientDocId } },
+    where,
     sort: "-createdAt",
     depth: 1,
     limit: 200,

@@ -151,6 +151,20 @@ export async function createAuthUser(params: {
   return toUser(rows[0])
 }
 
+export async function upsertAuthUser(params: {
+  email: string
+  password: string
+  metadata: Record<string, unknown>
+}): Promise<{ user: AppUser; created: boolean }> {
+  const existing = await getUserByEmail(params.email)
+  if (existing) {
+    return { user: existing, created: false }
+  }
+
+  const user = await createAuthUser(params)
+  return { user, created: true }
+}
+
 export async function updateAuthUser(
   id: string,
   params: { password?: string; metadata?: Record<string, unknown> }

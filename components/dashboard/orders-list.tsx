@@ -25,6 +25,7 @@ import {
 } from "@/lib/utils/constants"
 import { repeatOrder, deleteOrder } from "@/lib/actions/orders"
 import { useCart } from "@/providers/cart-provider"
+import { useAuth } from "@/providers/auth-provider"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { Order } from "@/types"
@@ -45,6 +46,8 @@ const dateRangeLabels: Record<DateRange, string> = {
 
 export function OrdersList({ initialOrders }: OrdersListProps) {
   const { reloadCart } = useCart()
+  const { user } = useAuth()
+  const isIndividual = user?.user_metadata?.customer_type === "individual"
   const [orders, setOrders] = useState(initialOrders)
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [dateRange, setDateRange] = useState<DateRange>("all")
@@ -86,6 +89,10 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
   }, [orders, statusFilter, dateRange, customFrom, customTo])
 
   async function handleRepeatOrder(orderId: string) {
+    if (isIndividual) {
+      window.location.href = "/shop"
+      return
+    }
     const result = await repeatOrder(orderId)
     if (result.success) {
       await reloadCart()
@@ -198,10 +205,10 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
           </p>
           {!hasActiveFilters && (
             <Link
-              href="/dashboard/catalog"
+              href={isIndividual ? "/shop" : "/dashboard/catalog"}
               className="inline-flex items-center gap-1.5 mt-4 text-[12px] font-bold text-[#5b328a] hover:text-[#4a2870] transition-colors"
             >
-              Перейти в каталог
+              {isIndividual ? "Перейти в магазин" : "Перейти в каталог"}
             </Link>
           )}
         </div>
@@ -267,7 +274,7 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                     </div>
                   </div>
                   <div className="ml-auto sm:ml-0 flex items-center gap-2">
-                    {!order.moysklad_invoice_out_id && (
+                    {!isIndividual && !order.moysklad_invoice_out_id && (
                       <a
                         href={`/api/invoice?orderId=${order.id}`}
                         target="_blank"
@@ -415,7 +422,7 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                  {!selectedOrder.moysklad_invoice_out_id && (
+                  {!isIndividual && !selectedOrder.moysklad_invoice_out_id && (
                     <a
                       href={`/api/invoice?orderId=${selectedOrder.id}`}
                       target="_blank"
