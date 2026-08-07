@@ -26,7 +26,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
       </AuthProvider>
 
       <Suspense fallback={null}>
-        <AuthModal />
+        <AuthModal customerType="individual" />
       </Suspense>
     </HtmlWrapper>
   )

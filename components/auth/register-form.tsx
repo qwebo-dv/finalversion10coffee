@@ -16,9 +16,10 @@ import { SocialAuthButtons } from "./social-auth-buttons"
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void
+  customerType?: "individual" | "business"
 }
 
-export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
+export function RegisterForm({ onSwitchToLogin, customerType }: RegisterFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
@@ -35,7 +36,10 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     setSuccess(null)
     setLoading(true)
     try {
-      const result = await signUp(data)
+      const result = await signUp({
+        ...data,
+        customer_type: customerType ?? "business",
+      })
       if (result?.error) setError(result.error)
       else if (result?.success) {
         setSuccess(result.message || "Регистрация успешна!")

@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { ChevronDown, ChevronRight, LayoutDashboard, Menu, Minus, Plus, Search, ShoppingBag, User, X } from "lucide-react"
+import { ChevronDown, ChevronRight, Menu, Minus, Plus, Search, ShoppingBag, User, X } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
 import { openAuthModal } from "@/components/auth/auth-modal-store"
@@ -32,6 +32,10 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
   const [query, setQuery] = useState("")
   const { items, itemCount, updateQuantity, removeItem, clearCart } = useGuestCart()
   const { user } = useAuth()
+
+  const avatarUrl: string | null = user?.user_metadata?.avatar_url || null
+  const displayName = user?.user_metadata?.full_name || user?.email || ""
+  const initial = displayName.trim()[0]?.toUpperCase() || "U"
 
   const cartLines = items.map((item) => {
     const product = products.find((entry) => entry.id === item.productId)
@@ -66,7 +70,12 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
             <Link href="/o-nas" className="hidden transition hover:text-[#e6610d] sm:inline">О нас</Link>
             <Link href="/kontakty" className="hidden transition hover:text-[#e6610d] md:inline">Контакты</Link>
             {user ? (
-              <Link href="/dashboard" className="hidden items-center gap-1.5 transition hover:text-[#e6610d] lg:flex"><LayoutDashboard className="h-3 w-3" /> Кабинет</Link>
+              <Link href="/dashboard" title={displayName} className="hidden items-center gap-2 transition hover:text-[#e6610d] lg:flex">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-[10px] font-black text-white">
+                  {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
+                </span>
+                <span className="max-w-[130px] truncate text-[11px] font-bold">{displayName}</span>
+              </Link>
             ) : (
               <button type="button" onClick={() => openAuth("login")} className="hidden items-center gap-1.5 transition hover:text-[#e6610d] lg:flex"><User className="h-3 w-3" /> Войти</button>
             )}
@@ -125,7 +134,13 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
               <p className="px-3 pb-1 pt-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Компания</p>
               {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
               {user ? (
-                <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">Мой кабинет<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>
+                <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-sm font-black text-white">
+                    {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{displayName}</span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-[#c3b8af]" />
+                </Link>
               ) : (
                 <>
                   <button type="button" onClick={() => openAuth("login")} className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">Войти в аккаунт<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></button>

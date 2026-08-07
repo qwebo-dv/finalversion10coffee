@@ -20,9 +20,10 @@ import {
 
 interface AuthModalProps {
   announcement?: string | null
+  customerType?: "individual" | "business"
 }
 
-export function AuthModal({ announcement }: AuthModalProps) {
+export function AuthModal({ announcement, customerType }: AuthModalProps) {
   const { open, view } = useAuthModalStore()
   const [initialized, setInitialized] = useState(false)
 
@@ -68,7 +69,7 @@ export function AuthModal({ announcement }: AuthModalProps) {
           />
         )}
         {view === "register" && (
-          <RegisterForm onSwitchToLogin={() => switchView("login")} />
+          <RegisterForm onSwitchToLogin={() => switchView("login")} customerType={customerType} />
         )}
         {view === "forgot" && (
           <ForgotPasswordForm onSwitchToLogin={() => switchView("login")} />
