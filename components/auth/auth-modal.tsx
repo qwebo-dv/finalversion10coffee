@@ -1,6 +1,6 @@
 "use client"
 
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { useState } from "react"
 import {
   Dialog,
@@ -22,6 +22,7 @@ interface AuthModalProps {
 export function AuthModal({ announcement }: AuthModalProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const pathname = usePathname()
 
   const authParam = searchParams.get("auth") as AuthView | null
   const urlOpen = authParam === "login" || authParam === "register" || authParam === "forgot"
@@ -34,7 +35,7 @@ export function AuthModal({ announcement }: AuthModalProps) {
     setClosedAuthParam(null)
     const params = new URLSearchParams(searchParams.toString())
     params.set("auth", view)
-    router.replace(`/?${params.toString()}`, { scroll: false })
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
   function handleClose() {
@@ -42,7 +43,7 @@ export function AuthModal({ announcement }: AuthModalProps) {
     const params = new URLSearchParams(searchParams.toString())
     params.delete("auth")
     const qs = params.toString()
-    router.replace(qs ? `/?${qs}` : "/", { scroll: false })
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
 
   return (

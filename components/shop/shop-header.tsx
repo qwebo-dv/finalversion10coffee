@@ -49,6 +49,13 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
     router.push(`/shop?q=${encodeURIComponent(query.trim())}`)
   }
 
+  function openAuth(view: "login" | "register") {
+    setMenuOpen(false)
+    const url = new URL(window.location.href)
+    url.searchParams.set("auth", view)
+    router.replace(url.pathname + url.search, { scroll: false })
+  }
+
   return (
     <>
       {/* Utility bar */}
@@ -62,9 +69,9 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
             {user ? (
               <Link href="/dashboard" className="hidden items-center gap-1.5 transition hover:text-[#e6610d] lg:flex"><LayoutDashboard className="h-3 w-3" /> Кабинет</Link>
             ) : (
-              <Link href="/login" className="hidden items-center gap-1.5 transition hover:text-[#e6610d] lg:flex"><User className="h-3 w-3" /> Войти</Link>
+              <button type="button" onClick={() => openAuth("login")} className="hidden items-center gap-1.5 transition hover:text-[#e6610d] lg:flex"><User className="h-3 w-3" /> Войти</button>
             )}
-            {!user && <Link href="/register" className="hidden rounded-full bg-[#e6610d] px-3 py-1 font-bold transition hover:bg-[#cf5206] lg:inline">Регистрация</Link>}
+            {!user && <button type="button" onClick={() => openAuth("register")} className="hidden rounded-full bg-[#e6610d] px-3 py-1 font-bold transition hover:bg-[#cf5206] lg:inline">Регистрация</button>}
           </div>
         </div>
       </div>
@@ -117,10 +124,15 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
               {typeLinks.map((type) => <Link key={type.slug} href={`/shop?type=${type.slug}`} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{type.name}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
               <Link href="/shop" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl bg-[#5b328a] px-3 py-3 text-base font-bold text-white">{`Весь каталог`}<ChevronRight className="h-4 w-4" /></Link>
               <p className="px-3 pb-1 pt-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Компания</p>
-              {[...NAV_LINKS, ...(user
-                ? [{ label: "Мой кабинет", href: "/dashboard" }]
-                : [{ label: "Войти в аккаунт", href: "/login" }, { label: "Регистрация", href: "/register" }]
-              )].map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
+              {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
+              {user ? (
+                <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">Мой кабинет<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>
+              ) : (
+                <>
+                  <button type="button" onClick={() => openAuth("login")} className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">Войти в аккаунт<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></button>
+                  <button type="button" onClick={() => openAuth("register")} className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">Регистрация<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></button>
+                </>
+              )}
             </nav>
           </aside>
         </div>

@@ -186,7 +186,12 @@ export function ShopCatalog({ productTypes, products }: ShopCatalogProps) {
       skipNextSync.current = false
       return
     }
+    const managed = new Set(["type", "q", "coll", "sort", "roast", "region", "process"])
+    const existing = new URLSearchParams(window.location.search)
     const params = new URLSearchParams()
+    existing.forEach((value, key) => {
+      if (!managed.has(key)) params.set(key, value)
+    })
     if (activeType) params.set("type", activeType)
     if (query.trim()) params.set("q", query.trim())
     if (activeCollection && activeCollection !== "all") params.set("coll", activeCollection)

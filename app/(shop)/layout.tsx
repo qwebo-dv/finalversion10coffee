@@ -1,8 +1,10 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { HtmlWrapper } from "@/components/shared/html-wrapper"
 import { AuthProvider } from "@/providers/auth-provider"
 import { GuestCartProvider } from "@/providers/guest-cart-provider"
 import { ShopFooter } from "@/components/shop/shop-footer"
+import { AuthModal } from "@/components/auth/auth-modal"
 
 export const metadata: Metadata = {
   title: "Магазин кофе — 10coffee",
@@ -22,6 +24,10 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
           </div>
         </GuestCartProvider>
       </AuthProvider>
+
+      <Suspense fallback={null}>
+        <AuthModal />
+      </Suspense>
     </HtmlWrapper>
   )
 }

@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Mail, MapPin, Phone } from "lucide-react"
+import { ShopAuthLinks } from "./shop-auth-links"
 
 const CATALOG_LINKS = [
   { label: "Кофе", href: "/shop?type=kofe" },
@@ -17,8 +18,6 @@ const COMPANY_LINKS = [
 ]
 
 const CUSTOMER_LINKS = [
-  { label: "Войти в аккаунт", href: "/login" },
-  { label: "Регистрация", href: "/register" },
   { label: "Оформить заказ", href: "/checkout" },
   { label: "Напишите нам", href: "mailto:10coffee@mail.ru" },
 ]
@@ -59,6 +58,7 @@ export function ShopFooter() {
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#91867d]">Покупателям</p>
           <ul className="mt-5 space-y-3 text-sm font-semibold text-[#554b43]">
+            <ShopAuthLinks />
             {CUSTOMER_LINKS.map((link) => <li key={link.href}><Link href={link.href} className="transition hover:text-[#5b328a]">{link.label}</Link></li>)}
           </ul>
           <div className="mt-6">
