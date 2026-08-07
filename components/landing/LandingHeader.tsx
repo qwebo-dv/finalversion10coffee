@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
+import { openAuthModal } from "@/components/auth/auth-modal-store";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import styles from "./LandingHeader.module.css";
 
 interface LandingHeaderProps {
@@ -20,7 +20,6 @@ export default function LandingHeader({
   isMapOpen = false,
 }: LandingHeaderProps) {
   const { user } = useAuth();
-  const router = useRouter();
   const [hidden, setHidden] = useState(false);
   const avatarUrl: string | null = user?.user_metadata?.avatar_url || null;
   const lastScrollY = useRef(0);
@@ -67,7 +66,7 @@ export default function LandingHeader({
           <button
             type="button"
             className={styles.navPillBtn}
-            onClick={() => router.push("/?auth=login")}
+            onClick={() => openAuthModal("login")}
           >
             Личный кабинет
           </button>

@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
+import { openAuthModal } from "@/components/auth/auth-modal-store";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import BurgerMenu from "./BurgerMenu";
 import MapModal from "./MapModal";
 import styles from "./LandingHeader.module.css";
@@ -18,7 +18,6 @@ const NAV_LINKS = [
 
 export default function SiteHeader() {
   const { user } = useAuth();
-  const router = useRouter();
   const avatarUrl: string | null = user?.user_metadata?.avatar_url || null;
   const [hidden, setHidden] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -74,7 +73,7 @@ export default function SiteHeader() {
             <button
               type="button"
               className={styles.navPillBtn}
-              onClick={() => router.push("/?auth=login")}
+              onClick={() => openAuthModal("login")}
             >
               Личный кабинет
             </button>

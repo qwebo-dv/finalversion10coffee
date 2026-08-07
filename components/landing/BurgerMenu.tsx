@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { openAuthModal } from "@/components/auth/auth-modal-store";
 import { useLenis } from "lenis/react";
 import gsap from "gsap";
 import { FaTelegram, FaInstagram, FaVk } from "react-icons/fa";
@@ -23,7 +24,7 @@ const NAV_LINKS = [
   { label: "Сервис", href: "/b2b-servis" },
   { label: "Контакты", href: "/kontakty" },
   { label: "Где попробовать", href: "#map", isMap: true },
-  { label: "Опт", href: "/?auth=login" },
+  { label: "Опт", href: "/?auth=login", isAuth: true },
 ];
 
 const SOCIAL_LINKS = [
@@ -238,6 +239,11 @@ export default function BurgerMenu({ isOpen, onClose, onOpenMap, pageRef }: Burg
                     onMouseEnter={() => setActiveImg(i)}
                     onClick={(e) => {
                       e.preventDefault();
+                      if ("isAuth" in link && link.isAuth) {
+                        onClose();
+                        setTimeout(() => openAuthModal("login"), 800);
+                        return;
+                      }
                       handleLinkClick(link.href, false, "isMap" in link && link.isMap);
                     }}
                   >

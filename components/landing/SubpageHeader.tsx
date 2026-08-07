@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
+import { openAuthModal } from "@/components/auth/auth-modal-store";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import BurgerMenu from "./BurgerMenu";
 import styles from "./SubpageHeader.module.css";
 
@@ -17,7 +18,6 @@ const NAV_LINKS = [
 
 export default function SubpageHeader() {
   const { user } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -57,7 +57,7 @@ export default function SubpageHeader() {
             <button
               type="button"
               className={styles.pillBtn}
-              onClick={() => router.push("/?auth=login")}
+              onClick={() => openAuthModal("login")}
             >
               Личный кабинет
             </button>

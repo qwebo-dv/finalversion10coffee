@@ -1,7 +1,6 @@
 "use client"
 
-import { useSearchParams, useRouter, usePathname } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -12,46 +11,45 @@ import { LoginForm } from "./login-form"
 import { RegisterForm } from "./register-form"
 import { ForgotPasswordForm } from "./forgot-password-form"
 import { Info } from "lucide-react"
-
-type AuthView = "login" | "register" | "forgot"
+import {
+  openAuthModal,
+  closeAuthModal,
+  useAuthModalStore,
+  type AuthView,
+} from "./auth-modal-store"
 
 interface AuthModalProps {
   announcement?: string | null
 }
 
 export function AuthModal({ announcement }: AuthModalProps) {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const pathname = usePathname()
+  const { open, view } = useAuthModalStore()
+  const [initialized, setInitialized] = useState(false)
 
-  const authParam = searchParams.get("auth") as AuthView | null
-  const urlOpen = authParam === "login" || authParam === "register" || authParam === "forgot"
+  useEffect(() => {
+    if (initialized) return
+    setInitialized(true)
+    const params = new URLSearchParams(window.location.search)
+    const auth = params.get("auth") as AuthView | null
+    if (auth === "login" || auth === "register" || auth === "forgot") {
+      openAuthModal(auth)
+    }
+  }, [initialized])
 
-  const [closedAuthParam, setClosedAuthParam] = useState<AuthView | null>(null)
-  const activeView = authParam ?? "login"
-  const open = urlOpen && closedAuthParam !== authParam
-
-  function switchView(view: AuthView) {
-    setClosedAuthParam(null)
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("auth", view)
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  function switchView(nextView: AuthView) {
+    openAuthModal(nextView)
   }
 
   function handleClose() {
-    setClosedAuthParam(authParam)
-    const params = new URLSearchParams(searchParams.toString())
-    params.delete("auth")
-    const qs = params.toString()
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+    closeAuthModal()
   }
 
   return (
-    <Dialog open={open} onOpenChange={(open) => !open && handleClose()}>
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && handleClose()}>
       <DialogContent className="sm:max-w-[420px] rounded-2xl border-0 p-6 gap-0 shadow-2xl">
         <VisuallyHidden>
           <DialogTitle>
-            {activeView === "register" ? "Регистрация" : activeView === "forgot" ? "Восстановление пароля" : "Вход"}
+            {view === "register" ? "Регистрация" : view === "forgot" ? "Восстановление пароля" : "Вход"}
           </DialogTitle>
         </VisuallyHidden>
 
@@ -63,16 +61,16 @@ export function AuthModal({ announcement }: AuthModalProps) {
           </div>
         )}
 
-        {activeView === "login" && (
+        {view === "login" && (
           <LoginForm
             onSwitchToRegister={() => switchView("register")}
             onSwitchToForgot={() => switchView("forgot")}
           />
         )}
-        {activeView === "register" && (
+        {view === "register" && (
           <RegisterForm onSwitchToLogin={() => switchView("login")} />
         )}
-        {activeView === "forgot" && (
+        {view === "forgot" && (
           <ForgotPasswordForm onSwitchToLogin={() => switchView("login")} />
         )}
       </DialogContent>

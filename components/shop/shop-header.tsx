@@ -6,6 +6,7 @@ import { useState } from "react"
 import { ChevronDown, ChevronRight, LayoutDashboard, Menu, Minus, Plus, Search, ShoppingBag, User, X } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
+import { openAuthModal } from "@/components/auth/auth-modal-store"
 import { formatPrice } from "@/lib/utils/format"
 import type { Product, ProductTypeOption } from "@/types"
 
@@ -51,9 +52,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
 
   function openAuth(view: "login" | "register") {
     setMenuOpen(false)
-    const url = new URL(window.location.href)
-    url.searchParams.set("auth", view)
-    router.replace(url.pathname + url.search, { scroll: false })
+    openAuthModal(view)
   }
 
   return (

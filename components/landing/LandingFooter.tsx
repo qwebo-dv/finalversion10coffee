@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { FaVk } from "react-icons/fa";
+import { openAuthModal } from "@/components/auth/auth-modal-store";
 import Copy from "./_shared/Copy";
 import AnimatedButton from "./_shared/AnimatedButton";
 import PriceListFormModal from "./PriceListFormModal";
@@ -17,7 +18,7 @@ const FOOTER_LINKS = [
   { label: "Обучение бариста", href: "/obuchenie" },
   { label: "Сервис", href: "/b2b-servis" },
   { label: "Блог", href: "/blog" },
-  { label: "Оптовые поставки", href: "/?auth=login" },
+  { label: "Оптовые поставки", href: "/?auth=login", isAuth: true },
 ];
 
 const SOCIALS = [
@@ -175,7 +176,12 @@ export default function LandingFooter() {
         </div>
         <div className={styles.barLinks}>
           {FOOTER_LINKS.map((link) => (
-            <a key={link.label} href={link.href}>{link.label}</a>
+            <a key={link.label} href={link.href} onClick={(e) => {
+              if ("isAuth" in link && link.isAuth) {
+                e.preventDefault()
+                openAuthModal("login")
+              }
+            }}>{link.label}</a>
           ))}
           <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer">Конфиденциальность</a>
           <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer">Обработка данных</a>
