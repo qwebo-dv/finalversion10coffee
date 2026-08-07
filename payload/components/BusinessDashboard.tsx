@@ -203,7 +203,7 @@ function DualTimelineChart({ points, granularity }: { points: TimelinePoint[]; g
         {line && <polyline points={line} className="dual-chart__line" />}
         {coords.map((point) => (
           <g className="dual-chart__point" key={point.date}>
-            <circle cx={point.x} cy={point.y} r="4"><title>{`${dateFormatter.format(new Date(point.date))}: ${formatCurrency(point.revenue)} ₽`}</title></circle>
+            <circle cx={point.x} cy={point.y} r="3.5"><title>{`${dateFormatter.format(new Date(point.date))}: ${formatCurrency(point.revenue)} ₽`}</title></circle>
           </g>
         ))}
         {points.map((point, index) => (

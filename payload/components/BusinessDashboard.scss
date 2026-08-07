@@ -64,13 +64,13 @@
 .dual-chart__grid { stroke: var(--theme-elevation-100); stroke-width: 1; }
 .dual-chart__bar { fill: rgba(230, 97, 13, 0.42); transition: fill .15s ease; }
 .dual-chart__bar:hover { fill: rgba(230, 97, 13, 0.75); }
-.dual-chart__line { fill: none; stroke: #5b328a; stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
-.dual-chart__point circle { fill: #fff; stroke: #5b328a; stroke-width: 2.5; transition: r .15s ease, fill .15s ease; }
-.dual-chart__point:hover circle { r: 6; fill: #5b328a; }
-.dual-chart__legend { display: flex; justify-content: flex-end; gap: 16px; padding: 0 6px 4px; color: var(--theme-elevation-600); font-size: 11px; }
-.dual-chart__legend span { display: inline-flex; align-items: center; gap: 6px; }
-.dual-chart__legend-line { display: inline-block; width: 16px; height: 3px; border-radius: 999px; background: #5b328a; }
-.dual-chart__legend-bar { display: inline-block; width: 12px; height: 10px; border-radius: 3px; background: rgba(230, 97, 13, 0.42); }
+.dual-chart__line { fill: none; stroke: #5b328a; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; }
+.dual-chart__point circle { fill: #fff; stroke: #5b328a; stroke-width: 2; transition: r .15s ease, fill .15s ease; }
+.dual-chart__point:hover circle { r: 5; fill: #5b328a; }
+.dual-chart__legend { display: flex; justify-content: flex-end; gap: 12px; padding: 0 6px 4px; color: var(--theme-elevation-600); font-size: 10px; }
+.dual-chart__legend span { display: inline-flex; align-items: center; gap: 5px; }
+.dual-chart__legend-line { display: inline-block; width: 12px; height: 2px; border-radius: 999px; background: #5b328a; }
+.dual-chart__legend-bar { display: inline-block; width: 10px; height: 8px; border-radius: 2px; background: rgba(230, 97, 13, 0.42); }
 
 /* ── Distribution grid ──────────────────────────── */
 .business-dashboard__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
