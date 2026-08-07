@@ -5,6 +5,7 @@ import { FormEvent, useMemo, useState } from "react"
 import { ArrowLeft, CheckCircle2, Loader2, LockKeyhole, ShoppingBag } from "lucide-react"
 import { createShopOrder } from "@/lib/actions/shop-orders"
 import { useGuestCart } from "@/providers/guest-cart-provider"
+import PhoneInput from "@/components/shared/phone-input"
 import { formatPrice } from "@/lib/utils/format"
 import type { DeliveryMethod, Product } from "@/types"
 
@@ -92,7 +93,7 @@ export function ShopCheckout({ products }: { products: Product[] }) {
 
             <div className="mt-8 grid gap-5 sm:grid-cols-2">
               <label className="sm:col-span-2"><span className="mb-2 block text-xs font-bold text-[#655c55]">ФИО</span><input name="fullName" required autoComplete="name" className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="Иванов Иван Иванович" /></label>
-              <label><span className="mb-2 block text-xs font-bold text-[#655c55]">Телефон</span><input name="phone" required autoComplete="tel" className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="+7 999 000-00-00" /></label>
+              <label><span className="mb-2 block text-xs font-bold text-[#655c55]">Телефон</span><PhoneInput name="phone" required className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" /></label>
               <label><span className="mb-2 block text-xs font-bold text-[#655c55]">Email</span><input name="email" type="email" required autoComplete="email" className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="mail@example.ru" /></label>
             </div>
 
