@@ -27,6 +27,7 @@ import { BlogPosts } from "./payload/collections/BlogPosts"
 import { Tags } from "./payload/collections/Tags"
 import { PriceListRequests } from "./payload/collections/PriceListRequests"
 import { SiteSettings } from "./payload/globals/SiteSettings"
+import { businessDashboardHandler } from "./payload/endpoints/businessDashboard"
 
 const smtpEmailAdapter: EmailAdapter = () => {
   const defaultFromAddress = process.env.SMTP_EMAIL || "noreply@10coffee.ru"
@@ -66,6 +67,9 @@ export default buildConfig({
       description: "Панель управления 10coffee",
     },
     dateFormat: "dd.MM.yyyy HH:mm",
+    components: {
+      beforeDashboard: ["/payload/components/BusinessDashboard"],
+    },
   },
 
   collections: [
@@ -106,6 +110,14 @@ export default buildConfig({
   email: smtpEmailAdapter,
 
   secret: process.env.PAYLOAD_SECRET || "your-secret-key-change-this",
+
+  endpoints: [
+    {
+      path: "/business-dashboard",
+      method: "get",
+      handler: businessDashboardHandler,
+    },
+  ],
 
   typescript: {
     outputFile: path.resolve(__dirname, "payload-types.ts"),
