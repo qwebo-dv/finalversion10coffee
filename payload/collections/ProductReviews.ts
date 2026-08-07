@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { productReviewsModerationHandler } from "../endpoints/productReviewsModeration"
 
 export const ProductReviews: CollectionConfig = {
   slug: "product-reviews",
@@ -6,7 +7,10 @@ export const ProductReviews: CollectionConfig = {
     useAsTitle: "id",
     group: "Каталог",
     description: "Оценки и отзывы на товары",
-    defaultColumns: ["product", "authorName", "rating", "comment", "createdAt"],
+    defaultColumns: ["product", "authorName", "rating", "comment", "status", "createdAt"],
+    components: {
+      beforeList: ["/payload/components/ProductReviewsModeration"],
+    },
   },
   labels: {
     singular: "Отзыв",
@@ -59,6 +63,37 @@ export const ProductReviews: CollectionConfig = {
       name: "comment",
       type: "textarea",
       label: "Отзыв",
+    },
+    {
+      name: "status",
+      type: "select",
+      label: "Статус модерации",
+      required: true,
+      defaultValue: "pending",
+      options: [
+        { label: "На модерации", value: "pending" },
+        { label: "Опубликован", value: "approved" },
+        { label: "Отклонён", value: "rejected" },
+      ],
+      admin: {
+        position: "sidebar",
+        description: "Отзыв появляется на сайте только после публикации администратором.",
+      },
+      access: {
+        update: ({ req }) => req.user?.role === "admin",
+      },
+    },
+  ],
+  endpoints: [
+    {
+      path: "/moderation",
+      method: "get",
+      handler: productReviewsModerationHandler,
+    },
+    {
+      path: "/moderation",
+      method: "post",
+      handler: productReviewsModerationHandler,
     },
   ],
   timestamps: true,

@@ -34,14 +34,6 @@ interface SpecRow {
   value: string
 }
 
-function starWord(count: number): string {
-  const mod10 = count % 10
-  const mod100 = count % 100
-  if (mod10 === 1 && mod100 !== 11) return "звезда"
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "звезды"
-  return "звёзд"
-}
-
 function formatReviewDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ""
@@ -87,6 +79,10 @@ export function ShopProduct({ product, products }: { product: Product; products:
     addItem({ productId: product.id, variantId: variant.id, quantity })
     setAdded(true)
     window.setTimeout(() => setAdded(false), 1400)
+  }
+
+  function scrollToReview() {
+    document.getElementById("shop-review-form")?.scrollIntoView({ behavior: "smooth", block: "center" })
   }
 
   async function submitVote() {
@@ -169,7 +165,14 @@ export function ShopProduct({ product, products }: { product: Product; products:
             <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#e6610d]">{product.product_type_name}</p>
             <h1 className="mt-3 text-5xl font-black leading-[0.98] tracking-[-0.05em] sm:text-6xl">{product.name}</h1>
             {subtitle && <p className="mt-4 text-lg text-[#6e655e]">{subtitle}</p>}
-            <div className="mt-5"><StarRating value={product.rating} count={product.reviews_count} size="lg" /></div>
+            <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <StarRating value={product.rating} count={product.reviews_count} size="lg" />
+              {!product.reviews_count && (
+                <button type="button" onClick={scrollToReview} className="inline-flex items-center text-sm font-semibold text-[#8d827a] transition hover:text-[#5b328a]">
+                  Пока не оценили
+                </button>
+              )}
+            </div>
 
             {/* Packaging */}
             <div className="mt-10">
@@ -286,14 +289,13 @@ export function ShopProduct({ product, products }: { product: Product; products:
             </div>
             {reviews.length > 0 && <p className="mt-3 text-sm text-[#8d827a]">Средняя оценка из {reviews.length} отзывов</p>}
 
-            <div className="mt-9 rounded-[28px] bg-white p-7 shadow-[0_20px_60px_rgba(45,27,17,0.07)]">
+            <div id="shop-review-form" className="mt-9 rounded-[28px] bg-white p-7 shadow-[0_20px_60px_rgba(45,27,17,0.07)]">
               <h3 className="text-lg font-black">Оцените товар</h3>
+              <div className="mt-4"><StarRating interactive={!voteDone} onRate={setVote} value={vote} size="lg" showValue={false} /></div>
               {voteDone ? (
-                <div className="mt-4 flex items-center gap-3 rounded-2xl bg-[#e8f5e9] p-4 text-sm font-bold text-[#2e7d32]"><CheckCircle2 className="h-5 w-5 shrink-0" /> Спасибо! Ваша оценка учтена.</div>
+                <div className="mt-4 flex items-center gap-3 rounded-2xl bg-[#e8f5e9] p-4 text-sm font-bold text-[#2e7d32]"><CheckCircle2 className="h-5 w-5 shrink-0" /> Спасибо! Отзыв отправлен на модерацию и появится после проверки.</div>
               ) : (
                 <>
-                  <div className="mt-4"><StarRating interactive onRate={setVote} size="lg" showValue={false} /></div>
-                  <p className="mt-2 text-sm text-[#8d827a]">{vote > 0 ? `Выбрано: ${vote} ${starWord(vote)}` : "Нажмите на звёзды, чтобы поставить оценку"}</p>
                   <input value={authorName} onChange={(event) => setAuthorName(event.target.value)} placeholder="Ваше имя (необязательно)" className="mt-5 h-12 w-full rounded-2xl border border-black/10 bg-[#f8f5f1] px-4 text-sm outline-none transition focus:border-[#5b328a]" />
                   <textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Напишите отзыв (необязательно)" rows={3} className="mt-3 w-full resize-none rounded-2xl border border-black/10 bg-[#f8f5f1] px-4 py-3 text-sm outline-none transition focus:border-[#5b328a]" />
                   <button type="button" onClick={submitVote} disabled={!vote || submitting} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#5b328a] px-6 py-4 text-sm font-black text-white transition hover:bg-[#47256e] disabled:opacity-40">

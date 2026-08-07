@@ -76,6 +76,16 @@ export default function MyReviewsPage() {
                 <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
                   <span>{formatDate(review.created_at)}</span>
                   <span className="text-[#5b328a] font-semibold">{review.rating} / 5</span>
+                  {review.status === "pending" && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">
+                      На модерации
+                    </span>
+                  )}
+                  {review.status === "rejected" && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-600">
+                      Отклонён
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

@@ -137,6 +137,7 @@ interface PayloadReviewDoc {
   rating?: number
   comment?: string
   createdAt?: string
+  status?: "pending" | "approved" | "rejected" | string | null
 }
 
 interface PayloadClientCategoryDiscount {
@@ -402,6 +403,7 @@ async function fetchReviewsMap(): Promise<Map<string, ProductReview[]>> {
   try {
     const { docs } = await payload.find({
       collection: "product-reviews",
+      where: { status: { equals: "approved" } },
       limit: 20000,
       depth: 0,
       sort: "-createdAt",
@@ -896,6 +898,7 @@ export interface MyReview {
   rating: number
   comment: string | null
   created_at: string
+  status?: "pending" | "approved" | "rejected" | string | null
   product: {
     id: string
     name: string
@@ -930,6 +933,7 @@ export async function getMyReviews(): Promise<MyReview[]> {
           rating: typeof doc.rating === "number" ? doc.rating : 0,
           comment: doc.comment || null,
           created_at: doc.createdAt || "",
+          status: doc.status || "pending",
           product: {
             id: String(productId),
             name: rawProduct.name || "",

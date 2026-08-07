@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
         authorName: authorName || null,
         comment: comment || null,
         clientId: clientId || null,
+        status: "pending",
       },
     })
     return NextResponse.json({
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
         rating: doc.rating,
         comment: doc.comment || null,
         created_at: doc.createdAt,
+        status: "pending",
       },
     })
   } catch (error) {

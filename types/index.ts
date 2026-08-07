@@ -155,6 +155,7 @@ export interface ProductReview {
   comment: string | null
   created_at: string
   client_id?: string | null
+  status?: "pending" | "approved" | "rejected" | string | null
 }
 
 export interface Product {
