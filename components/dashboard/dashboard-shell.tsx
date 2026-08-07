@@ -29,13 +29,6 @@ import {
   Trash2,
 } from "lucide-react"
 import { getSiteSettings } from "@/lib/actions/site-settings"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { formatDateTime } from "@/lib/utils/format"
@@ -134,133 +127,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-white p-2 md:p-3">
-      <div className="bg-white h-[calc(100vh-1.5rem)] overflow-hidden flex flex-col relative mx-auto max-w-[1240px]">
-
-        {/* ── TOP NAV BAR ── */}
-        <header className="flex items-center justify-between h-14 sm:h-16 px-3 sm:px-5 shrink-0 z-30 relative">
-          {/* Left: Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <img src="/Основной (упрощенный).svg" alt="10кофе" className="w-[130px] sm:w-[120px] h-[55px] object-contain" />
-          </Link>
-
-          {/* Center: Tab Switcher — desktop only */}
-          <div className="hidden lg:flex items-center bg-[#5b328a] rounded-full p-1 gap-0.5">
-            <Link
-              href="/dashboard"
-              className={cn(
-                "px-5 py-2 rounded-full text-[13px] font-semibold transition-all duration-300",
-                isDashboard
-                  ? "bg-white/15 text-white shadow-sm backdrop-blur-sm"
-                  : "text-white/40 hover:text-white/70"
-              )}
-            >
-              Кабинет
-            </Link>
-            <Link
-              href={isIndividual ? "/shop" : "/dashboard/catalog"}
-              className={cn(
-                "px-5 py-2 rounded-full text-[13px] font-semibold transition-all duration-300",
-                isIndividual
-                  ? "text-white/40 hover:text-white/70"
-                  : isCatalog
-                    ? "bg-white/15 text-white shadow-sm backdrop-blur-sm"
-                    : "text-white/40 hover:text-white/70"
-              )}
-            >
-              {isIndividual ? "Интернет-магазин" : "Каталог"}
-            </Link>
-          </div>
-
-          {/* Right: Icons + User */}
-          <div className="flex items-center gap-1">
-            {/* Favorites */}
-            {!isIndividual && (
-              <button
-                onClick={() => togglePanel("favorites")}
-                className={cn(
-                  "h-9 w-9 rounded-xl flex items-center justify-center transition-all",
-                  activePanel === "favorites"
-                    ? "bg-[#faead5] text-[#e6610d]"
-                    : "text-neutral-400 hover:text-[#e6610d] hover:bg-[#faead5]/50"
-                )}
-              >
-                <Heart className={cn("h-[18px] w-[18px]", activePanel === "favorites" && "fill-[#e6610d]")} />
-              </button>
-            )}
-
-            {/* Notifications */}
-            {!isIndividual && (
-              <button
-                onClick={() => togglePanel("notifications")}
-                className={cn(
-                  "relative h-9 w-9 rounded-xl flex items-center justify-center transition-all",
-                  activePanel === "notifications"
-                    ? "bg-[#faead5] text-[#5b328a]"
-                    : "text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100"
-                )}
-              >
-                <Bell className={cn("h-[18px] w-[18px]", hasNewNotification && "animate-bell-ring")} />
-                {badgeVisible && (
-                  <span
-                    className={cn(
-                      "absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e6610d] text-white text-[9px] font-bold px-0.5 transition-all duration-300",
-                      badgeAnimatingOut ? "opacity-0 scale-0" : "opacity-100 scale-100"
-                    )}
-                  >
-                    {unreadCount || 1}
-                  </span>
-                )}
-              </button>
-            )}
-
-            <div className="w-px h-6 bg-neutral-200 mx-1.5" />
-
-            {/* User dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-full hover:bg-black/[0.04] pl-2 pr-1 py-1 transition-colors">
-                  <span className="text-[13px] font-medium text-neutral-600 hidden sm:block">{displayName}</span>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e6610d] text-white text-[11px] font-bold overflow-hidden">
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      displayName.charAt(0).toUpperCase()
-                    )}
-                  </div>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                <div className="px-3 py-2">
-                  <p className="text-sm font-semibold">{displayName}</p>
-                  <p className="text-xs text-neutral-500">{user?.email}</p>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/settings" className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Настройки
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => signOut()}
-                  className="text-[#e6610d] focus:text-[#e6610d] cursor-pointer"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Выйти
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
+    <div className="bg-white">
+      <div className="relative mx-auto max-w-[1480px]">
 
         {/* ── BODY ── */}
-        <div className="flex flex-1 min-h-0 overflow-hidden relative">
+        <div className="flex relative">
 
           {/* Left sidebar - Cabinet navigation */}
           {isDashboard && (
-            <aside className="w-[210px] shrink-0 hidden lg:flex flex-col pt-4 pb-6 pl-5 pr-2 overflow-y-auto">
+            <aside className="hidden lg:flex w-[210px] shrink-0 flex-col pt-6 pb-6 pl-5 pr-2 lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
               <nav className="space-y-0.5">
                 {(
                   isIndividual
@@ -269,6 +144,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                         { href: "/dashboard/settings", label: "Настройки", icon: Settings },
                       ]
                     : [
+                        { href: "/dashboard/catalog", label: "Каталог", icon: Coffee },
                         { href: "/dashboard/orders", label: "Заказы", icon: Package },
                         { href: "/dashboard/companies", label: "Компании", icon: Building2 },
                         { href: "/dashboard/news", label: "Новости", icon: Newspaper },
@@ -295,6 +171,51 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   )
                 })}
               </nav>
+
+              {!isIndividual && (
+                <>
+                  <div className="h-px bg-neutral-200/50 my-4 mx-1" />
+
+                  <div className="space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => togglePanel("favorites")}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all",
+                        activePanel === "favorites"
+                          ? "bg-white text-neutral-900 font-semibold shadow-sm"
+                          : "text-neutral-500 hover:text-neutral-900 hover:bg-white/60"
+                      )}
+                    >
+                      <Heart className={cn("h-4 w-4 shrink-0", activePanel === "favorites" ? "text-[#5b328a]" : "text-neutral-300")} />
+                      Избранное
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => togglePanel("notifications")}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all",
+                        activePanel === "notifications"
+                          ? "bg-white text-neutral-900 font-semibold shadow-sm"
+                          : "text-neutral-500 hover:text-neutral-900 hover:bg-white/60"
+                      )}
+                    >
+                      <Bell className={cn("h-4 w-4 shrink-0", activePanel === "notifications" ? "text-[#5b328a]" : "text-neutral-300")} />
+                      Уведомления
+                      {badgeVisible && (
+                        <span
+                          className={cn(
+                            "ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e6610d] px-1 text-[9px] font-bold text-white transition-all duration-300",
+                            badgeAnimatingOut ? "opacity-0 scale-0" : "opacity-100 scale-100"
+                          )}
+                        >
+                          {unreadCount || 1}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
 
               <div className="h-px bg-neutral-200/50 my-4 mx-1" />
 
@@ -348,12 +269,36 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   {isIndividual ? "Перейти в магазин" : "Оптовый сайт"}
                 </Link>
               </div>
+
+              <div className="h-px bg-neutral-200/50 my-4 mx-1" />
+
+              <div className="flex items-center gap-2.5 px-3 py-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-[11px] font-bold text-white">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    displayName.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-semibold text-neutral-900">{displayName}</p>
+                  <p className="truncate text-[10px] text-neutral-400">{user?.email}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => signOut()}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[#e6610d] hover:bg-[#faead5]/50 transition-all"
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                Выйти
+              </button>
             </aside>
           )}
 
           {/* Main content */}
-          <main className="flex-1 min-w-0 overflow-y-auto">
-            <div className="p-3 sm:p-5 md:p-6 pb-20 lg:pb-6">
+          <main className="flex-1 min-w-0">
+            <div className="p-3 sm:p-5 md:p-6 pb-24 lg:pb-6">
               {isForbiddenRetailPath ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
                   <div className="h-16 w-16 rounded-2xl bg-[#faead5] flex items-center justify-center mb-4">
@@ -485,7 +430,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* ── MOBILE BOTTOM NAV ── */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-neutral-100 px-2 pb-[env(safe-area-inset-bottom)]">
+        <nav className="lg:hidden sticky bottom-0 z-40 bg-white border-t border-neutral-100 px-2 pb-[env(safe-area-inset-bottom)]">
           <div className="flex items-center justify-around h-14">
             <Link
               href="/dashboard"
