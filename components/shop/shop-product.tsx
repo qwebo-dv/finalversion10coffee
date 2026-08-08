@@ -47,8 +47,7 @@ export function ShopProduct({ product, products }: { product: Product; products:
   const [variant, setVariant] = useState(variants[0] || null)
   const [quantity, setQuantity] = useState(1)
   const [imageIndex, setImageIndex] = useState(0)
-  const [added, setAdded] = useState(false)
-  const { addItem } = useGuestCart()
+  const { items, addItem } = useGuestCart()
 
   useEffect(() => {
     addRecentlyViewed(product.id, product.slug)
@@ -64,6 +63,7 @@ export function ShopProduct({ product, products }: { product: Product; products:
   const images = product.images.length > 0 ? product.images : []
   const subtitle = [product.region, product.processing_method].filter(Boolean).join(" · ")
   const reviews = product.reviews || []
+  const inCart = items.some((item) => item.productId === product.id && item.variantId === variant?.id)
 
   const specs: SpecRow[] = [
     typeof product.q_grader_rating === "number" ? { label: "Оценка Q-грейдера", value: String(product.q_grader_rating) } : null,
@@ -77,8 +77,6 @@ export function ShopProduct({ product, products }: { product: Product; products:
   function addToCart() {
     if (!variant) return
     addItem({ productId: product.id, variantId: variant.id, quantity })
-    setAdded(true)
-    window.setTimeout(() => setAdded(false), 1400)
   }
 
   function scrollToReview() {
@@ -201,8 +199,8 @@ export function ShopProduct({ product, products }: { product: Product; products:
               </div>
             </div>
 
-            <button type="button" onClick={addToCart} disabled={!variant} className="mt-8 flex h-16 w-full items-center justify-center gap-3 rounded-full bg-[#1d1d1b] text-base font-black text-white transition hover:bg-[#000] disabled:opacity-40">
-              {added ? <Check className="h-5 w-5" /> : <ShoppingBag className="h-5 w-5" />}{added ? "Добавлено в корзину" : `Добавить в корзину · ${variant ? formatPrice(variant.price * quantity) : "—"}`}
+            <button type="button" onClick={addToCart} disabled={!variant} className={`mt-8 flex h-16 w-full items-center justify-center gap-3 rounded-full text-base font-black text-white shadow-xl transition disabled:opacity-40 ${inCart ? "bg-[#e6610d] shadow-[#e6610d]/25 hover:bg-[#cf5206]" : "bg-[#1d1d1b] shadow-black/15 hover:bg-black"}`}>
+              {inCart ? <Check className="h-5 w-5" /> : <ShoppingBag className="h-5 w-5" />}{inCart ? "В корзине" : `Добавить в корзину · ${variant ? formatPrice(variant.price * quantity) : "—"}`}
             </button>
             <p className="mt-4 text-center text-sm text-[#9b9087]">Оформление без регистрации, оплата при получении или онлайн</p>
           </div>

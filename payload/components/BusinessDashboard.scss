@@ -29,22 +29,20 @@
 
 /* ── Hero KPI cards ─────────────────────────────── */
 .business-dashboard__hero { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
-.hero-card { position: relative; min-width: 0; padding: 16px 16px 14px; border: 1px solid #262626; border-radius: 13px; overflow: hidden; background: #171717; }
-.hero-card::after { content: ""; position: absolute; right: -28px; top: -28px; width: 90px; height: 90px; border-radius: 50%; background: rgba(255, 255, 255, 0.06); }
-.hero-card__label { display: flex; align-items: center; gap: 6px; color: #a3a3a3; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
-.hero-card__value { margin-top: 10px; color: #fff; font-size: 30px; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; }
-.hero-card__meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: #a3a3a3; font-size: 11px; }
-.hero-card--orders { background: #202020; }
-.hero-card--clients { background: #2a2a2a; }
-.hero-card--avg { background: #343434; }
+.hero-card { position: relative; min-width: 0; padding: 16px 16px 14px; border: 1.5px solid #171717; border-radius: 13px; overflow: hidden; background: #fff; box-shadow: 0 4px 12px rgba(20, 20, 20, .04); }
+.hero-card::after { content: ""; position: absolute; right: -28px; top: -28px; width: 90px; height: 90px; border-radius: 50%; background: rgba(23, 23, 23, 0.035); }
+.hero-card__label { display: flex; align-items: center; gap: 6px; color: #404040; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+.hero-card__value { margin-top: 10px; color: #171717; font-size: 30px; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; }
+.hero-card__meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: #525252; font-size: 11px; }
+.hero-card--orders, .hero-card--clients, .hero-card--avg { background: #fff; }
 
 .trend-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 4px 9px; font-weight: 750; font-size: 11px; }
-.trend-badge--up, .trend-badge--down, .trend-badge--neutral { background: rgba(255, 255, 255, 0.12); color: #f5f5f5; }
-.hero-card__new { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); padding: 4px 9px; font-weight: 700; color: #f5f5f5; }
+.trend-badge--up, .trend-badge--down, .trend-badge--neutral { background: #f0f0f0; color: #262626; }
+.hero-card__new { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; background: #f0f0f0; padding: 4px 9px; font-weight: 700; color: #262626; }
 
 /* ── Panels ─────────────────────────────────────── */
 .business-panel { min-width: 0; padding: 17px; border: 1px solid var(--theme-elevation-100); border-radius: 12px; background: var(--theme-elevation-0); }
-.business-panel--chart { margin-top: 14px; padding-bottom: 10px; }
+.business-panel--chart { margin-top: 14px; padding: 14px 16px 8px; }
 .business-panel--recent { margin-top: 14px; }
 .business-panel__title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .business-panel__title h3 { margin: 0 0 3px; font-size: 15px; }
@@ -55,16 +53,20 @@
 /* ── Dual chart ─────────────────────────────────── */
 .dual-chart { width: 100%; }
 .dual-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
-.dual-chart text { fill: var(--theme-elevation-600); font-size: 8px; }
+.dual-chart text { fill: var(--theme-elevation-600); font-size: 7px; }
 .dual-chart__grid { stroke: var(--theme-elevation-100); stroke-width: 1; }
 .dual-chart__bar { fill: rgba(23, 23, 23, 0.18); transition: fill .15s ease; }
 .dual-chart__bar:hover { fill: rgba(23, 23, 23, 0.38); }
-.dual-chart__line { fill: none; stroke: #171717; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
-.dual-chart__point circle { fill: #fff; stroke: #171717; stroke-width: 1.5; transition: r .15s ease, fill .15s ease; }
-.dual-chart__point:hover circle { r: 4.5; fill: #171717; }
-.dual-chart__legend { font-size: 8px; }
-.dual-chart__legend-line { stroke: #171717; stroke-width: 2; stroke-linecap: round; }
-.dual-chart__legend-bar { fill: rgba(23, 23, 23, 0.3); }
+.dual-chart__line { fill: none; stroke: #171717; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
+.dual-chart__point circle { fill: #fff; stroke: #171717; stroke-width: 1.2; transition: r .15s ease, fill .15s ease; }
+.dual-chart__point:hover circle { r: 4; fill: #171717; }
+.dual-chart__legend { display: flex; align-items: center; justify-content: center; gap: 24px; padding: 8px 0 2px; color: var(--theme-elevation-600); font-size: 11px; }
+.dual-chart__legend button { display: inline-flex; align-items: center; gap: 7px; border: 0; padding: 2px 4px; background: transparent; color: inherit; cursor: pointer; font: inherit; transition: color .15s ease, opacity .15s ease; }
+.dual-chart__legend button:hover { color: var(--theme-text); }
+.dual-chart__legend button.is-hidden { opacity: .42; text-decoration: line-through; }
+.dual-chart__legend i { display: block; flex: 0 0 auto; }
+.dual-chart__legend-line { width: 18px; height: 2px; border-radius: 999px; background: #171717; }
+.dual-chart__legend-bar { width: 10px; height: 10px; border-radius: 3px; background: rgba(23, 23, 23, 0.3); }
 
 /* ── Distribution grid ──────────────────────────── */
 .business-dashboard__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }

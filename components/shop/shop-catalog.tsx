@@ -101,14 +101,12 @@ function FilterDropdown({ label, options, selected, onToggle, onClear }: {
 function ShopProductCard({ product }: { product: Product }) {
   const variants = product.variants || []
   const [variant, setVariant] = useState<ProductVariant | null>(variants[0] || null)
-  const [added, setAdded] = useState(false)
-  const { addItem } = useGuestCart()
+  const { items, addItem } = useGuestCart()
+  const inCart = items.some((item) => item.productId === product.id && item.variantId === variant?.id)
 
   function addToCart() {
     if (!variant) return
     addItem({ productId: product.id, variantId: variant.id, quantity: 1 })
-    setAdded(true)
-    window.setTimeout(() => setAdded(false), 1200)
   }
 
   return (
@@ -142,8 +140,8 @@ function ShopProductCard({ product }: { product: Product }) {
 
         <div className="mt-auto flex items-center justify-between gap-4 pt-6">
           <span className="text-2xl font-black tracking-tight text-[#1d1d1b]">{variant ? formatPrice(variant.price) : "—"}</span>
-          <button type="button" onClick={addToCart} disabled={!variant} className="flex h-12 items-center gap-2 rounded-full bg-[#5b328a] px-5 text-sm font-bold text-white transition hover:bg-[#47256e] disabled:opacity-40">
-            {added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}{added ? "Добавлено" : "В корзину"}
+          <button type="button" onClick={addToCart} disabled={!variant} className={`flex h-12 items-center gap-2 rounded-full px-5 text-sm font-bold text-white shadow-lg transition disabled:opacity-40 ${inCart ? "bg-[#e6610d] shadow-[#e6610d]/25 hover:bg-[#cf5206]" : "bg-[#1d1d1b] shadow-black/15 hover:bg-black"}`}>
+            {inCart ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}{inCart ? "В корзине" : "В корзину"}
           </button>
         </div>
       </div>

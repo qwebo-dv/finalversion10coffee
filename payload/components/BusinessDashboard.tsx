@@ -153,9 +153,12 @@ function TrendBadge({ value, invert = false }: { value: number | null; invert?: 
 }
 
 function DualTimelineChart({ points, granularity }: { points: TimelinePoint[]; granularity: "day" | "month" }) {
-  const width = 700
-  const height = 180
-  const padding = { top: 20, right: 16, bottom: 28, left: 40 }
+  const [showRevenue, setShowRevenue] = useState(true)
+  const [showOrders, setShowOrders] = useState(true)
+  // A wide viewBox keeps the chart compact on large Payload screens instead of scaling it vertically.
+  const width = 1200
+  const height = 160
+  const padding = { top: 16, right: 20, bottom: 26, left: 42 }
   const plotWidth = width - padding.left - padding.right
   const plotHeight = height - padding.top - padding.bottom
   const maxOrders = Math.max(1, ...points.map((point) => point.orders))
@@ -189,25 +192,19 @@ function DualTimelineChart({ points, granularity }: { points: TimelinePoint[]; g
             <stop offset="100%" stopColor="#171717" stopOpacity=".01" />
           </linearGradient>
         </defs>
-        <g className="dual-chart__legend">
-          <line x1={width - 300} y1={14} x2={width - 284} y2={14} className="dual-chart__legend-line" />
-          <text x={width - 279} y={18}>Выручка</text>
-          <rect x={width - 210} y={9} width={10} height={10} rx="2" className="dual-chart__legend-bar" />
-          <text x={width - 195} y={18}>Заказы</text>
-        </g>
-        {[0, .25, .5, .75, 1].map((ratio) => {
+        {[0, .5, 1].map((ratio) => {
           const y = padding.top + plotHeight * ratio
           const value = Math.round(niceMaxRevenue * (1 - ratio))
           return <g key={ratio}><line x1={padding.left} y1={y} x2={width - padding.right} y2={y} className="dual-chart__grid" /><text x={padding.left - 8} y={y + 4} textAnchor="end">{formatShortCurrency(value)}</text></g>
         })}
-        {points.map((point, index) => {
+        {showOrders && points.map((point, index) => {
           const x = padding.left + (index + 0.5) * barSlot
           const barHeight = (point.orders / niceMaxOrders) * plotHeight
           return <rect key={`bar-${point.date}`} x={x - barWidth / 2} y={padding.top + plotHeight - barHeight} width={barWidth} height={barHeight} className="dual-chart__bar" rx="2"><title>{`${dateFormatter.format(new Date(point.date))}: ${point.orders} заказов`}</title></rect>
         })}
-        {area && <polygon points={area} fill="url(#dashboard-revenue-area)" />}
-        {line && <polyline points={line} className="dual-chart__line" />}
-        {coords.map((point) => (
+        {showRevenue && area && <polygon points={area} fill="url(#dashboard-revenue-area)" />}
+        {showRevenue && line && <polyline points={line} className="dual-chart__line" />}
+        {showRevenue && coords.map((point) => (
           <g className="dual-chart__point" key={point.date}>
             <circle cx={point.x} cy={point.y} r="3"><title>{`${dateFormatter.format(new Date(point.date))}: ${formatCurrency(point.revenue)} ₽`}</title></circle>
           </g>
@@ -218,6 +215,14 @@ function DualTimelineChart({ points, granularity }: { points: TimelinePoint[]; g
           )
         ))}
       </svg>
+      <div className="dual-chart__legend" aria-label="Легенда графика">
+        <button type="button" className={!showRevenue ? "is-hidden" : undefined} onClick={() => setShowRevenue((visible) => !visible)} aria-pressed={showRevenue}>
+          <i className="dual-chart__legend-line" />Выручка
+        </button>
+        <button type="button" className={!showOrders ? "is-hidden" : undefined} onClick={() => setShowOrders((visible) => !visible)} aria-pressed={showOrders}>
+          <i className="dual-chart__legend-bar" />Заказы
+        </button>
+      </div>
     </div>
   )
 }
