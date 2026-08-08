@@ -135,7 +135,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <div className="flex relative">
 
           {/* Left sidebar - Cabinet navigation */}
-          <aside className="hidden lg:flex w-[220px] shrink-0 flex-col pt-6 pb-6 pl-5 pr-2 lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+          <aside className="hidden lg:flex w-[220px] shrink-0 flex-col pt-6 pb-6 pl-5 pr-2 lg:sticky lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
               {/* User block */}
               <div className="flex items-center gap-2.5 px-3 py-2">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-[12px] font-bold text-white">
