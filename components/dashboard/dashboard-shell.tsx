@@ -97,7 +97,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     getSiteSettings().then((s) => {
-      if (s?.priceListUrl) setPriceListUrl(s.priceListUrl)
+      const uploadedPriceListUrl = s?.priceListForm?.emailFile?.url
+      if (uploadedPriceListUrl) setPriceListUrl(uploadedPriceListUrl)
     })
     getClientDiscountConfig().then((config) => {
       setClientDiscount(config.discountPercent)

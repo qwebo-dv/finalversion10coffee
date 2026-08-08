@@ -1,8 +1,6 @@
 "use server";
 
 import { z } from "zod";
-import path from "path";
-import fs from "fs";
 import nodemailer from "nodemailer";
 import { getPayload } from "payload";
 import configPromise from "@payload-config";
@@ -66,28 +64,18 @@ export async function submitPriceListRequest(
     // 2. Resolve price list file from SiteSettings
     const { getSiteSettings } = await import("@/lib/actions/site-settings");
     const settings = await getSiteSettings();
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SERVER_URL || "https://10coffee.ru";
 
     const attachments: nodemailer.SendMailOptions["attachments"] = [];
 
-    // Priority 1: uploaded media file from priceListForm.emailFile
+    // The uploaded file is the single source for the public price-list link and email attachment.
     const emailFile = settings?.priceListForm?.emailFile;
     if (emailFile?.url) {
       attachments.push({
         filename: emailFile.filename || "Прайс-лист 10кофе.pdf",
-        path: emailFile.url,
+        path: new URL(emailFile.url, siteUrl).toString(),
         contentType: "application/pdf",
       });
-    } else {
-      // Priority 2: local /public/ file from priceListUrl
-      const priceListUrl = settings?.priceListUrl || "/Прайс 10coffee_ Март 2026г. (1).pdf";
-      const relPath = decodeURIComponent(priceListUrl.replace(/^\//, ""));
-      const filePath = path.join(process.cwd(), "public", relPath);
-      if (fs.existsSync(filePath)) {
-        const { size } = fs.statSync(filePath);
-        if (size < 15 * 1024 * 1024) {
-          attachments.push({ filename: path.basename(filePath), path: filePath, contentType: "application/pdf" });
-        }
-      }
     }
 
     // Sender info from settings
@@ -95,8 +83,6 @@ export async function submitPriceListRequest(
     const senderPosition = settings?.priceListForm?.senderPosition || "Руководитель отдела продаж";
     const senderPhone = settings?.priceListForm?.senderPhone || "";
     const senderTelegram = settings?.priceListForm?.senderTelegram || "@Ten120886";
-    const siteUrl = process.env.NEXT_PUBLIC_SERVER_URL || "https://10coffee.ru";
-
     // 3. Send email to client
     let emailSent = false;
     try {

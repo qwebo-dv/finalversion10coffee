@@ -8,29 +8,6 @@ export const SiteSettings: GlobalConfig = {
   },
   fields: [
     {
-      name: "loginAnnouncement",
-      type: "textarea",
-      label: "Объявление в модале входа",
-      admin: {
-        description: "Текст, который будет показан в модале авторизации на главной странице",
-      },
-    },
-    {
-      name: "loginAnnouncementEnabled",
-      type: "checkbox",
-      label: "Показывать объявление",
-      defaultValue: false,
-    },
-    {
-      name: "priceListUrl",
-      type: "text",
-      label: "Ссылка на прайс-лист",
-      admin: {
-        description: "URL для скачивания прайс-листа (PDF).",
-        placeholder: "/prais-list.pdf",
-      },
-    },
-    {
       name: "priceListForm",
       type: "group",
       label: "Форма «Получить прайс-лист»",
@@ -38,10 +15,10 @@ export const SiteSettings: GlobalConfig = {
         {
           name: "emailFile",
           type: "upload",
-          label: "PDF-файл для письма",
+          label: "Прайс-лист (PDF)",
           relationTo: "media",
           admin: {
-            description: "Прайс-лист, который прикрепляется к письму клиенту. Загружайте сюда актуальный файл.",
+            description: "Единый файл для скачивания на сайте и вложения в письма. Его публичная ссылка создаётся автоматически.",
           },
         },
         {

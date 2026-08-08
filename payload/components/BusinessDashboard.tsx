@@ -119,10 +119,10 @@ const MOYSKLAD_LABELS: Record<string, string> = {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  delivered: "#15803d", returned: "#be185d", cancelled: "#b91c1c", shipped: "#0369a1",
-  paid: "#15803d", in_production: "#b45309", ready: "#4d7c0f", confirmed: "#6d28d9",
-  new: "#b45309", invoiced: "#0e7490", pending: "#b45309", partial: "#7c3aed",
-  failed: "#b91c1c", refunded: "#be185d",
+  delivered: "#171717", returned: "#525252", cancelled: "#737373", shipped: "#262626",
+  paid: "#171717", in_production: "#404040", ready: "#262626", confirmed: "#404040",
+  new: "#525252", invoiced: "#404040", pending: "#525252", partial: "#525252",
+  failed: "#737373", refunded: "#737373",
 }
 
 function formatCurrency(value: number) {
@@ -185,8 +185,8 @@ function DualTimelineChart({ points, granularity }: { points: TimelinePoint[]; g
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Выручка и заказы">
         <defs>
           <linearGradient id="dashboard-revenue-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#5b328a" stopOpacity=".3" />
-            <stop offset="100%" stopColor="#5b328a" stopOpacity=".02" />
+            <stop offset="0%" stopColor="#171717" stopOpacity=".16" />
+            <stop offset="100%" stopColor="#171717" stopOpacity=".01" />
           </linearGradient>
         </defs>
         <g className="dual-chart__legend">
@@ -290,8 +290,6 @@ export default function BusinessDashboard() {
   const maxPayment = Math.max(1, ...paymentItems.map((item) => item.count))
   const maxDelivery = Math.max(1, ...deliveryItems.map((item) => item.count))
   const maxProductRevenue = Math.max(1, ...(data?.topProducts || []).map((item) => item.revenue))
-  const maxProductOrders = Math.max(1, ...(data?.topProducts || []).map((item) => item.orders))
-  const maxClientRevenue = Math.max(1, ...(data?.topClients || []).map((item) => item.revenue))
 
   if (!isSuperAdmin) return null
   const m = data?.metrics
@@ -301,11 +299,6 @@ export default function BusinessDashboard() {
   return (
     <section className="business-dashboard">
       <div className="business-dashboard__header">
-        <div>
-          <div className="business-dashboard__eyebrow"><Coffee size={15} /> Дашборд бизнеса</div>
-          <h2>Сводка для владельца</h2>
-          <p>Выручка, заказы, клиенты и операционные показатели — в одном окне.</p>
-        </div>
         <div className="business-dashboard__controls">
           <select value={period} onChange={(event) => setPeriod(event.target.value as Period)} aria-label="Период дашборда">
             {(Object.entries(PERIOD_LABELS) as [Period, string][]).map(([value, label]) => (
@@ -369,11 +362,11 @@ export default function BusinessDashboard() {
       <div className="business-dashboard__grid">
         <article className="business-panel">
           <div className="business-panel__title"><div><h3>Статусы заказов</h3><span>Распределение всех заказов</span></div><ClipboardList size={17} /></div>
-          <MiniBars items={statusItems} max={maxStatus} color="#6d28d9" />
+          <MiniBars items={statusItems} max={maxStatus} color="#171717" />
         </article>
         <article className="business-panel">
           <div className="business-panel__title"><div><h3>Оплаты</h3><span>Статусы платежей</span></div><Wallet size={17} /></div>
-          <MiniBars items={paymentItems} max={maxPayment} color="#0e7490" />
+          <MiniBars items={paymentItems} max={maxPayment} color="#262626" />
         </article>
         <article className="business-panel">
           <div className="business-panel__title"><div><h3>Типы покупателей</h3><span>Физлица и юрлица</span></div><Users size={17} /></div>
@@ -391,7 +384,7 @@ export default function BusinessDashboard() {
         </article>
         <article className="business-panel">
           <div className="business-panel__title"><div><h3>Доставка</h3><span>Способы доставки</span></div><Truck size={17} /></div>
-          <MiniBars items={deliveryItems} max={maxDelivery} color="#b45309" />
+          <MiniBars items={deliveryItems} max={maxDelivery} color="#404040" />
         </article>
       </div>
 
@@ -463,10 +456,10 @@ export default function BusinessDashboard() {
                 <a className="recent-order__id" href={`/admin/collections/orders/${order.id}`}>{order.orderId}</a>
                 <span className="recent-order__customer">{order.customer}</span>
                 <span className="recent-order__type">{CUSTOMER_TYPE_LABELS[order.customerType] || order.customerType}</span>
-                <span className="recent-order__status" style={{ background: `${STATUS_COLORS[order.status] || "#6b7280"}1a`, color: STATUS_COLORS[order.status] || "#6b7280" }}>
+                <span className="recent-order__status" style={{ background: `${STATUS_COLORS[order.status] || "#525252"}1a`, color: STATUS_COLORS[order.status] || "#525252" }}>
                   {ORDER_STATUS_LABELS[order.status] || order.status}
                 </span>
-                <span className="recent-order__status" style={{ background: `${STATUS_COLORS[order.paymentStatus] || "#6b7280"}1a`, color: STATUS_COLORS[order.paymentStatus] || "#6b7280" }}>
+                <span className="recent-order__status" style={{ background: `${STATUS_COLORS[order.paymentStatus] || "#525252"}1a`, color: STATUS_COLORS[order.paymentStatus] || "#525252" }}>
                   {PAYMENT_STATUS_LABELS[order.paymentStatus] || order.paymentStatus}
                 </span>
                 <b className="recent-order__total">{formatCurrency(order.total)} ₽</b>
