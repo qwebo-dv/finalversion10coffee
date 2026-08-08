@@ -6,11 +6,9 @@ import { CartProvider } from "@/providers/cart-provider"
 import { GuestCartProvider } from "@/providers/guest-cart-provider"
 import { NotificationProvider } from "@/providers/notification-provider"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
-import { ShopHeader } from "@/components/shop/shop-header"
-import { ShopFooter } from "@/components/shop/shop-footer"
 import { AuthModal } from "@/components/auth/auth-modal"
-import { getProductTypes, getShopProducts } from "@/lib/actions/products"
 import { getCurrentUser } from "@/lib/actions/auth"
+import { redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
 
@@ -26,7 +24,10 @@ export default async function DashboardLayout({
   const user = await getCurrentUser().catch(() => null)
   const isIndividual = user?.user_metadata?.customer_type === "individual"
 
-  const [productTypes, products] = await Promise.all([getProductTypes(), getShopProducts()])
+  // Retail customers have a separate storefront and cabinet on shop.10coffee.ru.
+  if (isIndividual) {
+    redirect(process.env.SHOP_SITE_URL || "/main")
+  }
 
   return (
     <HtmlWrapper>
@@ -35,11 +36,9 @@ export default async function DashboardLayout({
           <CartProvider>
             <NotificationProvider>
               <div className="flex min-h-screen flex-col">
-                {isIndividual && <ShopHeader products={products} productTypes={productTypes} />}
                 <div className="flex-1">
                   <DashboardShell>{children}</DashboardShell>
                 </div>
-                {isIndividual && <ShopFooter />}
               </div>
             </NotificationProvider>
           </CartProvider>
@@ -47,7 +46,7 @@ export default async function DashboardLayout({
       </AuthProvider>
 
       <Suspense fallback={null}>
-        <AuthModal customerType={isIndividual ? "individual" : undefined} />
+        <AuthModal />
       </Suspense>
     </HtmlWrapper>
   )

@@ -70,7 +70,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
             <Link href="/o-nas" className="hidden transition hover:text-[#e6610d] sm:inline">О нас</Link>
             <Link href="/kontakty" className="hidden transition hover:text-[#e6610d] md:inline">Контакты</Link>
             {user ? (
-              <Link href="/dashboard" title={displayName} className="hidden items-center gap-2 transition hover:text-[#e6610d] lg:flex">
+              <Link href="/main" title={displayName} className="hidden items-center gap-2 transition hover:text-[#e6610d] lg:flex">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-[10px] font-black text-white">
                   {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
                 </span>
@@ -134,7 +134,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
               <p className="px-3 pb-1 pt-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Компания</p>
               {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
               {user ? (
-                <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">
+                <Link href="/main" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-sm font-black text-white">
                     {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
                   </span>

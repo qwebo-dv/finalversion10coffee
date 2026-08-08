@@ -42,7 +42,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   unknown_provider: "Неизвестный провайдер авторизации.",
 }
 
-export function SocialAuthButtons() {
+export function SocialAuthButtons({ customerType }: { customerType?: "individual" | "business" }) {
   const searchParams = useSearchParams()
   const [loadingProvider, setLoadingProvider] = useState<SocialProvider | null>(null)
 
@@ -53,7 +53,8 @@ export function SocialAuthButtons() {
 
   function startAuth(provider: SocialProvider) {
     setLoadingProvider(provider)
-    window.location.href = `/api/auth/social/${provider}`
+    const query = customerType ? `?customer_type=${customerType}` : ""
+    window.location.assign(`/api/auth/social/${provider}${query}`)
   }
 
   return (

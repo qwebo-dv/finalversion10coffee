@@ -16,9 +16,10 @@ import { SocialAuthButtons } from "./social-auth-buttons"
 interface LoginFormProps {
   onSwitchToRegister: () => void
   onSwitchToForgot: () => void
+  customerType?: "individual" | "business"
 }
 
-export function LoginForm({ onSwitchToRegister, onSwitchToForgot }: LoginFormProps) {
+export function LoginForm({ onSwitchToRegister, onSwitchToForgot, customerType }: LoginFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [agreed, setAgreed] = useState(false)
@@ -32,7 +33,7 @@ export function LoginForm({ onSwitchToRegister, onSwitchToForgot }: LoginFormPro
     setError(null)
     setLoading(true)
     try {
-      const result = await signIn(data)
+      const result = await signIn(data, customerType)
       if (result?.error) setError(result.error)
     } catch {
       // redirect throws, which is expected
@@ -102,7 +103,7 @@ export function LoginForm({ onSwitchToRegister, onSwitchToForgot }: LoginFormPro
         </form>
       </Form>
 
-      <SocialAuthButtons />
+      <SocialAuthButtons customerType={customerType} />
 
       <div className="flex flex-col gap-2 text-center text-[12px]">
         <button

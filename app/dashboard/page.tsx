@@ -7,7 +7,7 @@ import { getClientOrders } from "@/lib/actions/orders"
 import { getClientCompanies } from "@/lib/actions/companies"
 import { getNewsPaginated } from "@/lib/actions/news"
 import { getFavoriteProductIds, getMyReviews } from "@/lib/actions/products"
-import { getCurrentUser } from "@/lib/auth/local"
+import { getCurrentUser } from "@/lib/actions/auth"
 import { ORDER_STATUS_LABELS } from "@/lib/utils/constants"
 import { formatPrice, formatDate, formatOrderNumber } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
@@ -116,9 +116,9 @@ function StatCard({ label, value, sub, icon: Icon, tone = "cream", href, classNa
   return <div className={cn("h-full min-w-0", className)}>{card}</div>
 }
 
-export default async function DashboardPage() {
+export async function DashboardPage({ forceIndividual = false }: { forceIndividual?: boolean } = {}) {
   const currentUser = await getCurrentUser()
-  const isIndividual = currentUser?.user_metadata?.customer_type === "individual"
+  const isIndividual = forceIndividual || currentUser?.user_metadata?.customer_type === "individual"
 
   const [orders, companies, newsResult] = await Promise.all([
     getClientOrders(),
@@ -165,6 +165,9 @@ export default async function DashboardPage() {
 
   const favoritesCount = favoriteIds?.length ?? 0
   const reviewsCount = myReviews?.length ?? 0
+  const cabinetPaths = isIndividual
+    ? { orders: "/main/orders", favorites: "/main/favorites", reviews: "/main/reviews" }
+    : { orders: "/dashboard/orders", favorites: "/dashboard/favorites", reviews: "/dashboard/reviews" }
 
   const today = new Date().toLocaleDateString("ru-RU", {
     day: "numeric",
@@ -180,7 +183,7 @@ export default async function DashboardPage() {
             {today}
           </p>
           <h1 className="text-[22px] sm:text-[28px] font-black text-neutral-900 tracking-tight leading-none mt-1">
-            {isIndividual ? "Мои покупки" : "Обзор"}
+            {isIndividual ? "Статистика" : "Обзор"}
           </h1>
           {isIndividual && (
             <p className="text-[12px] text-neutral-400 mt-1.5">
@@ -215,7 +218,7 @@ export default async function DashboardPage() {
               sub={`за всё время · ${settledOrders.length} ${plural(settledOrders.length, "заказ", "заказа", "заказов")}`}
               icon={Wallet}
               tone="purple"
-              href="/dashboard/orders"
+              href={cabinetPaths.orders}
               className="col-span-2 lg:row-span-2"
             />
 
@@ -224,7 +227,7 @@ export default async function DashboardPage() {
               value={totalItems.toLocaleString("ru-RU")}
               sub={`${plural(totalItems, "позиция", "позиции", "позиций")} в заказах`}
               icon={Package}
-              href="/dashboard/orders"
+              href={cabinetPaths.orders}
             />
 
             <StatCard
@@ -232,7 +235,7 @@ export default async function DashboardPage() {
               value={favoritesCount.toLocaleString("ru-RU")}
               sub={favoritesCount > 0 ? "в вашем избранном" : "пока пусто"}
               icon={Heart}
-              href="/dashboard/favorites"
+              href={cabinetPaths.favorites}
             />
 
             <StatCard
@@ -240,7 +243,7 @@ export default async function DashboardPage() {
               value={weekOrders.length.toLocaleString("ru-RU")}
               sub={`на ${formatPrice(weekSpent)}`}
               icon={CalendarDays}
-              href="/dashboard/orders"
+              href={cabinetPaths.orders}
             />
 
             <StatCard
@@ -248,7 +251,7 @@ export default async function DashboardPage() {
               value={monthOrders.length.toLocaleString("ru-RU")}
               sub={`на ${formatPrice(monthSpent)}`}
               icon={CalendarDays}
-              href="/dashboard/orders"
+              href={cabinetPaths.orders}
             />
 
             <StatCard
@@ -256,7 +259,7 @@ export default async function DashboardPage() {
               value={activeOrders.toLocaleString("ru-RU")}
               sub={activeOrders > 0 ? "в работе" : "сейчас нет"}
               icon={ShoppingBag}
-              href="/dashboard/orders"
+              href={cabinetPaths.orders}
             />
 
             <StatCard
@@ -264,7 +267,7 @@ export default async function DashboardPage() {
               value={reviewsCount.toLocaleString("ru-RU")}
               sub={reviewsCount > 0 ? "благодарим за обратную связь" : "ещё нет отзывов"}
               icon={MessageSquare}
-              href="/dashboard/reviews"
+              href={cabinetPaths.reviews}
             />
 
             <StatCard
@@ -272,7 +275,7 @@ export default async function DashboardPage() {
               value={formatPrice(avgCheck)}
               sub={avgCheck > 0 ? "по всем заказам" : "после первого заказа"}
               icon={ReceiptText}
-              href="/dashboard/orders"
+              href={cabinetPaths.orders}
               className="col-span-2"
             />
           </div>
@@ -287,7 +290,7 @@ export default async function DashboardPage() {
           </h2>
           {orders.length > 0 && (
             <Link
-              href="/dashboard/orders"
+              href={cabinetPaths.orders}
               className="text-[11px] font-semibold text-neutral-400 hover:text-neutral-900 transition-colors flex items-center gap-1 group"
             >
               Все
@@ -327,7 +330,7 @@ export default async function DashboardPage() {
               return (
                 <Link
                   key={order.id}
-                  href="/dashboard/orders"
+                  href={cabinetPaths.orders}
                   className="block bg-white rounded-xl border border-black/[0.04] px-4 sm:px-5 py-3 sm:py-4 hover:shadow-sm transition-all group"
                 >
                   <div className="flex items-start justify-between gap-4">
@@ -442,3 +445,5 @@ export default async function DashboardPage() {
     </div>
   )
 }
+
+export default DashboardPage

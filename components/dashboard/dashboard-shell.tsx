@@ -30,6 +30,7 @@ import {
   History,
   Star,
   Truck,
+  LayoutDashboard,
 } from "lucide-react"
 import { getSiteSettings } from "@/lib/actions/site-settings"
 import { cn } from "@/lib/utils"
@@ -40,14 +41,16 @@ import type { Product, NotificationType } from "@/types"
 
 type SlidePanel = "favorites" | "notifications" | "cart" | null
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+export function DashboardShell({ children, mode }: { children: React.ReactNode; mode?: "retail" | "wholesale" }) {
   const pathname = usePathname()
   const router = useRouter()
   const { user } = useAuth()
   const { items, updateQuantity, removeItem, clearCart } = useCart()
-  const { notifications, unreadCount, markAsRead, markAllAsRead, hasNewNotification } = useNotifications()
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
 
-  const isIndividual = user?.user_metadata?.customer_type === "individual"
+  // The retail cabinet is mounted on a dedicated route, so it must never
+  // briefly render wholesale UI while the client session is hydrating.
+  const isIndividual = mode === "retail" || user?.user_metadata?.customer_type === "individual"
 
   const RETAIL_FORBIDDEN_PREFIXES = [
     "/dashboard/catalog",
@@ -67,19 +70,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   // Badge disappear animation
   const [badgeVisible, setBadgeVisible] = useState(unreadCount > 0)
-  const [badgeAnimatingOut, setBadgeAnimatingOut] = useState(false)
   const prevUnreadCount = useRef(unreadCount)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (unreadCount > 0) {
         setBadgeVisible(true)
-        setBadgeAnimatingOut(false)
       } else if (prevUnreadCount.current > 0 && unreadCount === 0) {
-        setBadgeAnimatingOut(true)
         window.setTimeout(() => {
           setBadgeVisible(false)
-          setBadgeAnimatingOut(false)
         }, 300)
       }
       prevUnreadCount.current = unreadCount
@@ -158,12 +157,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 {(
                   isIndividual
                     ? [
-                        { href: "/dashboard/orders", label: "Заказы", icon: Package },
-                        { href: "/dashboard/recently-viewed", label: "Просмотренные товары", icon: History },
-                        { href: "/dashboard/favorites", label: "Избранные", icon: Heart },
-                        { href: "/dashboard/reviews", label: "Мои отзывы", icon: Star },
-                        { href: "/dashboard/delivery", label: "Способы доставки", icon: Truck },
-                        { href: "/dashboard/settings", label: "Настройки", icon: Settings },
+                        { href: "/main", label: "Статистика", icon: LayoutDashboard },
+                        { href: "/main/orders", label: "Заказы", icon: Package },
+                        { href: "/main/recently-viewed", label: "Просмотренные товары", icon: History },
+                        { href: "/main/favorites", label: "Избранные", icon: Heart },
+                        { href: "/main/reviews", label: "Мои отзывы", icon: Star },
+                        { href: "/main/delivery", label: "Способы доставки", icon: Truck },
+                        { href: "/main/settings", label: "Настройки", icon: Settings },
                       ]
                     : [
                         { href: "/dashboard/catalog", label: "Каталог", icon: Coffee },
@@ -175,7 +175,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                       ]
                 ).map((item) => {
                   const Icon = item.icon
-                  const active = pathname === item.href || pathname.startsWith(item.href + "/")
+                  const active = item.href === "/main"
+                    ? pathname === "/main"
+                    : pathname === item.href || pathname.startsWith(item.href + "/")
                   return (
                     <Link
                       key={item.href}
@@ -193,51 +195,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   )
                 })}
               </nav>
-
-              {!isIndividual && (
-                <>
-                  <div className="h-px bg-neutral-200/50 my-4 mx-1" />
-
-                  <div className="space-y-0.5">
-                    <button
-                      type="button"
-                      onClick={() => togglePanel("favorites")}
-                      className={cn(
-                        "flex w-full items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all",
-                        activePanel === "favorites"
-                          ? "bg-white text-neutral-900 font-semibold shadow-sm"
-                          : "text-neutral-500 hover:text-neutral-900 hover:bg-white/60"
-                      )}
-                    >
-                      <Heart className={cn("h-4 w-4 shrink-0", activePanel === "favorites" ? "text-[#5b328a]" : "text-neutral-300")} />
-                      Избранное
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => togglePanel("notifications")}
-                      className={cn(
-                        "flex w-full items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all",
-                        activePanel === "notifications"
-                          ? "bg-white text-neutral-900 font-semibold shadow-sm"
-                          : "text-neutral-500 hover:text-neutral-900 hover:bg-white/60"
-                      )}
-                    >
-                      <Bell className={cn("h-4 w-4 shrink-0", activePanel === "notifications" ? "text-[#5b328a]" : "text-neutral-300")} />
-                      Уведомления
-                      {badgeVisible && (
-                        <span
-                          className={cn(
-                            "ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e6610d] px-1 text-[9px] font-bold text-white transition-all duration-300",
-                            badgeAnimatingOut ? "opacity-0 scale-0" : "opacity-100 scale-100"
-                          )}
-                        >
-                          {unreadCount || 1}
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                </>
-              )}
 
               {!isIndividual && (
                 <>
@@ -328,6 +285,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               clientDiscount={clientDiscount}
               categoryDiscounts={categoryDiscounts}
               productDiscounts={productDiscounts}
+              headerActions={
+                <>
+                  <button type="button" onClick={() => togglePanel("favorites")} className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-400 transition hover:border-[#5b328a]/30 hover:text-[#5b328a]" title="Избранное">
+                    <Heart className="h-4 w-4" />
+                  </button>
+                  <button type="button" onClick={() => togglePanel("notifications")} className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-400 transition hover:border-[#5b328a]/30 hover:text-[#5b328a]" title="Уведомления">
+                    <Bell className="h-4 w-4" />
+                    {badgeVisible && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e6610d] px-1 text-[9px] font-bold text-white">{unreadCount || 1}</span>}
+                  </button>
+                </>
+              }
             />
           )}
 

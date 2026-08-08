@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import type { ReactNode } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Trash2, Send, Minus, Plus, FileText, ShoppingBag, X, Coffee, Loader2 } from "lucide-react"
@@ -23,6 +24,7 @@ interface CartSidebarProps {
   clientDiscount?: number
   categoryDiscounts?: CategoryDiscountRule[]
   productDiscounts?: ProductDiscountRule[]
+  headerActions?: ReactNode
 }
 
 interface CartDiscountLine {
@@ -81,6 +83,7 @@ export function CartSidebar({
   clientDiscount = 0,
   categoryDiscounts = [],
   productDiscounts = [],
+  headerActions,
 }: CartSidebarProps) {
   const { appliedPromo, setAppliedPromo } = useCart()
   const [promoInput, setPromoInput] = useState("")
@@ -370,6 +373,7 @@ export function CartSidebar({
 
   return (
     <div className="hidden xl:flex w-[400px] min-w-[400px] 2xl:w-[420px] flex-col shrink-0 p-3 pl-0 min-h-0 xl:sticky xl:top-3 xl:h-[calc(100vh-1.5rem)]">
+      {headerActions && <div className="mb-2 flex items-center justify-end gap-1.5">{headerActions}</div>}
       <div className="flex flex-col flex-1 min-h-0 bg-white rounded-2xl overflow-hidden border border-black/[0.04]">
         {/* Header */}
         <div className="px-5 pt-5 pb-3">

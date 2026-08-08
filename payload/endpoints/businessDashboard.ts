@@ -268,9 +268,15 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
     const counters = countersResult.rows[0] || {}
     const totalRevenue = Number(kpi.total_revenue) || 0
     const totalOrders = Number(kpi.total_orders) || 0
-    const currentRevenue = Number(periodKpi.current_revenue) || 0
+    // `periodResult` exists only for limited date ranges. For "all" the period
+    // is the complete valid-order aggregate calculated above.
+    const currentRevenue = days === null
+      ? totalRevenue
+      : Number(periodKpi.current_revenue) || 0
     const previousRevenue = Number(periodKpi.previous_revenue) || 0
-    const currentOrders = Number(periodKpi.current_orders) || 0
+    const currentOrders = days === null
+      ? Number(kpi.valid_orders) || 0
+      : Number(periodKpi.current_orders) || 0
     const previousOrders = Number(periodKpi.previous_orders) || 0
     const revenueTrend = days === null
       ? null

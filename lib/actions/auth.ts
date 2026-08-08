@@ -28,7 +28,7 @@ function generatePassword(length = 12): string {
 export async function signIn(formData: {
   email: string
   password: string
-}) {
+}, expectedCustomerType?: "individual" | "business") {
   const supabase = await createClient()
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -47,8 +47,13 @@ export async function signIn(formData: {
     return { error: "Этот аккаунт не является клиентским" }
   }
 
+  if (expectedCustomerType && data.user?.user_metadata?.customer_type !== expectedCustomerType) {
+    await supabase.auth.signOut()
+    return { error: expectedCustomerType === "individual" ? "Этот аккаунт относится к оптовому кабинету" : "Этот аккаунт относится к кабинету покупателя" }
+  }
+
   revalidatePath("/", "layout")
-  redirect("/dashboard")
+  redirect(expectedCustomerType === "individual" ? process.env.SHOP_SITE_URL || "/main" : "/dashboard")
 }
 
 export async function signUp(formData: {

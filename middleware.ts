@@ -38,7 +38,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const hostname = getHostname(request)
   const isShopHost = hostname === "shop.10coffee.ru" || hostname.startsWith("shop.localhost")
-  const isShopPath = pathname === "/shop" || pathname.startsWith("/shop/") || pathname === "/checkout" || pathname.startsWith("/order/")
+  const isShopPath = pathname === "/shop" || pathname.startsWith("/shop/") || pathname === "/main" || pathname.startsWith("/main/") || pathname === "/checkout" || pathname.startsWith("/order/")
   const isSberCallback = pathname === "/api/shop/payments/sber/callback"
 
   if ((isShopHost || isShopPath) && !isSberCallback && !isShopPreviewAllowed(request)) {

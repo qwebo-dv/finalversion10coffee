@@ -66,6 +66,7 @@ export function AuthModal({ announcement, customerType }: AuthModalProps) {
           <LoginForm
             onSwitchToRegister={() => switchView("register")}
             onSwitchToForgot={() => switchView("forgot")}
+            customerType={customerType}
           />
         )}
         {view === "register" && (
