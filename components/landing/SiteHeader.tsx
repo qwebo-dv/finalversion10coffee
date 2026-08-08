@@ -18,6 +18,7 @@ const NAV_LINKS = [
 
 export default function SiteHeader() {
   const { user } = useAuth();
+  const businessUser = user?.user_metadata?.customer_type === "business";
   const avatarUrl: string | null = user?.user_metadata?.avatar_url || null;
   const [hidden, setHidden] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -55,7 +56,7 @@ export default function SiteHeader() {
         </div>
 
         <div className={styles.navActions}>
-          {user ? (
+          {businessUser ? (
             <Link href="/dashboard" className={styles.navAvatar}>
               {avatarUrl ? (
                 <img
@@ -75,7 +76,7 @@ export default function SiteHeader() {
               className={styles.navPillBtn}
               onClick={() => openAuthModal("login")}
             >
-              Личный кабинет
+              Вход для оптовых покупателей
             </button>
           )}
 

@@ -18,6 +18,7 @@ const NAV_LINKS = [
 
 export default function SubpageHeader() {
   const { user } = useAuth();
+  const businessUser = user?.user_metadata?.customer_type === "business";
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -43,7 +44,7 @@ export default function SubpageHeader() {
         </div>
 
         <div className={styles.actions}>
-          {user ? (
+          {businessUser ? (
             <Link href="/dashboard" className={styles.avatar}>
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
@@ -59,7 +60,7 @@ export default function SubpageHeader() {
               className={styles.pillBtn}
               onClick={() => openAuthModal("login")}
             >
-              Личный кабинет
+            Вход для оптовых покупателей
             </button>
           )}
 

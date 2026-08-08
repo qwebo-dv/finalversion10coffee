@@ -20,6 +20,7 @@ export default function LandingHeader({
   isMapOpen = false,
 }: LandingHeaderProps) {
   const { user } = useAuth();
+  const businessUser = user?.user_metadata?.customer_type === "business";
   const [hidden, setHidden] = useState(false);
   const avatarUrl: string | null = user?.user_metadata?.avatar_url || null;
   const lastScrollY = useRef(0);
@@ -52,7 +53,7 @@ export default function LandingHeader({
       </div>
 
       <div className={styles.navActions}>
-        {user ? (
+          {businessUser ? (
           <Link href="/dashboard" className={styles.navAvatar}>
             {avatarUrl ? (
               <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
@@ -68,7 +69,7 @@ export default function LandingHeader({
             className={styles.navPillBtn}
             onClick={() => openAuthModal("login")}
           >
-            Личный кабинет
+            Вход для оптовых покупателей
           </button>
         )}
 

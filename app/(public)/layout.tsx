@@ -34,7 +34,7 @@ export default async function PublicLayout({
       </AuthProvider>
 
       <Suspense fallback={null}>
-        <AuthModal announcement={announcement} />
+        <AuthModal announcement={announcement} customerType="business" />
       </Suspense>
     </HtmlWrapper>
   )
