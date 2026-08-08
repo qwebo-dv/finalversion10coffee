@@ -179,7 +179,7 @@ export function CompanyForm({ mode, companyId, defaultValues }: CompanyFormProps
                     </FormItem>
                   )}
                 />
-                <div className="sm:pt-8">
+                <div className="sm:pt-[21px]">
                   <Button
                     type="button"
                     variant="outline"
