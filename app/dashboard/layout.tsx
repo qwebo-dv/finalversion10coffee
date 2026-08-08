@@ -10,6 +10,7 @@ import { ShopHeader } from "@/components/shop/shop-header"
 import { ShopFooter } from "@/components/shop/shop-footer"
 import { AuthModal } from "@/components/auth/auth-modal"
 import { getProductTypes, getShopProducts } from "@/lib/actions/products"
+import { getCurrentUser } from "@/lib/actions/auth"
 
 export const dynamic = "force-dynamic"
 
@@ -22,6 +23,9 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
+  const user = await getCurrentUser().catch(() => null)
+  const isIndividual = user?.user_metadata?.customer_type === "individual"
+
   const [productTypes, products] = await Promise.all([getProductTypes(), getShopProducts()])
 
   return (
@@ -31,11 +35,11 @@ export default async function DashboardLayout({
           <CartProvider>
             <NotificationProvider>
               <div className="flex min-h-screen flex-col">
-                <ShopHeader products={products} productTypes={productTypes} />
+                {isIndividual && <ShopHeader products={products} productTypes={productTypes} />}
                 <div className="flex-1">
                   <DashboardShell>{children}</DashboardShell>
                 </div>
-                <ShopFooter />
+                {isIndividual && <ShopFooter />}
               </div>
             </NotificationProvider>
           </CartProvider>
@@ -43,7 +47,7 @@ export default async function DashboardLayout({
       </AuthProvider>
 
       <Suspense fallback={null}>
-        <AuthModal customerType="individual" />
+        <AuthModal customerType={isIndividual ? "individual" : undefined} />
       </Suspense>
     </HtmlWrapper>
   )

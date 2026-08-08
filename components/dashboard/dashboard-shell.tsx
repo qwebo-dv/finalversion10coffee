@@ -130,7 +130,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="bg-white">
-      <div className="relative mx-auto max-w-[1480px]">
+      <div className={cn("relative mx-auto", isIndividual ? "max-w-[1480px]" : "w-full")}>
 
         {/* ── BODY ── */}
         <div className="flex relative">

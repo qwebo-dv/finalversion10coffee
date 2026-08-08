@@ -58,19 +58,18 @@
 .chart-total { display: flex; align-items: center; gap: 6px; border-radius: 999px; background: #f3e8ff; color: #5b328a !important; padding: 6px 10px; font-weight: 700; }
 
 /* ── Dual chart ─────────────────────────────────── */
-.dual-chart { width: 100%; overflow-x: auto; }
-.dual-chart svg { display: block; width: 100%; min-width: 640px; height: auto; overflow: visible; }
-.dual-chart text { fill: var(--theme-elevation-600); font-size: 10px; }
+.dual-chart { width: 100%; }
+.dual-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.dual-chart text { fill: var(--theme-elevation-600); font-size: 8px; }
 .dual-chart__grid { stroke: var(--theme-elevation-100); stroke-width: 1; }
-.dual-chart__bar { fill: rgba(230, 97, 13, 0.42); transition: fill .15s ease; }
-.dual-chart__bar:hover { fill: rgba(230, 97, 13, 0.75); }
-.dual-chart__line { fill: none; stroke: #5b328a; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; }
-.dual-chart__point circle { fill: #fff; stroke: #5b328a; stroke-width: 2; transition: r .15s ease, fill .15s ease; }
-.dual-chart__point:hover circle { r: 5; fill: #5b328a; }
-.dual-chart__legend { display: flex; justify-content: flex-end; gap: 12px; padding: 0 6px 4px; color: var(--theme-elevation-600); font-size: 10px; }
-.dual-chart__legend span { display: inline-flex; align-items: center; gap: 5px; }
-.dual-chart__legend-line { display: inline-block; width: 12px; height: 2px; border-radius: 999px; background: #5b328a; }
-.dual-chart__legend-bar { display: inline-block; width: 10px; height: 8px; border-radius: 2px; background: rgba(230, 97, 13, 0.42); }
+.dual-chart__bar { fill: rgba(230, 97, 13, 0.3); transition: fill .15s ease; }
+.dual-chart__bar:hover { fill: rgba(230, 97, 13, 0.6); }
+.dual-chart__line { fill: none; stroke: #5b328a; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+.dual-chart__point circle { fill: #fff; stroke: #5b328a; stroke-width: 1.5; transition: r .15s ease, fill .15s ease; }
+.dual-chart__point:hover circle { r: 4.5; fill: #5b328a; }
+.dual-chart__legend { font-size: 8px; }
+.dual-chart__legend-line { stroke: #5b328a; stroke-width: 2; stroke-linecap: round; }
+.dual-chart__legend-bar { fill: rgba(230, 97, 13, 0.42); }
 
 /* ── Distribution grid ──────────────────────────── */
 .business-dashboard__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }

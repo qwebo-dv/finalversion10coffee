@@ -152,7 +152,7 @@ export function RegisterForm({ onSwitchToLogin, customerType }: RegisterFormProp
         </form>
       </Form>
 
-      <SocialAuthButtons />
+      {customerType === "individual" && <SocialAuthButtons />}
 
       <p className="text-center text-[12px] text-neutral-400">
         Уже есть аккаунт?{" "}

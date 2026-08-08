@@ -153,15 +153,15 @@ function TrendBadge({ value, invert = false }: { value: number | null; invert?: 
 }
 
 function DualTimelineChart({ points, granularity }: { points: TimelinePoint[]; granularity: "day" | "month" }) {
-  const width = 940
-  const height = 250
-  const padding = { top: 22, right: 20, bottom: 36, left: 40 }
+  const width = 700
+  const height = 180
+  const padding = { top: 20, right: 16, bottom: 28, left: 40 }
   const plotWidth = width - padding.left - padding.right
   const plotHeight = height - padding.top - padding.bottom
   const maxOrders = Math.max(1, ...points.map((point) => point.orders))
   const maxRevenue = Math.max(1, ...points.map((point) => point.revenue))
   const barSlot = points.length === 0 ? 1 : plotWidth / points.length
-  const barWidth = Math.max(3, Math.min(28, barSlot * 0.6))
+  const barWidth = Math.max(2, Math.min(18, barSlot * 0.55))
   const coords = points.map((point, index) => ({
     ...point,
     x: padding.left + (points.length <= 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth),
@@ -189,6 +189,12 @@ function DualTimelineChart({ points, granularity }: { points: TimelinePoint[]; g
             <stop offset="100%" stopColor="#5b328a" stopOpacity=".02" />
           </linearGradient>
         </defs>
+        <g className="dual-chart__legend">
+          <line x1={width - 300} y1={14} x2={width - 284} y2={14} className="dual-chart__legend-line" />
+          <text x={width - 279} y={18}>Выручка</text>
+          <rect x={width - 210} y={9} width={10} height={10} rx="2" className="dual-chart__legend-bar" />
+          <text x={width - 195} y={18}>Заказы</text>
+        </g>
         {[0, .25, .5, .75, 1].map((ratio) => {
           const y = padding.top + plotHeight * ratio
           const value = Math.round(niceMaxRevenue * (1 - ratio))
@@ -203,19 +209,15 @@ function DualTimelineChart({ points, granularity }: { points: TimelinePoint[]; g
         {line && <polyline points={line} className="dual-chart__line" />}
         {coords.map((point) => (
           <g className="dual-chart__point" key={point.date}>
-            <circle cx={point.x} cy={point.y} r="3.5"><title>{`${dateFormatter.format(new Date(point.date))}: ${formatCurrency(point.revenue)} ₽`}</title></circle>
+            <circle cx={point.x} cy={point.y} r="3"><title>{`${dateFormatter.format(new Date(point.date))}: ${formatCurrency(point.revenue)} ₽`}</title></circle>
           </g>
         ))}
         {points.map((point, index) => (
           (index % labelStep === 0 || index === points.length - 1) && (
-            <text key={`lbl-${point.date}`} x={coords[index].x} y={height - 9} textAnchor="middle" className="dual-chart__label">{dateFormatter.format(new Date(point.date))}</text>
+            <text key={`lbl-${point.date}`} x={coords[index].x} y={height - 6} textAnchor="middle" className="dual-chart__label">{dateFormatter.format(new Date(point.date))}</text>
           )
         ))}
       </svg>
-      <div className="dual-chart__legend">
-        <span><i className="dual-chart__legend-line" /> Выручка</span>
-        <span><i className="dual-chart__legend-bar" /> Заказы</span>
-      </div>
     </div>
   )
 }
