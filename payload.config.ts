@@ -11,6 +11,7 @@ import { ensureProductDiscountSchema } from "./migrations/20260805_172254_produc
 import { ensureProductReviewsSchema } from "./migrations/20260806_172254_product_reviews"
 import { ensureSberAcquiringSettingsSchema } from "./migrations/20260809_143900_sber_acquiring_settings"
 import { ensurePaymentSettingsSchema } from "./migrations/20260809_145000_payment_settings"
+import { ensureRetailCustomerFieldsSchema } from "./migrations/20260809_181500_retail_customer_fields"
 
 import { Categories } from "./payload/collections/Categories"
 import { ProductTypes } from "./payload/collections/ProductTypes"
@@ -59,6 +60,7 @@ export default buildConfig({
 
   onInit: async (payload) => {
     if (process.env.NEXT_PHASE === "phase-production-build") return
+    await ensureRetailCustomerFieldsSchema(payload.db.drizzle)
     await ensureProductDiscountSchema(payload.db.drizzle)
     await ensureProductReviewsSchema(payload.db.drizzle)
     await ensureSberAcquiringSettingsSchema(payload.db.drizzle)
