@@ -23,7 +23,10 @@ function getHostname(request: NextRequest) {
 }
 
 function isShopPreviewAllowed(request: NextRequest) {
-  if (process.env.SHOP_PREVIEW_ENABLED === "false") return true
+  // Closing the shop from search engines (robots/noindex) must not make it
+  // unavailable to real visitors. Access restriction is therefore opt-in and
+  // only enabled by an explicit operational flag.
+  if (process.env.SHOP_RESTRICT_ACCESS !== "true") return true
   if (process.env.NODE_ENV !== "production") return true
 
   const allowedIps = (process.env.SHOP_ALLOWED_IPS || "")
