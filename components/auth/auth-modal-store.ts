@@ -9,7 +9,8 @@ interface AuthModalState {
   view: AuthView
 }
 
-let state: AuthModalState = { open: false, view: "login" }
+const initialState: AuthModalState = { open: false, view: "login" }
+let state: AuthModalState = initialState
 const listeners = new Set<() => void>()
 
 function emit() {
@@ -25,6 +26,12 @@ function subscribe(listener: () => void) {
 
 function getSnapshot(): AuthModalState {
   return state
+}
+
+// Client components are rendered on the server while Next.js prerenders pages.
+// A stable empty snapshot keeps that render deterministic until the browser store hydrates.
+function getServerSnapshot(): AuthModalState {
+  return initialState
 }
 
 function syncUrl(mutate: (params: URLSearchParams) => void) {
@@ -49,5 +56,5 @@ export function closeAuthModal() {
 }
 
 export function useAuthModalStore(): AuthModalState {
-  return useSyncExternalStore(subscribe, getSnapshot)
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }
