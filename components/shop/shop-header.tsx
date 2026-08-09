@@ -52,7 +52,18 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
   function submitSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMenuOpen(false)
-    router.push(`/shop?q=${encodeURIComponent(query.trim())}`)
+    const search = `?q=${encodeURIComponent(query.trim())}`
+    router.push(isLocalShop() ? `/shop${search}` : `/${search}`)
+  }
+
+  function isLocalShop() {
+    return window.location.hostname === "localhost" || window.location.hostname.endsWith(".localhost")
+  }
+
+  function keepLocalShopRoute(event: React.MouseEvent<HTMLAnchorElement>, search = "") {
+    if (!isLocalShop()) return
+    event.preventDefault()
+    router.push(`/shop${search}`)
   }
 
   function openAuth(view: "login" | "register") {
@@ -89,7 +100,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
       <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-[#f8f5f1]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-20 max-w-[1480px] items-center gap-6 px-5 lg:px-10">
           <button type="button" onClick={() => setMenuOpen(true)} className="flex h-11 w-11 items-center justify-center rounded-full text-[#1d1d1b] transition hover:bg-black/[0.05] lg:hidden"><Menu className="h-5 w-5" /></button>
-          <Link href="/shop" className="flex shrink-0 items-center"><img src="/logo.svg" alt="10COFFEE" className="h-9 w-auto" /></Link>
+          <Link href="/" onClick={keepLocalShopRoute} className="flex shrink-0 items-center"><img src="/logo.svg" alt="10COFFEE" className="h-9 w-auto" /></Link>
 
           {/* Desktop nav */}
           <nav className="ml-4 hidden items-center gap-1 lg:flex">
@@ -98,8 +109,8 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
               {buyOpen && (
                 <div className="absolute left-0 top-full w-64 pt-2">
                   <div className="overflow-hidden rounded-2xl border border-black/[0.06] bg-white p-2 shadow-[0_24px_70px_rgba(45,27,17,0.14)]">
-                    {typeLinks.map((type) => <Link key={type.slug} href={`/shop?type=${type.slug}`} className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-[#1d1d1b] transition hover:bg-[#f5f1ed] hover:text-[#5b328a]">{type.name}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
-                    <Link href="/shop" className="mt-1 flex items-center justify-between rounded-xl bg-[#5b328a] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#47256e]">Весь каталог<ChevronRight className="h-4 w-4" /></Link>
+                    {typeLinks.map((type) => <Link key={type.slug} href={`/?type=${type.slug}`} onClick={(event) => keepLocalShopRoute(event, `?type=${type.slug}`)} className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-[#1d1d1b] transition hover:bg-[#f5f1ed] hover:text-[#5b328a]">{type.name}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
+                    <Link href="/" onClick={keepLocalShopRoute} className="mt-1 flex items-center justify-between rounded-xl bg-[#5b328a] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#47256e]">Весь каталог<ChevronRight className="h-4 w-4" /></Link>
                   </div>
                 </div>
               )}
@@ -124,14 +135,14 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
         <div className="fixed inset-0 z-50 bg-black/35 backdrop-blur-sm lg:hidden" onMouseDown={() => setMenuOpen(false)}>
           <aside className="flex h-full w-full max-w-sm flex-col bg-[#f8f5f1] shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
             <div className="flex items-center border-b border-black/[0.06] px-6 py-5">
-              <Link href="/shop" onClick={() => setMenuOpen(false)} className="flex shrink-0 items-center"><img src="/logo.svg" alt="10COFFEE" className="h-9 w-auto" /></Link>
+              <Link href="/" onClick={(event) => { setMenuOpen(false); keepLocalShopRoute(event) }} className="flex shrink-0 items-center"><img src="/logo.svg" alt="10COFFEE" className="h-9 w-auto" /></Link>
               <button onClick={() => setMenuOpen(false)} className="ml-auto rounded-full p-2 hover:bg-black/[0.05]"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={submitSearch} className="flex items-center gap-3 px-6 pt-5"><div className="flex flex-1 items-center gap-3 rounded-full bg-white px-5 py-3 shadow-sm"><Search className="h-4 w-4 text-[#8c8178]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по каталогу" className="w-full bg-transparent text-sm outline-none placeholder:text-[#aaa098]" /></div><button type="submit" className="rounded-full bg-[#5b328a] px-5 py-3 text-sm font-bold text-white">Найти</button></form>
             <nav className="flex-1 space-y-1 overflow-y-auto px-6 py-5">
               <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Каталог</p>
-              {typeLinks.map((type) => <Link key={type.slug} href={`/shop?type=${type.slug}`} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{type.name}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
-              <Link href="/shop" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl bg-[#5b328a] px-3 py-3 text-base font-bold text-white">{`Весь каталог`}<ChevronRight className="h-4 w-4" /></Link>
+              {typeLinks.map((type) => <Link key={type.slug} href={`/?type=${type.slug}`} onClick={(event) => { setMenuOpen(false); keepLocalShopRoute(event, `?type=${type.slug}`) }} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{type.name}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
+              <Link href="/" onClick={(event) => { setMenuOpen(false); keepLocalShopRoute(event) }} className="flex items-center justify-between rounded-xl bg-[#5b328a] px-3 py-3 text-base font-bold text-white">{`Весь каталог`}<ChevronRight className="h-4 w-4" /></Link>
               <p className="px-3 pb-1 pt-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Компания</p>
               {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
               {individualUser ? (
