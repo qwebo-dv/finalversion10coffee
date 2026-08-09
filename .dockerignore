@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+*.log
+coverage
+tsconfig.tsbuildinfo
+.DS_Store
+Thumbs.db
