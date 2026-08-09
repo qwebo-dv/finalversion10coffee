@@ -100,7 +100,11 @@ interface PayloadOrderDoc {
   id: string | number
   orderId?: string
   createdAt?: string
+  customerType?: "individual" | "business" | null
   client?: PayloadClientDoc | string | number | null
+  customerFullName?: string | null
+  customerEmail?: string | null
+  customerPhone?: string | null
   companyName?: string | null
   companyInn?: string | null
   deliveryMethod?: DeliveryMethod
@@ -688,6 +692,27 @@ async function getRetryClient(payload: Payload, order: PayloadOrderDoc): Promise
   }
 }
 
+/**
+ * Shop orders may be placed as a guest, or immediately after a new account is
+ * created. In both cases Payload can legitimately have no `client` relation
+ * yet, while the checkout contact details are stored directly on the order.
+ * Those details are sufficient to find or create a counterpart in MoySklad.
+ */
+function getCheckoutContactClient(order: PayloadOrderDoc): PayloadClientDoc | null {
+  const fullName = order.customerFullName?.trim()
+  const email = order.customerEmail?.trim()
+  const phone = order.customerPhone?.trim()
+
+  if (!fullName && !email && !phone) return null
+
+  return {
+    fullName: fullName || email || "Покупатель 10coffee",
+    email: email || "",
+    phone: phone || null,
+    moyskladCounterpartyId: order.moyskladCounterpartyId || null,
+  }
+}
+
 function mapSupabaseCompanyToRetryCompany(company: SupabaseCompanyRow): RetryCompany {
   return {
     id: company.id,
@@ -735,7 +760,7 @@ async function getRetryCompany(order: PayloadOrderDoc, client: PayloadClientDoc)
 }
 
 async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
-  const client = await getRetryClient(payload, order)
+  const client = await getRetryClient(payload, order) || getCheckoutContactClient(order)
   if (!client) throw new Error("Клиент заказа не загружен для повтора МойСклад")
 
   const [cartItems, company] = await Promise.all([
@@ -748,6 +773,7 @@ async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
     order: {
       id: order.id,
       orderId: order.orderId,
+      customerType: order.customerType || undefined,
       createdAt: order.createdAt,
       subtotal: numberValue(order.subtotal),
       discountAmount: numberValue(order.discountAmount),
