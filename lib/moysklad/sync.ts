@@ -40,6 +40,7 @@ interface SyncCompany {
 interface SyncOrder {
   id: string | number
   orderId?: string
+  customerType?: "individual" | "business"
   createdAt?: string
   subtotal?: number
   discountAmount?: number
@@ -401,6 +402,7 @@ function buildOrderDescription(order: SyncOrder, company?: SyncCompany | null) {
     : ""
   const rows = [
     `Заказ сайта: ${order.orderId || order.id}`,
+    order.customerType === "individual" ? "Тип заказа: розничный (shop.10coffee.ru)" : "",
     company?.name ? `Компания: ${company.name}` : "",
     company?.inn ? `ИНН: ${company.inn}` : "",
     deliveryMethodLabel ? `Доставка: ${deliveryMethodLabel}` : "",
@@ -1168,7 +1170,9 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
     let invoiceResponse: MoyskladInvoiceOut | null = null
     let invoicePayload: Record<string, unknown> | null = null
 
-    if (config.createInvoiceOnOrder && moyskladOrderId) {
+    // Retail orders are only reservations until payment and fulfilment are
+    // confirmed. They must not create a B2B invoice automatically.
+    if (config.createInvoiceOnOrder && params.order.customerType !== "individual" && moyskladOrderId) {
       const invoiceResult = await createInvoiceOut({
         order: params.order,
         counterpartyId,

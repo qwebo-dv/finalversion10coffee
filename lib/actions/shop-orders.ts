@@ -238,6 +238,7 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
     order: {
       id: order.id,
       orderId: order.orderId,
+      customerType: "individual",
       createdAt: order.createdAt,
       subtotal,
       discountAmount: promoResult.discountAmount,
