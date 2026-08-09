@@ -17,6 +17,9 @@ export async function ensureRetailCustomerFieldsSchema(db: MigrateUpArgs["db"]):
     ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "payment_external_id" varchar;
     ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "payment_url" varchar;
     ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "payment_updated_at" timestamptz;
+    ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customer_full_name" varchar;
+    ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customer_email" varchar;
+    ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customer_phone" varchar;
 
     ALTER TABLE "clients" ADD COLUMN IF NOT EXISTS "customer_type" varchar DEFAULT 'business';
     ALTER TABLE "clients" ADD COLUMN IF NOT EXISTS "address" varchar;
