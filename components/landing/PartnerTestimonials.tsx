@@ -14,7 +14,6 @@ const CARD_GAP = 20;
 const LERP_FACTOR = 0.075;
 const VELOCITY_DAMPING = 0.95;
 const VELOCITY_THRESHOLD = 0.05;
-const MOBILE_BREAKPOINT = 1000;
 
 export default function PartnerTestimonials() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -136,7 +135,8 @@ export default function PartnerTestimonials() {
       track.addEventListener("pointerup", handlePointerUp);
       track.addEventListener("pointercancel", handlePointerUp);
       track.style.cursor = "grab";
-      track.style.touchAction = "none";
+      // Keep vertical page scrolling while allowing horizontal finger swipes.
+      track.style.touchAction = "pan-y";
       isDragEnabled = true;
     };
 
@@ -152,17 +152,11 @@ export default function PartnerTestimonials() {
       isDragEnabled = false;
     };
 
-    const handleResize = () => {
-      window.innerWidth < MOBILE_BREAKPOINT ? disableDrag() : enableDrag();
-    };
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
+    enableDrag();
 
     return () => {
       gsap.ticker.remove(updateCardPositions);
       disableDrag();
-      window.removeEventListener("resize", handleResize);
     };
   }, []);
 

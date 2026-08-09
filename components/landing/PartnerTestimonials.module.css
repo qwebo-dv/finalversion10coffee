@@ -63,7 +63,7 @@
   position: relative;
   width: 100%;
   cursor: grab;
-  touch-action: none;
+  touch-action: pan-y;
   will-change: transform, opacity;
   user-select: none;
   -webkit-user-select: none;

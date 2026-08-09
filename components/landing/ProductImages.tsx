@@ -24,6 +24,7 @@ const PRODUCTS = [
 export default function ProductImages() {
   const sectionRef = useRef<HTMLElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const swipeStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showPriceModal, setShowPriceModal] = useState(false);
 
@@ -65,6 +66,24 @@ export default function ProductImages() {
   const handleNext = () => {
     if (isLastSlide) return;
     goToSlide(activeIndex + 1);
+  };
+
+  const handleSliderPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary) return;
+    swipeStartRef.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleSliderPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start || start.pointerId !== event.pointerId) return;
+
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    if (Math.abs(deltaX) < 40 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+
+    goToSlide(activeIndex + (deltaX < 0 ? 1 : -1));
   };
 
   useEffect(() => {
@@ -112,7 +131,12 @@ export default function ProductImages() {
             <ArrowLeft className={styles.arrowIcon} />
           </button>
 
-          <div className={styles.mainImage}>
+          <div
+            className={styles.mainImage}
+            onPointerDown={handleSliderPointerDown}
+            onPointerUp={handleSliderPointerUp}
+            onPointerCancel={() => { swipeStartRef.current = null; }}
+          >
             <img
               key={active.image}
               ref={imageRef}
