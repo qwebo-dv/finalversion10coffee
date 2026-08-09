@@ -525,7 +525,11 @@ function buildCartItemFromStoredOrderItem(
 
 async function getRetryCartItemsFromStoredOrder(payload: Payload, order: PayloadOrderDoc) {
   const items = order.items || []
-  if (items.length === 0 || !items.some((item) => item.stockProductMoyskladId?.trim())) return []
+  // Current shop orders keep their full composition in the Payload order
+  // itself. The stock-loss metadata is optional and must not decide whether a
+  // customer order can be re-exported: products are resolved by its saved
+  // name when that metadata is absent.
+  if (items.length === 0) return []
 
   const productCache = new Map<string, Product | null>()
   const result: CartItem[] = []
