@@ -9,6 +9,8 @@ import nodemailer from "nodemailer"
 import sharp from "sharp"
 import { ensureProductDiscountSchema } from "./migrations/20260805_172254_product_discounts"
 import { ensureProductReviewsSchema } from "./migrations/20260806_172254_product_reviews"
+import { ensureSberAcquiringSettingsSchema } from "./migrations/20260809_143900_sber_acquiring_settings"
+import { ensurePaymentSettingsSchema } from "./migrations/20260809_145000_payment_settings"
 
 import { Categories } from "./payload/collections/Categories"
 import { ProductTypes } from "./payload/collections/ProductTypes"
@@ -27,6 +29,7 @@ import { BlogPosts } from "./payload/collections/BlogPosts"
 import { Tags } from "./payload/collections/Tags"
 import { PriceListRequests } from "./payload/collections/PriceListRequests"
 import { SiteSettings } from "./payload/globals/SiteSettings"
+import { PaymentSettings } from "./payload/globals/PaymentSettings"
 import { businessDashboardHandler } from "./payload/endpoints/businessDashboard"
 
 const smtpEmailAdapter: EmailAdapter = () => {
@@ -58,6 +61,8 @@ export default buildConfig({
     if (process.env.NEXT_PHASE === "phase-production-build") return
     await ensureProductDiscountSchema(payload.db.drizzle)
     await ensureProductReviewsSchema(payload.db.drizzle)
+    await ensureSberAcquiringSettingsSchema(payload.db.drizzle)
+    await ensurePaymentSettingsSchema(payload.db.drizzle)
   },
 
   admin: {
@@ -91,7 +96,7 @@ export default buildConfig({
     Admins,
   ],
 
-  globals: [SiteSettings],
+  globals: [SiteSettings, PaymentSettings],
 
   editor: lexicalEditor({
     admin: {

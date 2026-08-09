@@ -1,0 +1,17 @@
+/* Payload admin: restrained monochrome toast notifications. */
+.payload-toast-container .payload-toast-item,
+.payload-toast-container .payload-toast-item.toast-success,
+.payload-toast-container .payload-toast-item.toast-error,
+.payload-toast-container .payload-toast-item.toast-warning,
+.payload-toast-container .payload-toast-item.toast-info {
+  background: #ffffff;
+  border: 1px solid #171717;
+  color: #171717;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.payload-toast-container .payload-toast-item .toast-icon,
+.payload-toast-container .payload-toast-item .payload-toast-close-button,
+.payload-toast-container .payload-toast-item .payload-toast-close-button:hover {
+  color: #171717;
+}

@@ -5,6 +5,17 @@ export interface SberAcquiringConfig {
   password: string
   returnUrl: string
   failUrl: string
+  callbackUrl: string
+}
+
+type SberSiteSettings = {
+  enabled?: boolean
+  apiUrl?: string
+  username?: string
+  password?: string
+  returnUrl?: string
+  failUrl?: string
+  callbackUrl?: string
 }
 
 interface SberErrorResponse {
@@ -27,18 +38,36 @@ interface SberStatusResponse extends SberErrorResponse {
 
 export type SberPaymentStatus = "pending" | "paid" | "cancelled" | "refunded" | "failed"
 
-export function getSberAcquiringConfig(): SberAcquiringConfig {
+export async function getSberAcquiringConfig(): Promise<SberAcquiringConfig> {
+  let settings: SberSiteSettings | null = null
+
+  try {
+    const [{ getPayload }, { default: payloadConfig }] = await Promise.all([
+      import("payload"),
+      import("@payload-config"),
+    ])
+    const globalSettings = await (await getPayload({ config: payloadConfig })).findGlobal({
+      slug: "payment-settings",
+      overrideAccess: true,
+    })
+    settings = globalSettings as unknown as SberSiteSettings
+  } catch {
+    // Environment values remain a safe fallback during deploys and before Payload is initialized.
+  }
+
+  const acquiring = settings
   return {
-    enabled: process.env.SBER_ACQUIRING_ENABLED === "true",
-    apiUrl: (process.env.SBER_ACQUIRING_API_URL || "https://ecommerce.sberbank.ru/ecomm/gw/partner/api/v1").replace(/\/$/, ""),
-    username: process.env.SBER_ACQUIRING_USERNAME || "",
-    password: process.env.SBER_ACQUIRING_PASSWORD || "",
-    returnUrl: process.env.SBER_ACQUIRING_RETURN_URL || "https://shop.10coffee.ru/order/success",
-    failUrl: process.env.SBER_ACQUIRING_FAIL_URL || "https://shop.10coffee.ru/order/failed",
+    enabled: acquiring?.enabled ?? process.env.SBER_ACQUIRING_ENABLED === "true",
+    apiUrl: (acquiring?.apiUrl || process.env.SBER_ACQUIRING_API_URL || "https://ecommerce.sberbank.ru/ecomm/gw/partner/api/v1").replace(/\/$/, ""),
+    username: acquiring?.username || process.env.SBER_ACQUIRING_USERNAME || "",
+    password: acquiring?.password || process.env.SBER_ACQUIRING_PASSWORD || "",
+    returnUrl: acquiring?.returnUrl || process.env.SBER_ACQUIRING_RETURN_URL || "https://shop.10coffee.ru/order/success",
+    failUrl: acquiring?.failUrl || process.env.SBER_ACQUIRING_FAIL_URL || "https://shop.10coffee.ru/order/failed",
+    callbackUrl: acquiring?.callbackUrl || process.env.SBER_ACQUIRING_CALLBACK_URL || "https://shop.10coffee.ru/api/shop/payments/sber/callback",
   }
 }
 
-export function isSberAcquiringReady(config = getSberAcquiringConfig()) {
+export function isSberAcquiringReady(config: SberAcquiringConfig) {
   return Boolean(config.enabled && config.username && config.password && config.returnUrl)
 }
 
@@ -68,7 +97,7 @@ export async function createSberPayment(params: {
   clientEmail?: string
   clientId?: string
 }) {
-  const config = getSberAcquiringConfig()
+  const config = await getSberAcquiringConfig()
   if (!isSberAcquiringReady(config)) {
     return { ok: false as const, error: "Онлайн-оплата Сбер пока не подключена" }
   }
@@ -84,6 +113,7 @@ export async function createSberPayment(params: {
     currency: "643",
     returnUrl: config.returnUrl,
     failUrl: config.failUrl,
+    dynamicCallbackUrl: config.callbackUrl,
     description: params.description,
     clientId: params.clientId,
     email: params.clientEmail,
@@ -105,7 +135,7 @@ export async function createSberPayment(params: {
 }
 
 export async function getSberPaymentStatus(paymentId: string) {
-  const config = getSberAcquiringConfig()
+  const config = await getSberAcquiringConfig()
   if (!isSberAcquiringReady(config)) {
     return { ok: false as const, error: "Онлайн-оплата Сбер пока не подключена" }
   }

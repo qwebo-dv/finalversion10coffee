@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import "./payload-overrides.css"
 
 export const metadata: Metadata = {
   title: {
