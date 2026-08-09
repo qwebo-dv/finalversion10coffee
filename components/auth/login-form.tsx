@@ -16,10 +16,11 @@ import { SocialAuthButtons } from "./social-auth-buttons"
 interface LoginFormProps {
   onSwitchToRegister: () => void
   onSwitchToForgot: () => void
+  onAuthenticated: () => void
   customerType?: "individual" | "business"
 }
 
-export function LoginForm({ onSwitchToRegister, onSwitchToForgot, customerType }: LoginFormProps) {
+export function LoginForm({ onSwitchToRegister, onSwitchToForgot, onAuthenticated, customerType }: LoginFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [agreed, setAgreed] = useState(false)
@@ -35,8 +36,14 @@ export function LoginForm({ onSwitchToRegister, onSwitchToForgot, customerType }
     try {
       const result = await signIn(data, customerType)
       if (result?.error) setError(result.error)
+      else if (result?.success && result.redirectTo) {
+        // A hard navigation reads the session cookie set by the server action.
+        // Closing first prevents the global modal store from surviving the transition.
+        onAuthenticated()
+        window.location.assign(result.redirectTo)
+      }
     } catch {
-      // redirect throws, which is expected
+      setError("Не удалось выполнить вход. Попробуйте ещё раз.")
     } finally {
       setLoading(false)
     }

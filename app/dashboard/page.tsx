@@ -117,7 +117,7 @@ function StatCard({ label, value, sub, icon: Icon, tone = "cream", href, classNa
 }
 
 export async function DashboardPage({ forceIndividual = false }: { forceIndividual?: boolean } = {}) {
-  const currentUser = await getCurrentUser()
+  const currentUser = await getCurrentUser(forceIndividual ? "individual" : "business")
   const isIndividual = forceIndividual || currentUser?.user_metadata?.customer_type === "individual"
 
   const [orders, companies, newsResult] = await Promise.all([

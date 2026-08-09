@@ -1,8 +1,8 @@
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import crypto from "crypto"
 import bcrypt from "bcryptjs"
 import { dbQuery } from "@/lib/db"
-import { SESSION_COOKIE_NAME } from "@/lib/auth/constants"
+import { SESSION_COOKIE_NAMES, type CustomerSessionScope } from "@/lib/auth/constants"
 import type { AppUser } from "@/lib/auth/types"
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
@@ -58,6 +58,30 @@ function cookieOptions(maxAge = SESSION_TTL_SECONDS) {
     path: "/",
     maxAge,
   }
+}
+
+export async function getCustomerSessionScope(explicitScope?: CustomerSessionScope): Promise<CustomerSessionScope> {
+  if (explicitScope) return explicitScope
+
+  const requestHeaders = await headers()
+  const host = (requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "")
+    .toLowerCase()
+    .replace(/:\d+$/, "")
+  if (host === "shop.10coffee.ru" || host.startsWith("shop.localhost")) return "individual"
+
+  const scopeHeader = requestHeaders.get("x-coffee-auth-scope")
+  if (scopeHeader === "individual" || scopeHeader === "business") return scopeHeader
+
+  const requestContext = [
+    requestHeaders.get("referer"),
+    requestHeaders.get("next-url"),
+    requestHeaders.get("x-matched-path"),
+    requestHeaders.get("x-invoke-path"),
+  ].filter(Boolean).join(" ")
+
+  return /\/(shop|main|checkout|order)(?:\/|\?|\s|$)/.test(requestContext)
+    ? "individual"
+    : "business"
 }
 
 export async function ensureLocalAuthSchema() {
@@ -205,7 +229,7 @@ export async function listAuthUsers() {
   return rows.map(toUser)
 }
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, scope?: CustomerSessionScope) {
   await ensureLocalAuthSchema()
 
   const token = crypto.randomBytes(32).toString("base64url")
@@ -216,25 +240,26 @@ export async function createSession(userId: string) {
   )
 
   const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE_NAME, token, cookieOptions())
+  cookieStore.set(SESSION_COOKIE_NAMES[await getCustomerSessionScope(scope)], token, cookieOptions())
 }
 
-export async function destroyCurrentSession() {
+export async function destroyCurrentSession(scope?: CustomerSessionScope) {
   await ensureLocalAuthSchema()
 
   const cookieStore = await cookies()
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
+  const cookieName = SESSION_COOKIE_NAMES[await getCustomerSessionScope(scope)]
+  const token = cookieStore.get(cookieName)?.value
   if (token) {
     await dbQuery("delete from public.auth_sessions where token_hash = $1", [hashToken(token)])
   }
-  cookieStore.set(SESSION_COOKIE_NAME, "", cookieOptions(0))
+  cookieStore.set(cookieName, "", cookieOptions(0))
 }
 
-export async function getCurrentUser(): Promise<AppUser | null> {
+export async function getCurrentUser(scope?: CustomerSessionScope): Promise<AppUser | null> {
   await ensureLocalAuthSchema()
 
   const cookieStore = await cookies()
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
+  const token = cookieStore.get(SESSION_COOKIE_NAMES[await getCustomerSessionScope(scope)])?.value
   if (!token) return null
 
   const { rows } = await dbQuery<UserRow>(

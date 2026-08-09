@@ -99,7 +99,13 @@ export async function GET(request: NextRequest) {
     return errorRedirect("Состояние авторизации не найдено")
   }
 
-  let stored: { state?: string; codeVerifier?: string | null; provider?: string; expiresAt?: number }
+  let stored: {
+    state?: string
+    codeVerifier?: string | null
+    provider?: string
+    customerType?: "individual" | "business"
+    expiresAt?: number
+  }
   try {
     stored = JSON.parse(storedRaw)
   } catch {
@@ -128,12 +134,13 @@ export async function GET(request: NextRequest) {
 
     const profile = await fetchSocialProfile(providerName, accessToken)
 
+    const customerType = stored.customerType || "individual"
     const { user, created } = await upsertAuthUser({
       email: profile.email,
       password: cryptoRandomPassword(),
       metadata: {
         user_type: "client",
-        customer_type: "individual",
+        customer_type: customerType,
         full_name: profile.name,
         avatar_url: profile.avatarUrl || "",
         phone: profile.phone || "",
@@ -146,10 +153,10 @@ export async function GET(request: NextRequest) {
       await syncClientProfile(user.id, profile)
     }
 
-    await createSession(user.id)
+    await createSession(user.id, customerType)
 
     const response = NextResponse.redirect(
-      new URL("/dashboard", getBaseUrl())
+      new URL(customerType === "individual" ? "/main" : "/dashboard", getBaseUrl())
     )
     response.cookies.set(OAUTH_STATE_COOKIE_NAME, "", {
       httpOnly: true,

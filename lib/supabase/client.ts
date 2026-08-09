@@ -2,8 +2,18 @@ import type { AppUser } from "@/lib/auth/types"
 
 type AuthCallback = (_event: "INITIAL_SESSION", session: { user: AppUser | null } | null) => void
 
+function getSessionScope() {
+  return /\/(shop|main|checkout|order)(?:\/|$)/.test(window.location.pathname)
+    ? "individual"
+    : "business"
+}
+
+function authHeaders() {
+  return { "x-coffee-auth-scope": getSessionScope() }
+}
+
 async function fetchUser() {
-  const res = await fetch("/api/auth/me", { cache: "no-store" })
+  const res = await fetch("/api/auth/me", { cache: "no-store", headers: authHeaders() })
   if (!res.ok) return null
   const json = await res.json()
   return (json.user as AppUser | null) || null
@@ -32,7 +42,7 @@ function createBrowserClient() {
       async updateUser(params: { data?: Record<string, unknown>; password?: string }) {
         const res = await fetch("/api/auth/me", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify(params),
         })
         const json = await res.json()
@@ -42,7 +52,7 @@ function createBrowserClient() {
         }
       },
       async signOut() {
-        await fetch("/api/auth/signout", { method: "POST" })
+        await fetch("/api/auth/signout", { method: "POST", headers: authHeaders() })
         return { error: null }
       },
     },

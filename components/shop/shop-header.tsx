@@ -32,9 +32,10 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
   const [query, setQuery] = useState("")
   const { items, itemCount, updateQuantity, removeItem, clearCart } = useGuestCart()
   const { user } = useAuth()
+  const individualUser = user?.user_metadata?.customer_type === "individual"
 
-  const avatarUrl: string | null = user?.user_metadata?.avatar_url || null
-  const displayName = user?.user_metadata?.full_name || user?.email || ""
+  const avatarUrl: string | null = individualUser ? user?.user_metadata?.avatar_url || null : null
+  const displayName = individualUser ? user?.user_metadata?.full_name || user?.email || "" : ""
   const initial = displayName.trim()[0]?.toUpperCase() || "U"
 
   const cartLines = items.map((item) => {
@@ -69,7 +70,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
             <Link href="/b2b-servis" className="transition hover:text-[#e6610d]">Оптовым клиентам</Link>
             <Link href="/o-nas" className="hidden transition hover:text-[#e6610d] sm:inline">О нас</Link>
             <Link href="/kontakty" className="hidden transition hover:text-[#e6610d] md:inline">Контакты</Link>
-            {user ? (
+            {individualUser ? (
               <Link href="/main" title={displayName} className="hidden items-center gap-2 transition hover:text-[#e6610d] lg:flex">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-[10px] font-black text-white">
                   {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
@@ -79,7 +80,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
             ) : (
               <button type="button" onClick={() => openAuth("login")} className="hidden items-center gap-1.5 transition hover:text-[#e6610d] lg:flex"><User className="h-3 w-3" /> Войти</button>
             )}
-            {!user && <button type="button" onClick={() => openAuth("register")} className="hidden rounded-full bg-[#e6610d] px-3 py-1 font-bold transition hover:bg-[#cf5206] lg:inline">Регистрация</button>}
+            {!individualUser && <button type="button" onClick={() => openAuth("register")} className="hidden rounded-full bg-[#e6610d] px-3 py-1 font-bold transition hover:bg-[#cf5206] lg:inline">Регистрация</button>}
           </div>
         </div>
       </div>
@@ -133,7 +134,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
               <Link href="/shop" onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl bg-[#5b328a] px-3 py-3 text-base font-bold text-white">{`Весь каталог`}<ChevronRight className="h-4 w-4" /></Link>
               <p className="px-3 pb-1 pt-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Компания</p>
               {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
-              {user ? (
+              {individualUser ? (
                 <Link href="/main" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-sm font-black text-white">
                     {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}

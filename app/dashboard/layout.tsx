@@ -21,7 +21,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const user = await getCurrentUser().catch(() => null)
+  const user = await getCurrentUser("business").catch(() => null)
   const isIndividual = user?.user_metadata?.customer_type === "individual"
 
   // Retail customers have a separate storefront and cabinet on shop.10coffee.ru.

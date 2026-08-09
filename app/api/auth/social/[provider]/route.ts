@@ -10,10 +10,13 @@ import {
 import { OAUTH_STATE_COOKIE_NAME } from "@/lib/auth/social-constants"
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ provider: string }> }
 ) {
   const { provider } = await params
+  const customerType = request.nextUrl.searchParams.get("customer_type") === "business"
+    ? "business"
+    : "individual"
   const providerName = getSocialProvider(provider)
 
   if (!providerName) {
@@ -45,6 +48,7 @@ export async function GET(
       state,
       codeVerifier: codeChallenge || null,
       provider: providerName,
+      customerType,
       expiresAt: Date.now() + 10 * 60 * 1000,
     }),
     {

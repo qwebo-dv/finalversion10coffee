@@ -29,7 +29,7 @@ export async function signIn(formData: {
   email: string
   password: string
 }, expectedCustomerType?: "individual" | "business") {
-  const supabase = await createClient()
+  const supabase = await createClient(expectedCustomerType)
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email: formData.email,
@@ -53,7 +53,10 @@ export async function signIn(formData: {
   }
 
   revalidatePath("/", "layout")
-  redirect(expectedCustomerType === "individual" ? process.env.SHOP_SITE_URL || "/main" : "/dashboard")
+  return {
+    success: true,
+    redirectTo: expectedCustomerType === "individual" ? process.env.SHOP_SITE_URL || "/main" : "/dashboard",
+  }
 }
 
 export async function signUp(formData: {
@@ -151,18 +154,35 @@ export async function signUp(formData: {
     console.error("Failed to send password email:", emailError)
   }
 
+  // A new customer should enter the same isolated account context immediately.
+  // This also gives the registration flow the same completion behaviour as sign-in.
+  const customerType = formData.customer_type || "business"
+  const sessionClient = await createClient(customerType)
+  const { error: sessionError } = await sessionClient.auth.signInWithPassword({
+    email: formData.email,
+    password,
+  })
+
+  if (sessionError) {
+    return {
+      success: true,
+      message: `Регистрация успешна! Пароль отправлен на ${formData.email}. Проверьте почту.`,
+      password,
+      userId: data.user?.id,
+    }
+  }
+
+  revalidatePath("/", "layout")
   return {
     success: true,
-    message: `Регистрация успешна! Пароль отправлен на ${formData.email}. Проверьте почту.`,
-    password,
-    userId: data.user?.id,
+    redirectTo: customerType === "individual" ? process.env.SHOP_SITE_URL || "/main" : "/dashboard",
   }
 }
 
-export async function signOut() {
-  const supabase = await createClient()
+export async function signOut(scope?: "individual" | "business") {
+  const supabase = await createClient(scope)
   await supabase.auth.signOut()
-  redirect("/")
+  redirect(scope === "individual" ? process.env.SHOP_SITE_URL || "/shop" : "/")
 }
 
 export async function resetPassword(formData: { email: string }) {
@@ -351,8 +371,8 @@ export async function createAdminInvitation(formData: {
   }
 }
 
-export async function getCurrentUser() {
-  const supabase = await createClient()
+export async function getCurrentUser(scope?: "individual" | "business") {
+  const supabase = await createClient(scope)
   const {
     data: { user },
   } = await supabase.auth.getUser()

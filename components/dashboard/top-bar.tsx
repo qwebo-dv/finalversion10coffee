@@ -26,7 +26,7 @@ export function TopBar({ notificationCount = 0 }: TopBarProps) {
 
   async function handleSignOut() {
     setSigningOut(true)
-    await signOut()
+    await signOut("business")
   }
 
   return (

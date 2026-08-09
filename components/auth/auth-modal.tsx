@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef } from "react"
 import {
   Dialog,
   DialogContent,
@@ -25,17 +25,17 @@ interface AuthModalProps {
 
 export function AuthModal({ announcement, customerType }: AuthModalProps) {
   const { open, view } = useAuthModalStore()
-  const [initialized, setInitialized] = useState(false)
+  const initialized = useRef(false)
 
   useEffect(() => {
-    if (initialized) return
-    setInitialized(true)
+    if (initialized.current) return
+    initialized.current = true
     const params = new URLSearchParams(window.location.search)
     const auth = params.get("auth") as AuthView | null
     if (auth === "login" || auth === "register" || auth === "forgot") {
       openAuthModal(auth)
     }
-  }, [initialized])
+  }, [])
 
   function switchView(nextView: AuthView) {
     openAuthModal(nextView)
@@ -66,11 +66,16 @@ export function AuthModal({ announcement, customerType }: AuthModalProps) {
           <LoginForm
             onSwitchToRegister={() => switchView("register")}
             onSwitchToForgot={() => switchView("forgot")}
+            onAuthenticated={handleClose}
             customerType={customerType}
           />
         )}
         {view === "register" && (
-          <RegisterForm onSwitchToLogin={() => switchView("login")} customerType={customerType} />
+          <RegisterForm
+            onSwitchToLogin={() => switchView("login")}
+            onAuthenticated={handleClose}
+            customerType={customerType}
+          />
         )}
         {view === "forgot" && (
           <ForgotPasswordForm onSwitchToLogin={() => switchView("login")} />

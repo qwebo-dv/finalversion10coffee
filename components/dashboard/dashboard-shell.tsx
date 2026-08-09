@@ -249,7 +249,7 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
 
               <button
                 type="button"
-                onClick={() => signOut()}
+                onClick={() => signOut(isIndividual ? "individual" : "business")}
                 className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[#e6610d] hover:bg-[#faead5]/50 transition-all"
               >
                 <LogOut className="h-4 w-4 shrink-0" />

@@ -10,6 +10,7 @@ import {
   verifyPassword,
 } from "@/lib/auth/local"
 import type { AppUser } from "@/lib/auth/types"
+import type { CustomerSessionScope } from "@/lib/auth/constants"
 
 // The compatibility layer intentionally mirrors Supabase's untyped query result.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -289,7 +290,7 @@ function mapAuthError(error: unknown) {
   return { message }
 }
 
-export function createLocalClient() {
+export function createLocalClient(sessionScope?: CustomerSessionScope) {
   return {
     from(table: string) {
       return new LocalQueryBuilder(table)
@@ -311,7 +312,7 @@ export function createLocalClient() {
     },
     auth: {
       async getUser() {
-        const user = await getCurrentUser()
+        const user = await getCurrentUser(sessionScope)
         return { data: { user }, error: null }
       },
       async signInWithPassword(params: { email: string; password: string }) {
@@ -320,18 +321,18 @@ export function createLocalClient() {
           if (!user) {
             return { data: { user: null }, error: { message: "Неверный email или пароль" } }
           }
-          await createSession(user.id)
+          await createSession(user.id, sessionScope)
           return { data: { user }, error: null }
         } catch (error) {
           return { data: { user: null }, error: mapAuthError(error) }
         }
       },
       async signOut() {
-        await destroyCurrentSession()
+        await destroyCurrentSession(sessionScope)
         return { error: null }
       },
       async updateUser(params: { data?: Record<string, unknown>; password?: string }) {
-        const currentUser = await getCurrentUser()
+        const currentUser = await getCurrentUser(sessionScope)
         if (!currentUser) return { data: { user: null }, error: { message: "Не авторизован" } }
         const metadata = params.data
           ? { ...currentUser.user_metadata, ...params.data }
