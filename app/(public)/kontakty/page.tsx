@@ -4,7 +4,7 @@ import styles from "./kontakty.module.css"
 
 export const metadata = {
   title: "Контакты | 10кофе",
-  description: "Адрес, телефоны и часы работы компании 10кофе. Сочи, ул. Пластунская 79/1.",
+  description: "Контакты и реквизиты компании 10кофе. Сочи, ул. Пластунская 79/1.",
 }
 
 export default function KontaktyPage() {
@@ -64,6 +64,35 @@ export default function KontaktyPage() {
               allowFullScreen
             />
           </div>
+
+          <section className={styles.companyCard} aria-labelledby="company-details-title">
+            <div className={styles.companyHeading}>
+              <p className={styles.infoLabel}>Реквизиты</p>
+              <h2 id="company-details-title">Информация о компании</h2>
+            </div>
+
+            <dl className={styles.detailsGrid}>
+              <div className={styles.detailWide}>
+                <dt>Полное название организации</dt>
+                <dd>ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ «ПЕЙДЖ КОФЕ»</dd>
+              </div>
+              <div className={styles.detailWide}>
+                <dt>Юридический адрес</dt>
+                <dd>Краснодарский край, г. Сочи, ул. Пластунская (Центральный р-н), д. 79/1, пом. 1</dd>
+              </div>
+              <div><dt>ИНН</dt><dd>2366021670</dd></div>
+              <div><dt>ОГРН</dt><dd>1202300037092</dd></div>
+              <div><dt>КПП</dt><dd>236601001</dd></div>
+              <div><dt>ОКАТО</dt><dd>03426371000</dd></div>
+              <div><dt>ОКПО</dt><dd>44859961</dd></div>
+              <div><dt>ОКТМО</dt><dd>03726000001</dd></div>
+              <div className={styles.detailWide}><dt>Расчётный счёт</dt><dd>40702810230060009772</dd></div>
+              <div className={styles.detailWide}><dt>Банк</dt><dd>ЮГО-ЗАПАДНЫЙ БАНК ПАО СБЕРБАНК</dd></div>
+              <div><dt>БИК</dt><dd>046015602</dd></div>
+              <div><dt>Корреспондентский счёт</dt><dd>30101810600000000602</dd></div>
+              <div className={styles.detailWide}><dt>Руководитель</dt><dd>Тен Игорь Олегович, директор</dd></div>
+            </dl>
+          </section>
         </div>
       </section>
 

@@ -69,6 +69,22 @@ interface MoyskladRow {
 
 const EXCLUDED = "'cancelled','returned'"
 
+async function safeDashboardQuery<T>(
+  label: string,
+  query: () => Promise<{ rows: T[] }>,
+  required = false,
+): Promise<{ rows: T[] }> {
+  try {
+    return await query()
+  } catch (error) {
+    // One optional module (reviews, promo codes, МойСклад, etc.) must not
+    // prevent the sales and order statistics from loading altogether.
+    console.error(`[business-dashboard] ${label} query failed`, error)
+    if (required) throw error
+    return { rows: [] }
+  }
+}
+
 export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
   const user = req.user as { collection?: string; role?: string } | null
   if (!user || user.collection !== "admins" || user.role !== "admin") {
@@ -76,7 +92,9 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
   }
 
   try {
-    const requestedPeriod = req.url ? new URL(req.url).searchParams.get("period") : null
+    const requestedPeriod = req.url
+      ? new URL(req.url, "http://payload.local").searchParams.get("period")
+      : null
     const period: Period = requestedPeriod === "7" || requestedPeriod === "30" || requestedPeriod === "90"
       ? requestedPeriod
       : "all"
@@ -93,17 +111,17 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
     const currentParams = currentStart ? [currentStart] : []
 
     // ── All-time & period KPIs ────────────────────────────────
-    const kpiResult = await dbQuery<MetricRow>(`
+    const kpiResult = await safeDashboardQuery("kpi", () => dbQuery<MetricRow>(`
       SELECT
         COUNT(*) AS total_orders,
         COUNT(*) FILTER (WHERE status NOT IN (${EXCLUDED})) AS valid_orders,
         COALESCE(SUM(total) FILTER (WHERE status NOT IN (${EXCLUDED})), 0) AS total_revenue,
         COALESCE(AVG(total) FILTER (WHERE status NOT IN (${EXCLUDED})), 0) AS avg_order
       FROM orders
-    `)
+    `), true)
 
     const periodResult = currentStart && previousStart
-      ? await dbQuery<MetricRow>(`
+      ? await safeDashboardQuery("period", () => dbQuery<MetricRow>(`
           SELECT
             COUNT(*) FILTER (WHERE status NOT IN (${EXCLUDED}) AND created_at >= $1) AS current_orders,
             COALESCE(SUM(total) FILTER (WHERE status NOT IN (${EXCLUDED}) AND created_at >= $1), 0) AS current_revenue,
@@ -111,28 +129,28 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
             COALESCE(SUM(total) FILTER (WHERE status NOT IN (${EXCLUDED}) AND created_at >= $2 AND created_at < $1), 0) AS previous_revenue
           FROM orders
           WHERE created_at >= $2
-        `, [currentStart, previousStart])
+        `, [currentStart, previousStart]))
       : null
 
-    const clientsResult = await dbQuery<MetricRow>(`
+    const clientsResult = await safeDashboardQuery("clients", () => dbQuery<MetricRow>(`
       SELECT
         COUNT(*) AS total_clients,
         COUNT(*) FILTER (WHERE created_at >= $1) AS new_clients
       FROM clients
-    `, currentStart ? [currentStart] : [new Date(0)])
+    `, currentStart ? [currentStart] : [new Date(0)]))
 
-    const countersResult = await dbQuery<MetricRow>(`
+    const countersResult = await safeDashboardQuery("operational counters", () => dbQuery<MetricRow>(`
       SELECT
         (SELECT COUNT(*) FROM product_reviews WHERE status = 'pending') AS pending_reviews,
         (SELECT COUNT(*) FROM price_list_requests WHERE email_sent = false) AS pending_price_requests,
         (SELECT COUNT(*) FROM promo_codes WHERE is_active = true) AS active_promos,
         (SELECT COALESCE(SUM(current_uses), 0) FROM promo_codes) AS promo_uses,
         (SELECT COUNT(*) FROM products WHERE is_visible = true) AS visible_products
-    `)
+    `))
 
     // ── Timeline: orders + revenue ────────────────────────────
     const timelineResult = days
-      ? await dbQuery<TimelineRow>(`
+      ? await safeDashboardQuery("daily timeline", () => dbQuery<TimelineRow>(`
           WITH buckets AS (
             SELECT GENERATE_SERIES(
               CURRENT_DATE - ($1 * INTERVAL '1 day'),
@@ -152,8 +170,8 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
           FROM buckets
           LEFT JOIN totals USING (bucket)
           ORDER BY buckets.bucket
-        `, [days - 1])
-      : await dbQuery<TimelineRow>(`
+        `, [days - 1]))
+      : await safeDashboardQuery("monthly timeline", () => dbQuery<TimelineRow>(`
           WITH bounds AS (
             SELECT COALESCE(DATE_TRUNC('month', MIN(created_at)), DATE_TRUNC('month', CURRENT_DATE)) AS first_month
             FROM orders
@@ -175,39 +193,39 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
           FROM buckets
           LEFT JOIN totals USING (bucket)
           ORDER BY buckets.bucket
-        `)
+        `))
 
     // ── Distributions ─────────────────────────────────────────
-    const statusResult = await dbQuery<CountRow>(`
+    const statusResult = await safeDashboardQuery("order statuses", () => dbQuery<CountRow>(`
       SELECT status AS value, COUNT(*) AS count
       FROM orders
       GROUP BY status
       ORDER BY count DESC
-    `)
+    `))
 
-    const paymentResult = await dbQuery<CountRow>(`
+    const paymentResult = await safeDashboardQuery("payment statuses", () => dbQuery<CountRow>(`
       SELECT payment_status AS value, COUNT(*) AS count
       FROM orders
       GROUP BY payment_status
       ORDER BY count DESC
-    `)
+    `))
 
-    const customerTypeResult = await dbQuery<CountRow>(`
+    const customerTypeResult = await safeDashboardQuery("customer types", () => dbQuery<CountRow>(`
       SELECT customer_type AS value, COUNT(*) AS count, COALESCE(SUM(total) FILTER (WHERE status NOT IN (${EXCLUDED})), 0) AS revenue
       FROM orders
       GROUP BY customer_type
       ORDER BY count DESC
-    `)
+    `))
 
-    const deliveryResult = await dbQuery<CountRow>(`
+    const deliveryResult = await safeDashboardQuery("delivery methods", () => dbQuery<CountRow>(`
       SELECT delivery_method AS value, COUNT(*) AS count
       FROM orders
       GROUP BY delivery_method
       ORDER BY count DESC
-    `)
+    `))
 
     // ── Top products & clients (period-aware) ─────────────────
-    const topProductsResult = await dbQuery<ProductRow>(`
+    const topProductsResult = await safeDashboardQuery("top products", () => dbQuery<ProductRow>(`
       SELECT
         i.product_name AS name,
         SUM(i.quantity) AS qty,
@@ -220,9 +238,9 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
       GROUP BY i.product_name
       ORDER BY revenue DESC
       LIMIT 8
-    `, currentParams)
+    `, currentParams))
 
-    const topClientsResult = await dbQuery<ClientRow>(`
+    const topClientsResult = await safeDashboardQuery("top clients", () => dbQuery<ClientRow>(`
       SELECT
         COALESCE(c.full_name, o.customer_full_name, o.customer_email, 'Гость') AS name,
         c.id AS payload_id,
@@ -236,9 +254,9 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
       GROUP BY COALESCE(c.full_name, o.customer_full_name, o.customer_email, 'Гость'), c.id, o.customer_email
       ORDER BY revenue DESC
       LIMIT 8
-    `, currentParams)
+    `, currentParams))
 
-    const recentResult = await dbQuery<RecentOrderRow>(`
+    const recentResult = await safeDashboardQuery("recent orders", () => dbQuery<RecentOrderRow>(`
       SELECT
         o.id,
         o.order_id,
@@ -253,14 +271,14 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
       LEFT JOIN clients c ON c.id = o.client_id
       ORDER BY o.created_at DESC
       LIMIT 8
-    `)
+    `))
 
-    const moyskladResult = await dbQuery<MoyskladRow>(`
+    const moyskladResult = await safeDashboardQuery("moysklad statuses", () => dbQuery<MoyskladRow>(`
       SELECT moysklad_sync_status, COUNT(*) AS count
       FROM orders
       GROUP BY moysklad_sync_status
       ORDER BY count DESC
-    `)
+    `))
 
     const kpi = kpiResult.rows[0] || {}
     const periodKpi = periodResult?.rows[0] || {}

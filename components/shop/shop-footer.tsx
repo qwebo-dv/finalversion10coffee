@@ -19,6 +19,8 @@ const COMPANY_LINKS = [
 
 const CUSTOMER_LINKS = [
   { label: "Оформить заказ", href: "/checkout" },
+  { label: "Доставка и получение", href: "/delivery" },
+  { label: "Публичная оферта", href: "/oferta" },
   { label: "Напишите нам", href: "mailto:10coffee@mail.ru" },
 ]
 

@@ -53,6 +53,7 @@ export function ShopCheckout({ products }: { products: Product[] }) {
       comment: String(data.get("comment") || ""),
       promoCode: String(data.get("promoCode") || ""),
       createAccount: data.get("createAccount") === "on",
+      acceptTerms: data.get("acceptTerms") === "on",
     })
 
     if (response.error) {
@@ -118,6 +119,13 @@ export function ShopCheckout({ products }: { products: Product[] }) {
             <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Промокод</span><input name="promoCode" className="h-12 w-full rounded-2xl border border-black/10 px-4 uppercase outline-none focus:border-[#5b328a]" placeholder="Необязательно" /></label>
 
             <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl bg-[#f8f5f1] p-4"><input name="createAccount" type="checkbox" className="mt-1 h-4 w-4 accent-[#5b328a]" /><span><b className="block text-sm">Создать личный кабинет</b><span className="mt-1 block text-xs leading-5 text-[#7d736b]">Необязательно. Пароль будет отправлен на email, а заказ появится в истории.</span></span></label>
+
+            <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-black/10 p-4">
+              <input name="acceptTerms" type="checkbox" required className="mt-1 h-4 w-4 shrink-0 accent-[#5b328a]" />
+              <span className="text-xs leading-5 text-[#655c55]">
+                Я принимаю условия <Link href="/oferta" target="_blank" className="font-bold text-[#5b328a] underline underline-offset-2">публичной оферты</Link>, ознакомлен с <Link href="/delivery" target="_blank" className="font-bold text-[#5b328a] underline underline-offset-2">условиями доставки</Link> и <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer" className="font-bold text-[#5b328a] underline underline-offset-2">политикой конфиденциальности</a>.
+              </span>
+            </label>
 
             <div className="mt-8 rounded-2xl border border-dashed border-[#5b328a]/30 bg-[#f8f4fb] p-4 text-sm text-[#5b328a]"><div className="flex gap-3"><LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" /><p><b>Онлайн-оплата Сбер подготовлена.</b><br />До получения API-реквизитов заказ создаётся без списания денег.</p></div></div>
             <button disabled={loading || !hydrated} className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#5b328a] text-sm font-black text-white hover:bg-[#47256e] disabled:opacity-60">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{loading ? "Оформляем…" : `Оформить заказ · ${formatPrice(subtotal)}`}</button>

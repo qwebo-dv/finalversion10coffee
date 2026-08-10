@@ -25,6 +25,7 @@ export interface ShopOrderInput {
   comment?: string
   promoCode?: string
   createAccount?: boolean
+  acceptTerms?: boolean
 }
 
 interface PromoDoc {
@@ -152,6 +153,7 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
   if (!/^\S+@\S+\.\S+$/.test(email)) return { error: "Введите корректный email" }
   if (!isValidRussianPhone(phone)) return { error: "Введите корректный телефон" }
   if (input.deliveryMethod !== "self_pickup" && !address) return { error: "Введите адрес доставки" }
+  if (!input.acceptTerms) return { error: "Примите условия публичной оферты и доставки" }
 
   const [payload, products] = await Promise.all([
     getPayload({ config: configPromise }),
