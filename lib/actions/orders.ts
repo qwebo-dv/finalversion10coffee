@@ -47,6 +47,7 @@ interface PayloadClientRef {
 
 interface PayloadOrderItem {
   id?: string | number
+  productId?: string | number
   productName?: string
   product_name?: string
   variantName?: string
@@ -365,7 +366,7 @@ function transformOrderItem(item: PayloadOrderItem): OrderItem {
   return {
     id: String(item.id ?? ""),
     order_id: "",
-    product_id: "",
+    product_id: String(item.productId ?? ""),
     variant_id: "",
     product_name: item.productName || "",
     variant_name: item.variantName || "",
@@ -695,6 +696,7 @@ export async function createOrder(params: {
     const lineDiscountAmount = discountAmountByItem.get(item.id) || 0
 
     return {
+      productId: item.product?.id || "",
       productName: item.product?.name || "",
       variantName: item.variant?.name || "",
       grindOption: item.grind_option || "",

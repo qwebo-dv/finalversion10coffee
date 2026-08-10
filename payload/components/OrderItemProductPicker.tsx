@@ -77,6 +77,7 @@ export default function OrderItemProductPicker({ path }: { path: string }) {
   const [selectedVariantIdx, setSelectedVariantIdx] = useState("")
 
   const quantityPath = getSiblingPath(path, "quantity")
+  const productIdPath = getSiblingPath(path, "productId")
   const productNamePath = getSiblingPath(path, "productName")
   const variantNamePath = getSiblingPath(path, "variantName")
   const grindOptionPath = getSiblingPath(path, "grindOption")
@@ -86,6 +87,7 @@ export default function OrderItemProductPicker({ path }: { path: string }) {
   const stockQuantityKgPath = getSiblingPath(path, "stockQuantityKg")
   const stockPricePerKgPath = getSiblingPath(path, "stockPricePerKg")
 
+  const { setValue: setProductId } = useField<string>({ path: productIdPath })
   const { setValue: setProductName } = useField<string>({ path: productNamePath })
   const { setValue: setVariantName } = useField<string>({ path: variantNamePath })
   const { value: grindOption, setValue: setGrindOption } = useField<string>({ path: grindOptionPath })
@@ -97,6 +99,7 @@ export default function OrderItemProductPicker({ path }: { path: string }) {
 
   const quantity = useFormFields(([fields]) => fields?.[quantityPath]?.value) as number | undefined
   const unitPrice = useFormFields(([fields]) => fields?.[unitPricePath]?.value) as number | undefined
+  const savedProductId = useFormFields(([fields]) => fields?.[productIdPath]?.value) as string | undefined
   const savedProductName = useFormFields(([fields]) => fields?.[productNamePath]?.value) as string | undefined
   const savedVariantName = useFormFields(([fields]) => fields?.[variantNamePath]?.value) as string | undefined
 
@@ -112,15 +115,15 @@ export default function OrderItemProductPicker({ path }: { path: string }) {
   // the saved names back to a catalog entry so quantity edits on existing
   // rows recalculate correctly too.
   useEffect(() => {
-    if (loading || selectedProductId || !savedProductName) return
-    const product = products.find((p) => p.name === savedProductName)
+    if (loading || selectedProductId || (!savedProductId && !savedProductName)) return
+    const product = products.find((p) => String(p.id) === String(savedProductId) || p.name === savedProductName)
     if (!product) return
     setSelectedProductId(String(product.id))
     if (savedVariantName) {
       const idx = (product.variants || []).findIndex((v) => v.name === savedVariantName)
       if (idx >= 0) setSelectedVariantIdx(String(idx))
     }
-  }, [loading, products, savedProductName, savedVariantName, selectedProductId])
+  }, [loading, products, savedProductId, savedProductName, savedVariantName, selectedProductId])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -173,6 +176,7 @@ export default function OrderItemProductPicker({ path }: { path: string }) {
     if (!product || !variant) return
     const q = Number(quantity) || 1
     const price = Number(variant.price) || 0
+    setProductId(String(product.id || ""))
     setProductName(product.name || "")
     setVariantName(variant.name || "")
     setUnitPrice(price)

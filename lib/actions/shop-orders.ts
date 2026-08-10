@@ -200,6 +200,7 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
     const stockLossLine = buildMoyskladStockLossLines([item])[0]
     const lineSubtotal = (item.variant?.price || 0) * item.quantity
     return {
+      productId: item.product?.id || "",
       productName: item.product?.name || "",
       variantName: item.variant?.name || "",
       grindOption: item.grind_option || "",

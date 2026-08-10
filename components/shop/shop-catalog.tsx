@@ -5,11 +5,13 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { LucideIcon } from "lucide-react"
-import { Check, ChevronDown, Coffee, Droplets, LayoutGrid, Leaf, Search, ShoppingBag, SlidersHorizontal, Sparkles, Sun, TrendingUp, Waves, X } from "lucide-react"
+import { Check, ChevronDown, Coffee, Droplets, LayoutGrid, Leaf, Search, ShoppingBag, SlidersHorizontal, Sparkles, Star, Sun, TrendingUp, Waves, X } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { ShopHeader } from "@/components/shop/shop-header"
-import { StarRating } from "@/components/shop/star-rating"
-import { formatPrice } from "@/lib/utils/format"
+import { CoffeeAcidity } from "@/components/shop/coffee-acidity"
+import { formatPrice, formatWeight } from "@/lib/utils/format"
+import { COFFEE_GROUPS, getCoffeeGroup } from "@/lib/coffee-groups"
+import { findVariantForSelection, getGrindOptions, getVariantGrindOption, getVariantWeights, GRIND_OPTION_LABELS } from "@/lib/shop-variant-options"
 import type { Product, ProductTypeOption, ProductVariant } from "@/types"
 
 interface ShopCatalogProps {
@@ -34,6 +36,7 @@ interface CollectionPreset {
   type?: string
   roast?: string[]
   processingContains?: string[]
+  brewGroup?: "espresso" | "filter" | "drip"
   sort?: SortKey
   reset?: boolean
 }
@@ -42,8 +45,9 @@ const COLLECTIONS: CollectionPreset[] = [
   { id: "all", label: "Все товары", icon: LayoutGrid, reset: true },
   { id: "popular", label: "Популярное", icon: TrendingUp, sort: "rating" },
   { id: "new", label: "Новинки", icon: Sparkles, sort: "new" },
-  { id: "espresso", label: "Для эспрессо", icon: Coffee, type: "kofe", roast: ["средне-темная", "средняя"] },
-  { id: "filter", label: "Для фильтра", icon: Droplets, type: "kofe", roast: ["светлая"] },
+  { id: "espresso", label: "Для эспрессо", icon: Coffee, type: "kofe", brewGroup: "espresso" },
+  { id: "filter", label: "Для фильтра", icon: Droplets, type: "kofe", brewGroup: "filter" },
+  { id: "drip", label: "Дрип-кофе", icon: Droplets, type: "kofe", brewGroup: "drip" },
   { id: "natural", label: "Натуральная обработка", icon: Sun, processingContains: ["натуральн"] },
   { id: "washed", label: "Мытая обработка", icon: Waves, processingContains: ["мыт"] },
   { id: "tea", label: "Чай", icon: Leaf, type: "chay" },
@@ -101,10 +105,15 @@ function FilterDropdown({ label, options, selected, onToggle, onClear }: {
 }
 
 export function ShopProductCard({ product }: { product: Product }) {
-  const variants = product.variants || []
+  const variants = (product.variants || []).filter((item) => item.is_available)
   const [variant, setVariant] = useState<ProductVariant | null>(variants[0] || null)
   const { items, addItem } = useGuestCart()
   const inCart = items.some((item) => item.productId === product.id && item.variantId === variant?.id)
+  const weights = getVariantWeights(variants)
+  const selectedWeight = variant?.weight_grams || weights[0] || null
+  const selectedGrind = getVariantGrindOption(variant)
+  const grindOptions = getGrindOptions(variants, selectedWeight)
+  const hasStructuredCoffeeOptions = product.product_type_schema === "coffee" && weights.length > 0 && grindOptions.length > 0
 
   function addToCart() {
     if (!variant) return
@@ -112,7 +121,7 @@ export function ShopProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-black/[0.06] bg-white shadow-[0_18px_60px_rgba(45,27,17,0.06)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(91,50,138,0.13)]">
+    <article className="group flex h-full flex-col overflow-hidden rounded-[26px] border border-black/[0.05] bg-white shadow-[0_12px_36px_rgba(45,27,17,0.045)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(91,50,138,0.1)]">
       <Link href={`/shop/${product.slug}`} className="relative block aspect-[4/3] overflow-hidden bg-[#faead5]">
         {product.images[0] ? (
           <Image src={product.images[0]} alt={product.name} fill className="object-cover transition duration-700 group-hover:scale-[1.04]" sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 100vw" />
@@ -127,22 +136,74 @@ export function ShopProductCard({ product }: { product: Product }) {
       </Link>
 
       <div className="flex flex-1 flex-col p-5">
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#e6610d]">{product.product_type_name}</p>
-        <h2 className="mt-1 text-xl font-black tracking-tight text-[#1d1d1b]"><Link href={`/shop/${product.slug}`} className="transition hover:text-[#5b328a]">{product.name}</Link></h2>
-        <div className="mt-2.5"><StarRating value={product.rating} count={product.reviews_count} size="sm" /></div>
-        {(product.region || product.processing_method) && <p className="mt-2 text-sm leading-6 text-[#766d66]">{[product.region, product.processing_method].filter(Boolean).join(" · ")}</p>}
-
-        <div className="mt-5 flex flex-wrap gap-2">
-          {variants.map((item) => (
-            <button key={item.id} type="button" onClick={() => setVariant(item)} className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${variant?.id === item.id ? "bg-[#5b328a] text-white" : "bg-[#f5f1ed] text-[#625950] hover:bg-[#ece3dc]"}`}>
-              {item.name}
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#e6610d]">{product.product_type_name}</p>
+          {typeof product.rating === "number" && product.rating > 0 && (
+            <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-[#625950]">
+              <Star className="h-3.5 w-3.5 fill-[#f2a515] text-[#f2a515]" />
+              {product.rating.toFixed(1)}
+              {!!product.reviews_count && <span className="font-medium text-[#aaa097]">({product.reviews_count})</span>}
+            </span>
+          )}
         </div>
+        <h2 className="mt-1.5 text-xl font-black leading-tight tracking-tight text-[#1d1d1b]"><Link href={`/shop/${product.slug}`} className="transition hover:text-[#5b328a]">{product.name}</Link></h2>
+        {(product.region || product.processing_method) && <p className="mt-2 text-xs leading-5 text-[#91867d]">{[product.region, product.processing_method].filter(Boolean).join(" · ")}</p>}
+        {product.product_type_schema === "coffee" && product.taste_description && (
+          <p className="mt-3 line-clamp-2 text-sm leading-5 text-[#554b43]">{product.taste_description}</p>
+        )}
+        {product.product_type_schema === "coffee" && product.acidity && (
+          <div className="mt-3"><CoffeeAcidity value={product.acidity} compact /></div>
+        )}
 
-        <div className="mt-auto flex items-center justify-between gap-4 pt-6">
-          <span className="text-2xl font-black tracking-tight text-[#1d1d1b]">{variant ? formatPrice(variant.price) : "—"}</span>
-          <button type="button" onClick={addToCart} disabled={!variant} className={`flex h-12 items-center gap-2 rounded-full px-5 text-sm font-bold text-white shadow-lg transition disabled:opacity-40 ${inCart ? "bg-[#e6610d] shadow-[#e6610d]/25 hover:bg-[#cf5206]" : "bg-[#1d1d1b] shadow-black/15 hover:bg-black"}`}>
+        {hasStructuredCoffeeOptions ? (
+          <div className="mt-4 space-y-3">
+            <div>
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#aaa097]">Вес</p>
+              <div className="flex flex-wrap gap-1.5">
+                {weights.map((weight) => (
+                  <button
+                    key={weight}
+                    type="button"
+                    onClick={() => setVariant(findVariantForSelection(variants, weight, selectedGrind))}
+                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${selectedWeight === weight ? "bg-[#5b328a] text-white" : "bg-[#f5f1ed] text-[#625950] hover:bg-[#ece5df] hover:text-[#5b328a]"}`}
+                  >
+                    {formatWeight(weight)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#aaa097]">Формат</p>
+              <div className="flex flex-wrap gap-1.5">
+                {grindOptions.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setVariant(findVariantForSelection(variants, selectedWeight, option))}
+                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${selectedGrind === option ? "bg-[#1d1d1b] text-white" : "bg-[#f5f1ed] text-[#625950] hover:bg-[#ece5df] hover:text-[#1d1d1b]"}`}
+                  >
+                    {GRIND_OPTION_LABELS[option] || option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : variants.length > 0 ? (
+          <div className="mt-5">
+            <p className="mb-2 text-[10px] font-black uppercase tracking-[0.12em] text-[#9b9087]">Вариант</p>
+            <div className="flex flex-wrap gap-2">
+              {variants.map((item) => (
+                <button key={item.id} type="button" onClick={() => setVariant(item)} className={`rounded-xl px-3 py-2 text-xs font-bold transition ${variant?.id === item.id ? "bg-[#5b328a] text-white" : "bg-[#f5f1ed] text-[#625950] hover:bg-[#ece3dc]"}`}>
+                  {item.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-auto flex items-center justify-between gap-4 pt-5 mt-5">
+          <span className="text-[22px] font-black tracking-tight text-[#1d1d1b]">{variant ? formatPrice(variant.price) : "—"}</span>
+          <button type="button" onClick={addToCart} disabled={!variant} className={`flex h-11 items-center gap-2 rounded-full px-4 text-sm font-bold text-white shadow-md transition disabled:opacity-40 ${inCart ? "bg-[#e6610d] shadow-[#e6610d]/20 hover:bg-[#cf5206]" : "bg-[#1d1d1b] shadow-black/10 hover:bg-black"}`}>
             {inCart ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}{inCart ? "В корзине" : "В корзину"}
           </button>
         </div>
@@ -220,9 +281,10 @@ export function ShopCatalog({ productTypes, products, initialType = "" }: ShopCa
       if (activeCollectionDef?.type && product.product_type !== activeCollectionDef.type) return false
       if (activeCollectionDef?.roast?.length && !activeCollectionDef.roast.some((roast) => (product.roast_level || "").toLowerCase().includes(roast))) return false
       if (activeCollectionDef?.processingContains?.length && !activeCollectionDef.processingContains.some((method) => (product.processing_method || "").toLowerCase().includes(method))) return false
+      if (activeCollectionDef?.brewGroup && getCoffeeGroup(product) !== activeCollectionDef.brewGroup) return false
       if (activeType && product.product_type !== activeType) return false
       if (lowered) {
-        const haystack = `${product.name} ${product.region || ""} ${product.processing_method || ""} ${product.roast_level || ""}`.toLowerCase()
+        const haystack = `${product.name} ${product.country || ""} ${product.region || ""} ${product.processing_method || ""} ${product.roast_level || ""} ${product.taste_description || ""}`.toLowerCase()
         if (!haystack.includes(lowered)) return false
       }
       return true
@@ -266,19 +328,25 @@ export function ShopCatalog({ productTypes, products, initialType = "" }: ShopCa
       return true
     })
 
+    const compareCoffeeGroups = (a: Product, b: Product) => activeType === "kofe"
+      ? COFFEE_GROUPS.findIndex((group) => group.id === getCoffeeGroup(a)) - COFFEE_GROUPS.findIndex((group) => group.id === getCoffeeGroup(b))
+      : 0
+
     switch (effectiveSort) {
       case "price-asc":
-        return [...matches].sort((a, b) => (a.variants?.[0]?.price || 0) - (b.variants?.[0]?.price || 0))
+        return [...matches].sort((a, b) => compareCoffeeGroups(a, b) || (a.variants?.[0]?.price || 0) - (b.variants?.[0]?.price || 0))
       case "price-desc":
-        return [...matches].sort((a, b) => (b.variants?.[0]?.price || 0) - (a.variants?.[0]?.price || 0))
+        return [...matches].sort((a, b) => compareCoffeeGroups(a, b) || (b.variants?.[0]?.price || 0) - (a.variants?.[0]?.price || 0))
       case "rating":
-        return [...matches].sort((a, b) => (b.rating || 0) - (a.rating || 0))
+        return [...matches].sort((a, b) => compareCoffeeGroups(a, b) || (b.rating || 0) - (a.rating || 0))
       case "new":
-        return [...matches].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        return [...matches].sort((a, b) => compareCoffeeGroups(a, b) || new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
       default:
-        return matches
+        return [...matches].sort(compareCoffeeGroups)
     }
-  }, [categoryProducts, selected, effectiveSort])
+  }, [activeType, categoryProducts, selected, effectiveSort])
+
+  const showCoffeeGroups = activeType === "kofe" && (!activeCollection || activeCollection === "all")
 
   function applyCollection(id: string) {
     const collection = COLLECTIONS.find((entry) => entry.id === id)
@@ -323,19 +391,11 @@ export function ShopCatalog({ productTypes, products, initialType = "" }: ShopCa
     <main className="min-h-screen bg-[#f8f5f1] text-[#1d1d1b]">
       <ShopHeader products={products} productTypes={productTypes} />
 
-      <section className="mx-auto max-w-[1480px] px-5 pb-8 pt-10 lg:px-10 lg:pt-16">
-        <div className="grid items-end gap-8 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.65fr)]">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#e6610d]">Свежий кофе каждый день</p>
-            <h1 className="mt-4 max-w-5xl text-4xl font-black leading-[0.98] tracking-[-0.06em] sm:text-6xl lg:text-7xl">Найдите кофе под свой вкус,<br className="hidden lg:block" /> а не под сложные термины</h1>
-          </div>
-          <p className="max-w-md text-base leading-7 text-[#6e655e]">Выберите категорию, обжарку, страну или способ обработки — и добавьте фасовку прямо в карточке. Регистрация понадобится только по вашему желанию.</p>
-        </div>
+      <section className="mx-auto max-w-[1480px] px-5 pb-8 pt-5 lg:px-10 lg:pt-6">
 
-        <div className="mt-12 flex flex-col gap-5 border-t border-black/[0.08] pt-8 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#91867d]">Категория</p>
-            <h2 className="mt-2 text-4xl font-black tracking-[-0.04em]">{activeTypeName}</h2>
+            <h1 className="text-4xl font-black tracking-[-0.04em]">{activeTypeName}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6e655e]">{categoryDescription}</p>
           </div>
           <label className="flex h-12 min-w-0 items-center gap-3 rounded-full bg-white px-5 shadow-sm ring-1 ring-black/[0.06] lg:w-[360px]"><Search className="h-4 w-4 text-[#8c8178]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Название, регион, обработка" className="w-full bg-transparent text-sm outline-none placeholder:text-[#aaa098]" /></label>
@@ -384,7 +444,27 @@ export function ShopCatalog({ productTypes, products, initialType = "" }: ShopCa
             <button type="button" onClick={resetFilters} className="mt-6 rounded-full bg-[#5b328a] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#47256e]">Сбросить фильтры</button>
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filtered.map((product) => <ShopProductCard key={product.id} product={product} />)}</div>
+          showCoffeeGroups ? (
+            <div className="space-y-14">
+              {COFFEE_GROUPS.map((group) => {
+                const groupProducts = filtered.filter((product) => getCoffeeGroup(product) === group.id)
+                if (!groupProducts.length) return null
+                return (
+                  <section key={group.id}>
+                    <div className="mb-6 flex items-baseline gap-3 border-b border-black/[0.08] pb-4">
+                      <h2 className="text-3xl font-black tracking-[-0.04em]">{group.label}</h2>
+                      <span className="text-sm font-bold text-[#9b9087]">{groupProducts.length}</span>
+                    </div>
+                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {groupProducts.map((product) => <ShopProductCard key={product.id} product={product} />)}
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filtered.map((product) => <ShopProductCard key={product.id} product={product} />)}</div>
+          )
         )}
       </section>
     </main>

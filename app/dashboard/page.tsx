@@ -6,8 +6,10 @@ export const dynamic = "force-dynamic"
 import { getClientOrders } from "@/lib/actions/orders"
 import { getClientCompanies } from "@/lib/actions/companies"
 import { getNewsPaginated } from "@/lib/actions/news"
-import { getFavoriteProductIds, getMyReviews } from "@/lib/actions/products"
+import { getFavoriteProductIds, getMyReviews, getProductsForPreferences } from "@/lib/actions/products"
 import { getCurrentUser } from "@/lib/actions/auth"
+import { calculateCustomerPreferences, type CustomerPreferences } from "@/lib/customer-preferences"
+import { CoffeeAcidity } from "@/components/shop/coffee-acidity"
 import { ORDER_STATUS_LABELS } from "@/lib/utils/constants"
 import { formatPrice, formatDate, formatOrderNumber } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
@@ -20,7 +22,6 @@ import {
   Package,
   ReceiptText,
   ShoppingBag,
-  Wallet,
   type LucideIcon,
 } from "lucide-react"
 import type { News, OrderStatus } from "@/types"
@@ -116,6 +117,58 @@ function StatCard({ label, value, sub, icon: Icon, tone = "cream", href, classNa
   return <div className={cn("h-full min-w-0", className)}>{card}</div>
 }
 
+function PreferenceCard({ preferences }: { preferences: CustomerPreferences | null }) {
+  const details = [
+    { label: "Страна", value: preferences?.country },
+    { label: "Обработка", value: preferences?.processingMethod },
+    { label: "Регион", value: preferences?.region },
+  ]
+
+  return (
+    <div className="relative col-span-2 min-h-[250px] overflow-hidden rounded-2xl bg-[#5b328a] p-5 text-white lg:row-span-2 sm:p-6">
+      <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/5" />
+      <div className="absolute -bottom-14 right-8 h-36 w-36 rounded-full bg-white/5" />
+      <div className="relative flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">Мои предпочтения</span>
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+          <Coffee className="h-4 w-4 text-white/80" />
+        </span>
+      </div>
+
+      {preferences ? (
+        <div className="relative mt-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">Любимая группа</p>
+          <p className="mt-1 text-3xl font-black tracking-tight">{preferences.favoriteGroup}</p>
+          <p className="mt-1 text-[11px] text-white/50">по истории оплаченных покупок</p>
+
+          <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-white/10 pt-5">
+            <div className="col-span-2 sm:col-span-1">
+              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">Средняя кислотность</p>
+              {preferences.averageAcidity !== null ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-lg font-black tabular-nums">{preferences.averageAcidity.toLocaleString("ru-RU")}</span>
+                  <CoffeeAcidity value={preferences.averageAcidity} compact tone="inverse" showLabel={false} />
+                </div>
+              ) : <p className="mt-1 text-sm font-bold text-white/55">Недостаточно данных</p>}
+            </div>
+            {details.map((detail) => (
+              <div key={detail.label}>
+                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">{detail.label}</p>
+                <p className="mt-1 line-clamp-2 text-sm font-bold leading-tight text-white/90">{detail.value || "Недостаточно данных"}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="relative flex h-[180px] max-w-md flex-col justify-end">
+          <p className="text-2xl font-black tracking-tight">Здесь появится ваш профиль вкуса</p>
+          <p className="mt-2 text-sm leading-6 text-white/60">После первых оплаченных покупок мы определим любимую группу, кислотность, страну, обработку и регион.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export async function DashboardPage({ forceIndividual = false }: { forceIndividual?: boolean } = {}) {
   const currentUser = await getCurrentUser(forceIndividual ? "individual" : "business")
   const isIndividual = forceIndividual || currentUser?.user_metadata?.customer_type === "individual"
@@ -126,9 +179,18 @@ export async function DashboardPage({ forceIndividual = false }: { forceIndividu
     getNewsPaginated(0, 3),
   ])
 
-  const [favoriteIds, myReviews] = isIndividual
-    ? await Promise.all([getFavoriteProductIds(), getMyReviews()])
-    : [null, null]
+  const orderItems = orders.flatMap((order) => order.items || [])
+  const [favoriteIds, myReviews, preferenceProducts] = isIndividual
+    ? await Promise.all([
+        getFavoriteProductIds(),
+        getMyReviews(),
+        getProductsForPreferences(
+          orderItems.map((item) => item.product_id).filter(Boolean),
+          orderItems.map((item) => item.product_name).filter(Boolean)
+        ),
+      ])
+    : [null, null, []]
+  const preferences = isIndividual ? calculateCustomerPreferences(orders, preferenceProducts) : null
 
   const recentOrders = orders.slice(0, 5)
   const news = (newsResult.items as News[]) || []
@@ -212,15 +274,7 @@ export async function DashboardPage({ forceIndividual = false }: { forceIndividu
       {isIndividual && (
         <section>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard
-              label="Сумма покупок"
-              value={formatPrice(totalSpent)}
-              sub={`за всё время · ${settledOrders.length} ${plural(settledOrders.length, "заказ", "заказа", "заказов")}`}
-              icon={Wallet}
-              tone="purple"
-              href={cabinetPaths.orders}
-              className="col-span-2 lg:row-span-2"
-            />
+            <PreferenceCard preferences={preferences} />
 
             <StatCard
               label="Заказано товаров"

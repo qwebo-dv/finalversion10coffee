@@ -182,8 +182,12 @@ export interface Product {
   // Coffee-specific
   roaster: string | null
   roast_level: string | null
+  country: string | null
   region: string | null
   processing_method: string | null
+  taste_description: string | null
+  acidity: number | null
+  coffee_group: "espresso" | "filter" | "drip" | null
   growing_height: string | null
   q_grader_rating: number | null
 

@@ -9,8 +9,10 @@ import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
 import { ShopHeader } from "@/components/shop/shop-header"
 import { StarRating } from "@/components/shop/star-rating"
+import { CoffeeAcidity } from "@/components/shop/coffee-acidity"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
 import { addRecentlyViewed } from "@/lib/recently-viewed"
+import { findVariantForSelection, getGrindOptions, getVariantGrindOption, getVariantWeights, GRIND_OPTION_LABELS } from "@/lib/shop-variant-options"
 import type { Product } from "@/types"
 
 const DESCRIPTION_HTML_CLASSNAME = [
@@ -43,7 +45,7 @@ function formatReviewDate(value: string): string {
 export function ShopProduct({ product, products }: { product: Product; products: Product[] }) {
   const router = useRouter()
   const { user } = useAuth()
-  const variants = product.variants || []
+  const variants = (product.variants || []).filter((item) => item.is_available)
   const [variant, setVariant] = useState(variants[0] || null)
   const [quantity, setQuantity] = useState(1)
   const [imageIndex, setImageIndex] = useState(0)
@@ -64,10 +66,16 @@ export function ShopProduct({ product, products }: { product: Product; products:
   const subtitle = [product.region, product.processing_method].filter(Boolean).join(" · ")
   const reviews = product.reviews || []
   const inCart = items.some((item) => item.productId === product.id && item.variantId === variant?.id)
+  const weights = getVariantWeights(variants)
+  const selectedWeight = variant?.weight_grams || weights[0] || null
+  const selectedGrind = getVariantGrindOption(variant)
+  const grindOptions = getGrindOptions(variants, selectedWeight)
+  const hasStructuredCoffeeOptions = product.product_type_schema === "coffee" && weights.length > 0 && grindOptions.length > 0
 
   const specs: SpecRow[] = [
     typeof product.q_grader_rating === "number" ? { label: "Оценка Q-грейдера", value: String(product.q_grader_rating) } : null,
     product.roast_level ? { label: "Степень обжарки", value: product.roast_level } : null,
+    product.country ? { label: "Страна", value: product.country } : null,
     product.region ? { label: "Регион", value: product.region } : null,
     product.processing_method ? { label: "Способ обработки", value: product.processing_method } : null,
     product.roaster ? { label: "Ростер", value: product.roaster } : null,
@@ -163,6 +171,14 @@ export function ShopProduct({ product, products }: { product: Product; products:
             <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#e6610d]">{product.product_type_name}</p>
             <h1 className="mt-3 text-5xl font-black leading-[0.98] tracking-[-0.05em] sm:text-6xl">{product.name}</h1>
             {subtitle && <p className="mt-4 text-lg text-[#6e655e]">{subtitle}</p>}
+            {isCoffee && (product.taste_description || product.acidity) && (
+              <div className="mt-5 rounded-[22px] border border-[#7540ad]/10 bg-white/70 px-5 py-4">
+                {product.taste_description && (
+                  <p className="text-sm leading-6 text-[#554b43]"><span className="font-black text-[#1d1d1b]">Во вкусе:</span> {product.taste_description}</p>
+                )}
+                {product.acidity && <div className={product.taste_description ? "mt-3" : ""}><CoffeeAcidity value={product.acidity} /></div>}
+              </div>
+            )}
             <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
               <StarRating value={product.rating} count={product.reviews_count} size="lg" />
               {!product.reviews_count && (
@@ -174,16 +190,42 @@ export function ShopProduct({ product, products }: { product: Product; products:
 
             {/* Packaging */}
             <div className="mt-10">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8d827a]">Фасовка</p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                {variants.map((item) => (
-                  <button key={item.id} type="button" onClick={() => { setVariant(item); setQuantity(1) }} className={`min-w-[96px] rounded-2xl border-2 px-5 py-4 text-left transition ${variant?.id === item.id ? "border-[#5b328a] bg-white shadow-[0_10px_30px_rgba(91,50,138,0.12)]" : "border-black/10 bg-white/60 hover:border-black/25"}`}>
-                    <span className={`block text-sm font-black ${variant?.id === item.id ? "text-[#5b328a]" : "text-[#1d1d1b]"}`}>{item.name}</span>
-                    {item.weight_grams && <span className="mt-1 block text-xs font-semibold text-[#9b9087]">{formatWeight(item.weight_grams)}</span>}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-3 text-xs text-[#9b9087]">В зернах и в молотом виде — по одной цене. Помол бесплатно.</p>
+              {hasStructuredCoffeeOptions ? (
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8d827a]">Фасовка</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {weights.map((weight) => (
+                        <button key={weight} type="button" onClick={() => { setVariant(findVariantForSelection(variants, weight, selectedGrind)); setQuantity(1) }} className={`min-w-[88px] rounded-2xl border-2 px-4 py-3 text-sm font-black transition ${selectedWeight === weight ? "border-[#5b328a] bg-white text-[#5b328a] shadow-[0_10px_30px_rgba(91,50,138,0.12)]" : "border-black/10 bg-white/60 text-[#1d1d1b] hover:border-black/25"}`}>
+                          {formatWeight(weight)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8d827a]">Формат</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {grindOptions.map((option) => (
+                        <button key={option} type="button" onClick={() => { setVariant(findVariantForSelection(variants, selectedWeight, option)); setQuantity(1) }} className={`rounded-2xl border-2 px-4 py-3 text-sm font-black transition ${selectedGrind === option ? "border-[#1d1d1b] bg-[#1d1d1b] text-white shadow-lg" : "border-black/10 bg-white/60 text-[#1d1d1b] hover:border-black/25"}`}>
+                          {GRIND_OPTION_LABELS[option] || option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-[#9b9087] sm:col-span-2">Помол бесплатный. Цена выбранного SKU обновляется автоматически.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8d827a]">Вариант</p>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {variants.map((item) => (
+                      <button key={item.id} type="button" onClick={() => { setVariant(item); setQuantity(1) }} className={`min-w-[96px] rounded-2xl border-2 px-5 py-4 text-left transition ${variant?.id === item.id ? "border-[#5b328a] bg-white shadow-[0_10px_30px_rgba(91,50,138,0.12)]" : "border-black/10 bg-white/60 hover:border-black/25"}`}>
+                        <span className={`block text-sm font-black ${variant?.id === item.id ? "text-[#5b328a]" : "text-[#1d1d1b]"}`}>{item.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Price + quantity + CTA */}

@@ -594,6 +594,7 @@ export const Orders: CollectionConfig = {
                 {
                   type: "row",
                   fields: [
+                    { name: "productId", type: "text", admin: { hidden: true } },
                     { name: "productName", type: "text", label: "Товар", required: true, admin: { width: "40%" } },
                     { name: "variantName", type: "text", label: "Фасовка", required: true, admin: { width: "30%" } },
                     { name: "grindOption", type: "text", label: "Помол", admin: { width: "30%" } },

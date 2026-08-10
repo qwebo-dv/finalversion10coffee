@@ -99,8 +99,12 @@ interface PayloadProductDoc {
   coffeeDetails?: {
     roaster?: string
     roastLevel?: string
+    country?: string
     region?: string
     processingMethod?: string
+    tasteDescription?: string
+    acidity?: number
+    brewGroup?: "espresso" | "filter" | "drip"
     growingHeight?: string
     qGraderRating?: number
     brewingMethods?: {
@@ -461,8 +465,12 @@ function transformProduct(doc: PayloadProductDoc, reviews: ProductReview[] = [])
     // Coffee details (flattened from coffeeDetails group)
     roaster: coffee.roaster || null,
     roast_level: coffee.roastLevel || null,
+    country: coffee.country || null,
     region: coffee.region || null,
     processing_method: coffee.processingMethod || null,
+    taste_description: coffee.tasteDescription || null,
+    acidity: typeof coffee.acidity === "number" ? coffee.acidity : null,
+    coffee_group: coffee.brewGroup || null,
     growing_height: coffee.growingHeight || null,
     q_grader_rating: coffee.qGraderRating || null,
 
@@ -731,6 +739,33 @@ export async function getProductsByIds(ids: string[]): Promise<Product[]> {
       const bi = order.get(Number(b.id)) ?? Number.MAX_SAFE_INTEGER
       return ai - bi
     })
+}
+
+/**
+ * Loads product metadata for the authenticated customer's purchase history.
+ * Includes hidden and unavailable products so an old order keeps contributing
+ * to the preference profile after the assortment changes.
+ */
+export async function getProductsForPreferences(ids: string[], names: string[]): Promise<Product[]> {
+  if (!await getCurrentUserId()) return []
+
+  const numericIds = [...new Set(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))]
+  const productNames = [...new Set(names.map((name) => name.trim()).filter(Boolean))]
+  if (!numericIds.length && !productNames.length) return []
+
+  const conditions: Where[] = []
+  if (numericIds.length) conditions.push({ id: { in: numericIds } })
+  if (productNames.length) conditions.push({ name: { in: productNames } })
+
+  const payload = await getPayloadClient()
+  const { docs } = await payload.find({
+    collection: "products",
+    where: conditions.length === 1 ? conditions[0] : { or: conditions },
+    limit: Math.min(1000, Math.max(numericIds.length + productNames.length, 1)),
+    depth: 2,
+  })
+
+  return (docs as PayloadProductDoc[]).map((doc) => transformProduct(doc))
 }
 
 // ============================================================

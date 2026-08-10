@@ -6,6 +6,7 @@ import { ShopHeader } from "./shop-header"
 import { ShopProductCard } from "./shop-catalog"
 import { formatPrice } from "@/lib/utils/format"
 import { formatProductCount } from "@/lib/utils/plural"
+import { getCoffeeGroup } from "@/lib/coffee-groups"
 import type { Product, ProductTypeOption } from "@/types"
 
 const CATEGORY_STYLES = [
@@ -88,10 +89,10 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
             </Link>
           )}
 
-          <Link href="/chay" className="group relative flex min-h-[220px] flex-col justify-between overflow-hidden rounded-[30px] bg-[#dfe6cb] p-7 lg:col-span-2 lg:min-h-0">
-            <Leaf className="absolute -bottom-6 -right-5 h-36 w-36 text-[#52613a]/15 transition duration-500 group-hover:rotate-6 group-hover:scale-110" />
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/75"><Leaf className="h-5 w-5" /></span>
-            <div className="relative"><p className="text-xs font-black uppercase tracking-[0.16em] text-[#65724e]">Категория</p><h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">Чай</h2></div>
+          <Link href="/kofe?coll=espresso" className="group relative flex min-h-[220px] flex-col justify-between overflow-hidden rounded-[30px] bg-[#dfe6cb] p-7 lg:col-span-2 lg:min-h-0">
+            <Coffee className="absolute -bottom-6 -right-5 h-36 w-36 text-[#52613a]/15 transition duration-500 group-hover:rotate-6 group-hover:scale-110" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/75"><Coffee className="h-5 w-5" /></span>
+            <div className="relative"><p className="text-xs font-black uppercase tracking-[0.16em] text-[#65724e]">Популярная категория</p><h2 className="mt-2 text-2xl font-black leading-tight tracking-[-0.04em]">Кофе для эспрессо</h2></div>
           </Link>
 
           <Link href="/kofe?coll=new" className="group relative flex min-h-[220px] flex-col justify-between overflow-hidden rounded-[30px] bg-[#f0d8bf] p-7 lg:col-span-3 lg:min-h-0">
@@ -106,15 +107,21 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
         <SectionHeading eyebrow="Каталог" title="Выберите свою категорию" href="/kofe" linkLabel="Перейти к кофе" />
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {visibleTypes.map((type, index) => {
-            const Icon = CATEGORY_ICONS[index] || Coffee
+            const isEspressoTile = type.slug === "chay"
+            const Icon = isEspressoTile ? Coffee : CATEGORY_ICONS[index] || Coffee
+            const href = isEspressoTile ? "/kofe?coll=espresso" : `/${type.slug}`
+            const name = isEspressoTile ? "Кофе для эспрессо" : type.name
+            const productCount = isEspressoTile
+              ? products.filter((product) => getCoffeeGroup(product) === "espresso").length
+              : type.product_count
             return (
-              <Link key={type.id} href={`/${type.slug}`} className={`group relative min-h-[330px] overflow-hidden rounded-[30px] p-7 ${CATEGORY_STYLES[index] || CATEGORY_STYLES[0]}`}>
+              <Link key={type.id} href={href} className={`group relative min-h-[330px] overflow-hidden rounded-[30px] p-7 ${CATEGORY_STYLES[index] || CATEGORY_STYLES[0]}`}>
                 <Icon className="absolute -bottom-4 -right-4 h-44 w-44 text-[#1d1d1b]/10 transition duration-500 group-hover:rotate-6 group-hover:scale-110" />
                 <div className="relative z-10 flex h-full min-h-[276px] flex-col justify-between text-[#1d1d1b]">
                   <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/80 text-[#1d1d1b]"><Icon className="h-5 w-5" /></span>
                   <div>
-                    <p className="text-sm font-bold text-[#1d1d1b]/55">{formatProductCount(type.product_count)}</p>
-                    <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">{type.name}</h2>
+                    <p className="text-sm font-bold text-[#1d1d1b]/55">{formatProductCount(productCount)}</p>
+                    <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">{name}</h2>
                     <span className="mt-4 flex items-center gap-2 text-sm font-black">Смотреть <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
                   </div>
                 </div>

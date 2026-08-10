@@ -148,8 +148,12 @@ interface PayloadProductDoc {
   coffeeDetails?: {
     roaster?: string
     roastLevel?: string
+    country?: string
     region?: string
     processingMethod?: string
+    tasteDescription?: string
+    acidity?: number
+    brewGroup?: "espresso" | "filter" | "drip"
     growingHeight?: string
     qGraderRating?: number
     brewingMethods?: {
@@ -311,8 +315,12 @@ function transformProductFromPayload(doc: PayloadProductDoc): Product {
     stickers: (doc.stickers || []).map(transformTag).filter(isDefined),
     roaster: coffee.roaster || null,
     roast_level: coffee.roastLevel || null,
+    country: coffee.country || null,
     region: coffee.region || null,
     processing_method: coffee.processingMethod || null,
+    taste_description: coffee.tasteDescription || null,
+    acidity: typeof coffee.acidity === "number" ? coffee.acidity : null,
+    coffee_group: coffee.brewGroup || null,
     growing_height: coffee.growingHeight || null,
     q_grader_rating: coffee.qGraderRating || null,
     brewing_methods: (coffee.brewingMethods || []).map((m) => ({

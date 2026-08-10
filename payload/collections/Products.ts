@@ -283,9 +283,43 @@ export const Products: CollectionConfig = {
           label: "Регион произрастания",
         },
         {
+          name: "country",
+          type: "text",
+          label: "Страна происхождения",
+        },
+        {
           name: "processingMethod",
           type: "text",
           label: "Способ обработки",
+        },
+        {
+          name: "tasteDescription",
+          type: "textarea",
+          label: "Описание вкуса",
+          admin: {
+            description: "Дескрипторы вкуса из актуального прайс-листа или карточки производителя.",
+          },
+        },
+        {
+          name: "acidity",
+          type: "number",
+          label: "Интенсивность кислотности",
+          min: 1,
+          max: 7,
+          admin: {
+            description: "Количество заполненных точек по семибалльной шкале. Не заполняйте без подтвержденных данных.",
+          },
+        },
+        {
+          name: "brewGroup",
+          type: "select",
+          label: "Группа в каталоге кофе",
+          index: true,
+          options: [
+            { label: "Эспрессо", value: "espresso" },
+            { label: "Фильтр", value: "filter" },
+            { label: "Дрип-кофе", value: "drip" },
+          ],
         },
         {
           name: "growingHeight",
