@@ -66,6 +66,11 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
     router.push(`/shop${search}`)
   }
 
+  function selectCatalogLink(event: React.MouseEvent<HTMLAnchorElement>, search = "") {
+    setBuyOpen(false)
+    keepLocalShopRoute(event, search)
+  }
+
   function openAuth(view: "login" | "register") {
     setMenuOpen(false)
     openAuthModal(view)
@@ -109,8 +114,8 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
               {buyOpen && (
                 <div className="absolute left-0 top-full w-64 pt-2">
                   <div className="overflow-hidden rounded-2xl border border-black/[0.06] bg-white p-2 shadow-[0_24px_70px_rgba(45,27,17,0.14)]">
-                    {typeLinks.map((type) => <Link key={type.slug} href={`/?type=${type.slug}`} onClick={(event) => keepLocalShopRoute(event, `?type=${type.slug}`)} className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold text-[#1d1d1b] transition hover:bg-[#f5f1ed] hover:text-[#5b328a]">{type.name}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
-                    <Link href="/" onClick={keepLocalShopRoute} className="mt-1 flex items-center justify-between rounded-xl bg-[#5b328a] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#47256e]">Весь каталог<ChevronRight className="h-4 w-4" /></Link>
+                    {typeLinks.map((type) => <Link key={type.slug} href={`/?type=${type.slug}`} onClick={(event) => selectCatalogLink(event, `?type=${type.slug}`)} className="block rounded-xl px-4 py-3 text-sm font-bold text-[#1d1d1b] transition hover:bg-[#f5f1ed] hover:text-[#5b328a]">{type.name}</Link>)}
+                    <Link href="/" onClick={(event) => selectCatalogLink(event)} className="mt-1 block rounded-xl bg-[#5b328a] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#47256e]">Весь каталог</Link>
                   </div>
                 </div>
               )}

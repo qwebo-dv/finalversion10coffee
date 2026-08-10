@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { calculateOrderLineDiscounts } from "@/lib/order-line-discounts"
 import { dbQuery } from "@/lib/db"
 import { getMoyskladConfig } from "@/lib/moysklad/config"
 import { retryFailedMoyskladOrders } from "@/lib/moysklad/order-retry"
@@ -143,6 +144,21 @@ export const Orders: CollectionConfig = {
 
           if (discountPercent > 0) {
             data.discountAmount = Math.round((subtotal * discountPercent) / 100)
+
+            // An order-level discount is represented by per-position discounts
+            // in the admin UI and in МойСклад. Keep those values in sync even
+            // when an order is created through the API rather than this form.
+            const items = Array.isArray(data.items)
+              ? data.items
+              : Array.isArray(originalDoc?.items)
+                ? originalDoc.items
+                : []
+            const lineDiscounts = calculateOrderLineDiscounts(items, discountPercent)
+            data.items = items.map((item: Record<string, unknown>, index: number) => ({
+              ...item,
+              discountPercent: lineDiscounts[index]?.discountPercent || 0,
+              discountAmount: lineDiscounts[index]?.discountAmount || 0,
+            }))
           }
 
           const discountAmount = Number(data.discountAmount ?? originalDoc?.discountAmount) || 0

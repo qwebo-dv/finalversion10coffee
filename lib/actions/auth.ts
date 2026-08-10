@@ -47,9 +47,21 @@ export async function signIn(formData: {
     return { error: "Этот аккаунт не является клиентским" }
   }
 
-  if (expectedCustomerType && data.user?.user_metadata?.customer_type !== expectedCustomerType) {
+  // Accounts created before the retail cabinet did not have customer_type.
+  // All such legacy accounts are wholesale accounts; only an explicit
+  // "individual" value identifies a retail customer.
+  const storedCustomerType = data.user?.user_metadata?.customer_type
+  const actualCustomerType = storedCustomerType === "individual" ? "individual" : "business"
+
+  if (expectedCustomerType && actualCustomerType !== expectedCustomerType) {
     await supabase.auth.signOut()
     return { error: expectedCustomerType === "individual" ? "Этот аккаунт относится к оптовому кабинету" : "Этот аккаунт относится к кабинету покупателя" }
+  }
+
+  // Repair legacy metadata after a successful wholesale login so all pages
+  // see the same account type during this and subsequent sessions.
+  if (storedCustomerType !== actualCustomerType) {
+    await supabase.auth.updateUser({ data: { customer_type: actualCustomerType } })
   }
 
   revalidatePath("/", "layout")
