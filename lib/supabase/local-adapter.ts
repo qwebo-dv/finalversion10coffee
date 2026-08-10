@@ -295,21 +295,6 @@ export function createLocalClient(sessionScope?: CustomerSessionScope) {
     from(table: string) {
       return new LocalQueryBuilder(table)
     },
-    async rpc(name: string, params?: Record<string, unknown>) {
-      try {
-        if (name === "increment_promo_uses") {
-          await dbQuery(
-            `update public.promo_codes
-                set current_uses = coalesce(current_uses, 0) + 1
-              where id = $1`,
-            [params?.code_id]
-          )
-        }
-        return { data: null, error: null }
-      } catch (error) {
-        return { data: null, error: mapAuthError(error) }
-      }
-    },
     auth: {
       async getUser() {
         const user = await getCurrentUser(sessionScope)

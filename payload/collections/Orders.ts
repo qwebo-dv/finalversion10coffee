@@ -3,35 +3,9 @@ import { calculateOrderLineDiscounts } from "@/lib/order-line-discounts"
 import { dbQuery } from "@/lib/db"
 import { getMoyskladConfig } from "@/lib/moysklad/config"
 import { retryFailedMoyskladOrders } from "@/lib/moysklad/order-retry"
+import { adminOnly } from "../access/adminOnly"
 
 async function generateSequentialOrderId() {
-  await dbQuery(`
-    create sequence if not exists public.order_number_seq
-      as integer
-      start with 1
-      increment by 1;
-  `)
-
-  const maxResult = await dbQuery<{ max_number: number }>(`
-    select coalesce(max(substring(order_id from '^10C-(\\d+)$')::int), 0) as max_number
-    from public.orders
-    where order_id ~ '^10C-\\d+$';
-  `)
-  const maxNumber = Number(maxResult.rows[0]?.max_number) || 0
-
-  if (maxNumber > 0) {
-    await dbQuery(
-      `
-        select setval(
-          'public.order_number_seq',
-          greatest($1::int, (select last_value::int from public.order_number_seq)),
-          true
-        );
-      `,
-      [maxNumber]
-    )
-  }
-
   const nextResult = await dbQuery<{ next_number: number }>(
     "select nextval('public.order_number_seq')::int as next_number;"
   )
@@ -699,9 +673,9 @@ export const Orders: CollectionConfig = {
     },
   ],
   access: {
-    read: () => true,
-    create: () => true,
-    update: ({ req }) => !!req.user,
-    delete: ({ req }) => req.user?.role === "admin",
+    read: adminOnly,
+    create: adminOnly,
+    update: adminOnly,
+    delete: adminOnly,
   },
 }

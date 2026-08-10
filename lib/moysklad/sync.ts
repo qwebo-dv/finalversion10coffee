@@ -185,30 +185,6 @@ function formatMoment(date = new Date()) {
   ].join("")
 }
 
-async function ensureB2bMoyskladSchema() {
-  await dbQuery(`
-    alter table public.companies
-      add column if not exists moysklad_counterparty_id text;
-    create index if not exists companies_moysklad_counterparty_id_idx
-      on public.companies(moysklad_counterparty_id);
-    alter table public.orders
-      add column if not exists moysklad_counterparty_id varchar,
-      add column if not exists moysklad_invoice_out_id varchar,
-      add column if not exists moysklad_stock_loss_id varchar,
-      add column if not exists moysklad_stock_loss_synced_at timestamptz,
-      add column if not exists moysklad_stock_loss_error text;
-    alter table public.order_items
-      add column if not exists discount_percent numeric default 0,
-      add column if not exists discount_amount numeric default 0;
-    create index if not exists orders_moysklad_counterparty_id_idx
-      on public.orders(moysklad_counterparty_id);
-    create index if not exists orders_moysklad_invoice_out_id_idx
-      on public.orders(moysklad_invoice_out_id);
-    create index if not exists orders_moysklad_stock_loss_id_idx
-      on public.orders(moysklad_stock_loss_id);
-  `)
-}
-
 function buildCounterpartyPayload(client: SyncClient, company?: SyncCompany | null) {
   const name = company?.name || client.fullName || client.email || "Клиент 10coffee"
   const result: Record<string, unknown> = {
@@ -230,7 +206,6 @@ function buildCounterpartyPayload(client: SyncClient, company?: SyncCompany | nu
 
 async function updateCompanyCounterpartyId(companyId: string | undefined, counterpartyId: string) {
   if (!companyId) return
-  await ensureB2bMoyskladSchema()
   await dbQuery(
     "update public.companies set moysklad_counterparty_id = $1, updated_at = now() where id = $2",
     [counterpartyId, companyId]
@@ -239,7 +214,6 @@ async function updateCompanyCounterpartyId(companyId: string | undefined, counte
 
 async function clearCompanyCounterpartyId(companyId: string | undefined) {
   if (!companyId) return
-  await ensureB2bMoyskladSchema()
   await dbQuery(
     "update public.companies set moysklad_counterparty_id = null, updated_at = now() where id = $1",
     [companyId]
@@ -923,7 +897,6 @@ export async function ensureMoyskladStockLossForOrder(
   }
   assertMoyskladReady(config)
 
-  await ensureB2bMoyskladSchema()
 
   if (order.moyskladStockLossId) {
     return { skipped: true as const, moyskladStockLossId: order.moyskladStockLossId }
@@ -1030,7 +1003,6 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       },
     })
 
-    await ensureB2bMoyskladSchema()
 
     const counterpartyId = await ensureCounterparty(params.payload, params.client, params.company)
     counterpartyIdForUpdate = counterpartyId

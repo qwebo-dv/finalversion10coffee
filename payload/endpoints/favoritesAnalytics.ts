@@ -64,7 +64,9 @@ export const favoritesAnalyticsHandler: Endpoint["handler"] = async (req) => {
   }
 
   try {
-  const requestedPeriod = req.url ? new URL(req.url).searchParams.get("period") : null
+  const requestedPeriod = req.url
+    ? new URL(req.url, "http://payload.local").searchParams.get("period")
+    : null
   const period: Period = requestedPeriod === "7" || requestedPeriod === "30" || requestedPeriod === "90"
     ? requestedPeriod
     : "all"

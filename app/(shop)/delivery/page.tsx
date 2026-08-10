@@ -3,8 +3,8 @@ import { ShopHeader } from "@/components/shop/shop-header"
 import { getProductTypes, getShopProducts } from "@/lib/actions/products"
 
 export const metadata: Metadata = {
-  title: "Доставка и получение — 10coffee",
-  description: "Способы, стоимость и порядок доставки заказов интернет-магазина 10coffee.",
+  title: "Доставка и оплата — 10coffee",
+  description: "Способы доставки, получения и оплаты заказов интернет-магазина 10coffee.",
 }
 
 export const dynamic = "force-dynamic"
@@ -17,7 +17,7 @@ export default async function DeliveryPage() {
       <ShopHeader products={products} productTypes={productTypes} />
       <article className="mx-auto max-w-5xl px-5 py-16 lg:px-10 lg:py-24">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-[#e6610d]">Покупателям</p>
-        <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] sm:text-6xl">Доставка и получение</h1>
+        <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] sm:text-6xl">Доставка и оплата</h1>
         <p className="mt-6 max-w-3xl text-lg leading-8 text-[#6e655e]">
           Мы доставляем физические товары по России и выдаём заказы самостоятельно в Сочи. Доступный способ получения покупатель выбирает при оформлении заказа.
         </p>
@@ -43,6 +43,14 @@ export default async function DeliveryPage() {
             <div className="mt-4 space-y-3 text-sm leading-7 text-[#554b43]">
               <p>Стоимость товаров фиксируется в корзине на момент оформления. Если стоимость доставки не указана в итоговой сумме заказа, она рассчитывается отдельно по тарифу перевозчика или городской доставки и сообщается покупателю до передачи заказа в доставку.</p>
               <p>Ориентировочный срок зависит от населённого пункта и выбранного способа. Заказы обрабатываются в рабочее время: понедельник–пятница, с 9:00 до 18:00. О готовности к самовывозу или передаче перевозчику мы сообщаем по телефону или электронной почте.</p>
+            </div>
+          </section>
+
+          <section className="rounded-[28px] border border-black/[0.07] bg-white/70 p-7 sm:p-9">
+            <h2 className="text-2xl font-black">Оплата</h2>
+            <div className="mt-4 space-y-3 text-sm leading-7 text-[#554b43]">
+              <p>Заказ можно оплатить банковской картой онлайн через защищённую платёжную страницу Сбербанка. Доступные способы оплаты отображаются при оформлении.</p>
+              <p>Платёжные данные вводятся на стороне банка и не передаются интернет-магазину. После успешной оплаты мы отправим подтверждение на указанную электронную почту.</p>
             </div>
           </section>
 

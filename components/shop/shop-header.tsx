@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { ChevronDown, ChevronRight, Menu, Minus, Plus, Search, ShoppingBag, User, X } from "lucide-react"
+import { ArrowUpRight, ChevronRight, Menu, Minus, Plus, Search, ShoppingBag, User, X } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
 import { openAuthModal } from "@/components/auth/auth-modal-store"
@@ -17,10 +17,14 @@ const FALLBACK_TYPES = [
 ]
 
 const NAV_LINKS = [
+  { label: "Доставка и оплата", href: "/delivery" },
+  { label: "Возврат", href: "/return" },
+  { label: "Вопросы и ответы", href: "/faq" },
+]
+
+const COMPANY_LINKS = [
   { label: "О нас", href: "/o-nas" },
   { label: "Блог", href: "/blog" },
-  { label: "Обучение", href: "/obuchenie" },
-  { label: "Опт", href: "/b2b-servis" },
   { label: "Контакты", href: "/kontakty" },
 ]
 
@@ -28,7 +32,6 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
   const router = useRouter()
   const [cartOpen, setCartOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [buyOpen, setBuyOpen] = useState(false)
   const [query, setQuery] = useState("")
   const { items, itemCount, updateQuantity, removeItem, clearCart } = useGuestCart()
   const { user } = useAuth()
@@ -66,11 +69,6 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
     router.push(`/shop${search}`)
   }
 
-  function selectCatalogLink(event: React.MouseEvent<HTMLAnchorElement>, search = "") {
-    setBuyOpen(false)
-    keepLocalShopRoute(event, search)
-  }
-
   function openAuth(view: "login" | "register") {
     setMenuOpen(false)
     openAuthModal(view)
@@ -81,11 +79,10 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
       {/* Utility bar */}
       <div className="bg-[#1d1d1b] text-white">
         <div className="mx-auto flex h-9 max-w-[1480px] items-center justify-between gap-4 px-5 text-[11px] font-semibold tracking-wide lg:px-10">
-          <p className="truncate text-[#cfc7bf]">Обжарка в день заказа · доставка по всей России</p>
+          <p className="truncate text-[#cfc7bf]">Свежая обжарка · доставка по всей России</p>
           <div className="flex shrink-0 items-center gap-5">
-            <Link href="/b2b-servis" className="transition hover:text-[#e6610d]">Оптовым клиентам</Link>
-            <Link href="/o-nas" className="hidden transition hover:text-[#e6610d] sm:inline">О нас</Link>
-            <Link href="/kontakty" className="hidden transition hover:text-[#e6610d] md:inline">Контакты</Link>
+            <a href="https://10coffee.ru" className="flex items-center gap-1 transition hover:text-[#e6610d]">Оптовый сайт <ArrowUpRight className="h-3 w-3" /></a>
+            {NAV_LINKS.map((link, index) => <Link key={link.href} href={link.href} className={`hidden transition hover:text-[#e6610d] ${index === 0 ? "sm:inline" : "xl:inline"}`}>{link.label}</Link>)}
             {individualUser ? (
               <Link href="/main" title={displayName} className="hidden items-center gap-2 transition hover:text-[#e6610d] lg:flex">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-[10px] font-black text-white">
@@ -109,18 +106,9 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
 
           {/* Desktop nav */}
           <nav className="ml-4 hidden items-center gap-1 lg:flex">
-            <div className="relative" onMouseEnter={() => setBuyOpen(true)} onMouseLeave={() => setBuyOpen(false)}>
-              <button type="button" className={`flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-bold transition ${buyOpen ? "bg-black/[0.06] text-[#5b328a]" : "text-[#554b43] hover:bg-black/[0.05]"}`}>Купить <ChevronDown className={`h-4 w-4 transition ${buyOpen ? "rotate-180" : ""}`} /></button>
-              {buyOpen && (
-                <div className="absolute left-0 top-full w-64 pt-2">
-                  <div className="overflow-hidden rounded-2xl border border-black/[0.06] bg-white p-2 shadow-[0_24px_70px_rgba(45,27,17,0.14)]">
-                    {typeLinks.map((type) => <Link key={type.slug} href={`/?type=${type.slug}`} onClick={(event) => selectCatalogLink(event, `?type=${type.slug}`)} className="block rounded-xl px-4 py-3 text-sm font-bold text-[#1d1d1b] transition hover:bg-[#f5f1ed] hover:text-[#5b328a]">{type.name}</Link>)}
-                    <Link href="/" onClick={(event) => selectCatalogLink(event)} className="mt-1 block rounded-xl px-4 py-3 text-sm font-bold text-[#1d1d1b] transition hover:bg-[#f5f1ed] hover:text-[#5b328a]">Весь каталог</Link>
-                  </div>
-                </div>
-              )}
-            </div>
-            {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">{link.label}</Link>)}
+            <Link href="/" onClick={keepLocalShopRoute} className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Главная</Link>
+            {typeLinks.slice(0, 4).map((type) => <Link key={type.slug} href={`/${type.slug}`} className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">{type.name}</Link>)}
+            <Link href="/kontakty" className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Контакты</Link>
           </nav>
 
           <form onSubmit={submitSearch} className="ml-auto hidden min-w-0 items-center gap-3 rounded-full bg-white px-5 py-2.5 shadow-sm ring-1 ring-black/[0.06] transition focus-within:ring-2 focus-within:ring-[#5b328a]/40 lg:flex lg:w-[300px]">
@@ -146,10 +134,13 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
             <form onSubmit={submitSearch} className="flex items-center gap-3 px-6 pt-5"><div className="flex flex-1 items-center gap-3 rounded-full bg-white px-5 py-3 shadow-sm"><Search className="h-4 w-4 text-[#8c8178]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по каталогу" className="w-full bg-transparent text-sm outline-none placeholder:text-[#aaa098]" /></div><button type="submit" className="rounded-full bg-[#5b328a] px-5 py-3 text-sm font-bold text-white">Найти</button></form>
             <nav className="flex-1 space-y-1 overflow-y-auto px-6 py-5">
               <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Каталог</p>
-              {typeLinks.map((type) => <Link key={type.slug} href={`/?type=${type.slug}`} onClick={(event) => { setMenuOpen(false); keepLocalShopRoute(event, `?type=${type.slug}`) }} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{type.name}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
-              <Link href="/" onClick={(event) => { setMenuOpen(false); keepLocalShopRoute(event) }} className="flex items-center justify-between rounded-xl bg-[#5b328a] px-3 py-3 text-base font-bold text-white">{`Весь каталог`}<ChevronRight className="h-4 w-4" /></Link>
+              <Link href="/" onClick={(event) => { setMenuOpen(false); keepLocalShopRoute(event) }} className="block rounded-xl bg-[#5b328a] px-3 py-3 text-base font-bold text-white">Главная магазина</Link>
+              {typeLinks.map((type) => <Link key={type.slug} href={`/${type.slug}`} onClick={() => setMenuOpen(false)} className="block rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{type.name}</Link>)}
+              <p className="px-3 pb-1 pt-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Покупателям</p>
+              {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="block rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}</Link>)}
               <p className="px-3 pb-1 pt-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Компания</p>
-              {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}<ChevronRight className="h-4 w-4 text-[#c3b8af]" /></Link>)}
+              {COMPANY_LINKS.map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="block rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}</Link>)}
+              <a href="https://10coffee.ru" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-3 text-base font-bold text-[#e6610d]">Оптовый сайт <ArrowUpRight className="h-4 w-4" /></a>
               {individualUser ? (
                 <Link href="/main" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-sm font-black text-white">

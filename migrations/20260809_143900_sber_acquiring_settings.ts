@@ -1,4 +1,5 @@
-import { MigrateDownArgs, MigrateUpArgs, sql } from "@payloadcms/db-postgres"
+import { sql } from "@payloadcms/db-postgres"
+import type { MigrateDownArgs, MigrateUpArgs } from "@payloadcms/db-postgres"
 
 export async function ensureSberAcquiringSettingsSchema(db: MigrateUpArgs["db"]): Promise<void> {
   await db.execute(sql`

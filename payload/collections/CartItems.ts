@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { adminOnly } from "../access/adminOnly"
 
 export const CartItems: CollectionConfig = {
   slug: "cart-items",
@@ -47,9 +48,9 @@ export const CartItems: CollectionConfig = {
     },
   ],
   access: {
-    read: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true,
+    read: adminOnly,
+    create: adminOnly,
+    update: adminOnly,
+    delete: adminOnly,
   },
 }

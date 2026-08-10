@@ -3,13 +3,76 @@
 import { getPayload } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
 import { getMediaUrl, type PayloadMediaRef as MediaUrlRef } from "@/lib/media"
 import { normalizeProductDetailsSchema } from "@/lib/product-types"
 import type { CartItem, Product, ProductVariant, ProductTag, ProductDetailsSchema } from "@/types"
 
 async function getPayloadClient() {
   return getPayload({ config: configPromise })
+}
+
+async function incrementCartItem(params: {
+  clientId: string
+  productId: number
+  variantId: string
+  grindOption: string
+  quantity: number
+}) {
+  const payload = await getPayloadClient()
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { docs } = await payload.find({
+      collection: "cart-items",
+      where: {
+        and: [
+          { clientId: { equals: params.clientId } },
+          { product: { equals: params.productId } },
+          { variantId: { equals: params.variantId } },
+          { grindOption: { equals: params.grindOption } },
+        ],
+      },
+      limit: 1,
+      depth: 0,
+    })
+    const existing = docs[0]
+
+    if (existing) {
+      const currentQuantity = Number(existing.quantity) || 0
+      const updated = await payload.update({
+        collection: "cart-items",
+        where: {
+          and: [
+            { id: { equals: existing.id } },
+            { quantity: { equals: currentQuantity } },
+          ],
+        },
+        data: { quantity: currentQuantity + params.quantity },
+        depth: 0,
+      })
+      if (updated.docs.length > 0) return
+      continue
+    }
+
+    try {
+      await payload.create({
+        collection: "cart-items",
+        data: {
+          clientId: params.clientId,
+          product: params.productId,
+          variantId: params.variantId,
+          quantity: params.quantity,
+          grindOption: params.grindOption,
+        },
+      })
+      return
+    } catch (error) {
+      // A concurrent request may have inserted the unique cart line. Retry as
+      // an update; validation errors will consistently fail all attempts.
+      if (attempt === 4) throw error
+    }
+  }
+
+  throw new Error("Не удалось обновить корзину после нескольких попыток")
 }
 
 async function getCurrentUserId(): Promise<string | null> {
@@ -318,42 +381,18 @@ export async function addToCart(params: {
   const clientId = await getCurrentUserId()
   if (!clientId) return { success: false }
 
-  const db = createAdminClient()
-  const grindOption = params.grindOption || ""
-
-  // Check if same item already in cart
-  const { data: existing } = await db
-    .from("cart_items")
-    .select("id, quantity")
-    .eq("client_id", clientId)
-    .eq("product_id", params.productId)
-    .eq("variant_id", params.variantId)
-    .eq("grind_option", grindOption)
-    .limit(1)
-    .single()
-
-  if (existing) {
-    const { error } = await db
-      .from("cart_items")
-      .update({ quantity: existing.quantity + params.quantity })
-      .eq("id", existing.id)
-    if (error) {
-      console.error("addToCart update error:", error.message)
-      return { success: false }
-    }
-  } else {
-    const { error } = await db.from("cart_items").insert({
-      client_id: clientId,
-      product_id: params.productId,
-      variant_id: params.variantId,
-      quantity: params.quantity,
-      grind_option: grindOption,
-    })
-    if (error) {
-      console.error("addToCart insert error:", error.message)
-      return { success: false }
-    }
+  const productId = Number(params.productId)
+  if (!Number.isInteger(productId) || productId <= 0 || params.quantity <= 0) {
+    return { success: false }
   }
+  const grindOption = params.grindOption || ""
+  await incrementCartItem({
+    clientId,
+    productId,
+    variantId: params.variantId,
+    quantity: params.quantity,
+    grindOption,
+  })
 
   return { success: true }
 }
@@ -364,31 +403,33 @@ export async function updateCartQuantity(
 ): Promise<{ success: boolean }> {
   if (quantity < 1) return { success: false }
 
-  const db = createAdminClient()
-  const { error } = await db
-    .from("cart_items")
-    .update({ quantity })
-    .eq("id", cartItemId)
-
-  if (error) {
-    console.error("updateCartQuantity error:", error.message)
-    throw new Error(error.message)
-  }
+  const clientId = await getCurrentUserId()
+  if (!clientId) return { success: false }
+  const payload = await getPayloadClient()
+  const { docs } = await payload.find({
+    collection: "cart-items",
+    where: { and: [{ id: { equals: cartItemId } }, { clientId: { equals: clientId } }] },
+    limit: 1,
+    depth: 0,
+  })
+  if (!docs[0]) return { success: false }
+  await payload.update({ collection: "cart-items", id: docs[0].id, data: { quantity } })
 
   return { success: true }
 }
 
 export async function removeCartItem(cartItemId: string): Promise<{ success: boolean }> {
-  const db = createAdminClient()
-  const { error } = await db
-    .from("cart_items")
-    .delete()
-    .eq("id", cartItemId)
-
-  if (error) {
-    console.error("removeCartItem error:", error.message)
-    throw new Error(error.message)
-  }
+  const clientId = await getCurrentUserId()
+  if (!clientId) return { success: false }
+  const payload = await getPayloadClient()
+  const { docs } = await payload.find({
+    collection: "cart-items",
+    where: { and: [{ id: { equals: cartItemId } }, { clientId: { equals: clientId } }] },
+    limit: 1,
+    depth: 0,
+  })
+  if (!docs[0]) return { success: false }
+  await payload.delete({ collection: "cart-items", id: docs[0].id })
 
   return { success: true }
 }
@@ -397,11 +438,11 @@ export async function clearCart(): Promise<{ success: boolean }> {
   const clientId = await getCurrentUserId()
   if (!clientId) return { success: false }
 
-  const db = createAdminClient()
-  await db
-    .from("cart_items")
-    .delete()
-    .eq("client_id", clientId)
+  const payload = await getPayloadClient()
+  await payload.delete({
+    collection: "cart-items",
+    where: { clientId: { equals: clientId } },
+  })
 
   return { success: true }
 }

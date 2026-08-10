@@ -126,7 +126,7 @@ export function ShopProduct({ product, products }: { product: Product; products:
         <nav className="flex flex-wrap items-center gap-2 text-sm text-[#8d827a]">
           <Link href="/shop" className="font-bold text-[#6f655e] transition hover:text-[#5b328a]">Каталог</Link>
           <span className="text-[#c3b8af]">/</span>
-          <Link href={`/shop?type=${product.product_type}`} className="font-semibold text-[#6f655e] transition hover:text-[#5b328a]">{product.product_type_name}</Link>
+          <Link href={`/${product.product_type}`} className="font-semibold text-[#6f655e] transition hover:text-[#5b328a]">{product.product_type_name}</Link>
           <span className="text-[#c3b8af]">/</span>
           <span className="font-bold text-[#1d1d1b]">{product.name}</span>
         </nav>

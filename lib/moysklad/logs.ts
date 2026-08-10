@@ -13,30 +13,8 @@ interface WriteMoyskladLogParams {
   response?: unknown
 }
 
-let tableReady = false
-
-async function ensureLogsTable() {
-  if (tableReady) return
-  await dbQuery(`
-    create table if not exists public.moysklad_sync_logs (
-      id bigserial primary key,
-      entity_type text not null,
-      local_id text,
-      moysklad_id text,
-      direction text not null,
-      status text not null,
-      message text,
-      payload jsonb,
-      response jsonb,
-      created_at timestamptz not null default now()
-    )
-  `)
-  tableReady = true
-}
-
 export async function writeMoyskladLog(params: WriteMoyskladLogParams) {
   try {
-    await ensureLogsTable()
     await dbQuery(
       `insert into public.moysklad_sync_logs
         (entity_type, local_id, moysklad_id, direction, status, message, payload, response)

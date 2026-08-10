@@ -1,11 +1,10 @@
 "use server"
 
-import { getPayload, type Where } from "payload"
+import { getPayload, type Payload, type Where } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { dbQuery } from "@/lib/db"
-import { getCartItems, clearCart as clearPayloadCart } from "@/lib/actions/cart"
+import { addToCart, getCartItems, clearCart as clearPayloadCart } from "@/lib/actions/cart"
 import {
   calculateClientDiscount,
   normalizeCategoryDiscounts,
@@ -250,47 +249,31 @@ async function getPayloadClient() {
   return getPayload({ config: configPromise })
 }
 
-async function ensureOrderDeliveryMethodEnum() {
-  const result = await dbQuery<{ exists: boolean }>(`
-    select exists (
-      select 1
-      from pg_type
-      where typname = 'enum_orders_delivery_method'
-    ) as "exists";
-  `)
+async function incrementPromoUses(payload: Payload, promoCodeId: string | number) {
+  // Compare-and-swap prevents lost increments while keeping the write inside
+  // Payload, so collection hooks and validation are never bypassed.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const promo = await payload.findByID({
+      collection: "promo-codes",
+      id: promoCodeId,
+      depth: 0,
+    })
+    const currentUses = Number(promo.currentUses) || 0
+    const result = await payload.update({
+      collection: "promo-codes",
+      where: {
+        and: [
+          { id: { equals: promoCodeId } },
+          { currentUses: { equals: currentUses } },
+        ],
+      },
+      data: { currentUses: currentUses + 1 },
+      depth: 0,
+    })
+    if (result.docs.length > 0) return
+  }
 
-  if (!result.rows[0]?.exists) return
-
-  await dbQuery(`
-    alter type public.enum_orders_delivery_method
-      add value if not exists 'sochi_delivery';
-  `)
-}
-
-async function ensureB2bMoyskladSchema() {
-  await ensureOrderDeliveryMethodEnum()
-
-  await dbQuery(`
-    alter table public.companies
-      add column if not exists moysklad_counterparty_id text;
-    create index if not exists companies_moysklad_counterparty_id_idx
-      on public.companies(moysklad_counterparty_id);
-    alter table public.orders
-      add column if not exists moysklad_counterparty_id varchar,
-      add column if not exists moysklad_invoice_out_id varchar,
-      add column if not exists moysklad_stock_loss_id varchar,
-      add column if not exists moysklad_stock_loss_synced_at timestamptz,
-      add column if not exists moysklad_stock_loss_error text;
-    alter table public.order_items
-      add column if not exists discount_percent numeric default 0,
-      add column if not exists discount_amount numeric default 0;
-    create index if not exists orders_moysklad_counterparty_id_idx
-      on public.orders(moysklad_counterparty_id);
-    create index if not exists orders_moysklad_invoice_out_id_idx
-      on public.orders(moysklad_invoice_out_id);
-    create index if not exists orders_moysklad_stock_loss_id_idx
-      on public.orders(moysklad_stock_loss_id);
-  `)
+  throw new Error(`Не удалось атомарно обновить счётчик промокода ${promoCodeId}`)
 }
 
 async function getCurrentUserId(): Promise<string | null> {
@@ -451,7 +434,6 @@ function transformOrder(doc: PayloadOrderDoc): Order {
 // ============================================================
 
 export async function getClientOrders(): Promise<Order[]> {
-  await ensureB2bMoyskladSchema()
 
   const userId = await getCurrentUserId()
   if (!userId) return []
@@ -493,7 +475,6 @@ export async function getClientOrders(): Promise<Order[]> {
 }
 
 export async function getOrderById(orderId: string): Promise<Order | null> {
-  await ensureB2bMoyskladSchema()
 
   const payload = await getPayloadClient()
 
@@ -518,7 +499,6 @@ export async function createOrder(params: {
   discountAmount?: number
   deliveryCost?: number
 }): Promise<{ error?: string; success?: boolean; orderId?: string; moyskladInvoiceCreated?: boolean }> {
-  await ensureB2bMoyskladSchema()
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -885,7 +865,7 @@ export async function createOrder(params: {
       client_id: user.id,
       order_id: String(doc.id),
     })
-    await supabase.rpc("increment_promo_uses", { code_id: String(payloadPromoId) })
+    await incrementPromoUses(payload, payloadPromoId)
   }
 
   revalidatePath("/dashboard")
@@ -897,150 +877,61 @@ export async function repeatOrder(orderId: string): Promise<{ success?: boolean;
   if (!userId) return { error: "Не авторизован" }
 
   const payload = await getPayloadClient()
-  const db = createAdminClient()
 
   try {
-    // ===== Step 1: Try order_items Supabase table first (has product_id/variant_id) =====
-    const { data: dbItems, error: dbErr } = await db
-      .from("order_items")
-      .select("product_id, variant_id, product_name, variant_name, grind_option, quantity")
-      .eq("order_id", orderId)
+    const order = await payload.findByID({
+      collection: "orders",
+      id: orderId,
+      depth: 1,
+    }) as PayloadOrderDoc
 
-    console.log("[repeatOrder] order_items query:", { orderId, dbItems: dbItems?.length, dbErr: dbErr?.message })
-
-    if (dbItems && dbItems.length > 0) {
-      // Check if product_ids are old UUIDs (contain hyphens) vs new integer IDs
-      const hasIntegerIds = dbItems.every((r: { product_id: unknown }) => /^\d+$/.test(String(r.product_id)))
-
-      if (hasIntegerIds) {
-        let addedCount = 0
-        for (const row of dbItems) {
-          const grindOption = row.grind_option || ""
-          const qty = row.quantity || 1
-
-          const { data: existing } = await db
-            .from("cart_items")
-            .select("id, quantity")
-            .eq("client_id", userId)
-            .eq("product_id", row.product_id)
-            .eq("variant_id", row.variant_id)
-            .eq("grind_option", grindOption)
-            .limit(1)
-            .single()
-
-          if (existing) {
-            const { error } = await db
-              .from("cart_items")
-              .update({ quantity: existing.quantity + qty })
-              .eq("id", existing.id)
-            if (!error) addedCount++
-          } else {
-            const { error } = await db.from("cart_items").insert({
-              client_id: userId,
-              product_id: row.product_id,
-              variant_id: row.variant_id,
-              quantity: qty,
-              grind_option: grindOption,
-            })
-            if (!error) addedCount++
-          }
-        }
-
-        if (addedCount > 0) {
-          revalidatePath("/dashboard")
-          return { success: true }
-        }
-      }
-      // If UUIDs (old orders) — fall through to Step 2 (name-based search)
-    }
-
-    // ===== Step 2: Try Payload items =====
-    let items: { productName: string; variantName: string; grindOption: string; quantity: number }[] = []
-
-    try {
-      const doc = await payload.findByID({
-        collection: "orders",
-        id: orderId,
+    let ownerId = typeof order.client === "object" && order.client !== null
+      ? order.client.supabaseId
+      : null
+    if (!ownerId && order.client != null) {
+      const client = await payload.findByID({
+        collection: "clients",
+        id: typeof order.client === "object" ? order.client.id! : order.client,
         depth: 0,
-      }) as PayloadOrderDoc
-      const rawDoc = doc
-      console.log("[repeatOrder] Payload doc keys:", Object.keys(rawDoc))
-      console.log("[repeatOrder] Payload doc.items:", JSON.stringify(rawDoc.items)?.slice(0, 500))
-
-      const payloadItems = rawDoc.items || []
-      items = payloadItems.map((i) => ({
-        productName: i.productName || i.product_name || "",
-        variantName: i.variantName || i.variant_name || "",
-        grindOption: i.grindOption || i.grind_option || "",
-        quantity: Number(i.quantity) || 1,
-      }))
-    } catch (e: unknown) {
-      console.log("[repeatOrder] Payload findByID error:", e instanceof Error ? e.message : e)
+      }) as PayloadClientRef
+      ownerId = client.supabaseId
     }
+    if (ownerId !== userId) return { error: "Заказ не найден" }
 
-    console.log("[repeatOrder] parsed items:", JSON.stringify(items))
-
+    const items = (order.items || []).map((item) => ({
+      productName: item.productName || item.product_name || "",
+      variantName: item.variantName || item.variant_name || "",
+      grindOption: item.grindOption || item.grind_option || "",
+      quantity: Number(item.quantity) || 1,
+    }))
     if (items.length === 0) return { error: "В заказе нет позиций" }
 
-    // ===== Step 3: Search products by name via Supabase =====
     let addedCount = 0
-
     for (const item of items) {
-      // Find product by name (without is_visible filter for robustness)
-      const { data: products, error: pErr } = await db
-        .from("products")
-        .select("id, name")
-        .eq("name", item.productName)
-        .limit(1)
-
-      console.log("[repeatOrder] product search:", { name: item.productName, found: products?.length, error: pErr?.message })
-
-      if (!products?.[0]) continue
-
-      const productId = products[0].id
-
-      // Find variant by name (Payload table: products_variants, with _parent_id)
-      const { data: variants, error: vErr } = await db
-        .from("products_variants")
-        .select("id, name")
-        .eq("_parent_id", productId)
-        .eq("name", item.variantName)
-        .limit(1)
-
-      console.log("[repeatOrder] variant search:", { variantName: item.variantName, found: variants?.length, error: vErr?.message })
-
-      if (!variants?.[0]) continue
-
-      const variantId = variants[0].id
-      const grindOption = item.grindOption || ""
-      const qty = item.quantity || 1
-
-      const { data: existing } = await db
-        .from("cart_items")
-        .select("id, quantity")
-        .eq("client_id", userId)
-        .eq("product_id", productId)
-        .eq("variant_id", variantId)
-        .eq("grind_option", grindOption)
-        .limit(1)
-        .single()
-
-      if (existing) {
-        const { error } = await db
-          .from("cart_items")
-          .update({ quantity: existing.quantity + qty })
-          .eq("id", existing.id)
-        if (!error) addedCount++
-      } else {
-        const { error } = await db.from("cart_items").insert({
-          client_id: userId,
-          product_id: productId,
-          variant_id: variantId,
-          quantity: qty,
-          grind_option: grindOption,
-        })
-        if (!error) addedCount++
+      const result = await payload.find({
+        collection: "products",
+        where: { name: { equals: item.productName } },
+        limit: 1,
+        depth: 0,
+      })
+      const product = result.docs[0] as unknown as {
+        id: string | number
+        variants?: { id?: string | number; name?: string | null }[] | null
       }
+      if (!product) continue
+
+      const variant = (product.variants || []).find(
+        (candidate) => candidate.name === item.variantName
+      )
+      if (!variant?.id) continue
+
+      const cartResult = await addToCart({
+        productId: String(product.id),
+        variantId: String(variant.id),
+        quantity: item.quantity,
+        grindOption: item.grindOption,
+      })
+      if (cartResult.success) addedCount++
     }
 
     if (addedCount === 0) return { error: "Товары из заказа не найдены в каталоге" }
@@ -1051,54 +942,6 @@ export async function repeatOrder(orderId: string): Promise<{ success?: boolean;
     return { error: "Заказ не найден" }
   }
 }
-
-export async function setTrackingNumber(
-  orderId: string,
-  trackingNumber: string,
-  carrier: "cdek" | "cap_2000"
-): Promise<{ success?: boolean; error?: string }> {
-  const userId = await getCurrentUserId()
-  if (!userId) return { error: "Не авторизован" }
-
-  const payload = await getPayloadClient()
-  const field = carrier === "cdek" ? "cdekTrackingNumber" : "cap2000TrackingNumber"
-
-  await payload.update({
-    collection: "orders",
-    id: orderId,
-    data: { [field]: trackingNumber },
-  })
-
-  // Notification via Supabase
-  try {
-    const doc = await payload.findByID({
-      collection: "orders",
-      id: orderId,
-      depth: 1,
-    }) as PayloadOrderDoc
-
-    const clientRef = doc.client
-    const supabaseId = typeof clientRef === "object" && clientRef !== null ? clientRef?.supabaseId : null
-
-    if (supabaseId) {
-      const adminDb = createAdminClient()
-      const carrierName = carrier === "cdek" ? "СДЭК" : "ЦАП-2000"
-      await adminDb.from("notifications").insert({
-        client_id: supabaseId,
-        type: "order_update",
-        title: "Трек-номер присвоен",
-        message: `Заказ ${doc.orderId} отправлен через ${carrierName}. Трек: ${trackingNumber}`,
-        data: { order_id: String(doc.id) },
-      })
-    }
-  } catch {
-    // notification failed, non-critical
-  }
-
-  revalidatePath("/dashboard")
-  return { success: true }
-}
-
 export async function deleteOrder(orderId: string): Promise<{ success?: boolean; error?: string }> {
   const userId = await getCurrentUserId()
   if (!userId) return { error: "Не авторизован" }
@@ -1139,7 +982,6 @@ export async function deleteOrder(orderId: string): Promise<{ success?: boolean;
 // ============================================================
 
 export async function getAllOrders(): Promise<Order[]> {
-  await ensureB2bMoyskladSchema()
 
   const payload = await getPayloadClient()
 

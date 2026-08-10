@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { adminOnly } from "../access/adminOnly"
 
 interface SupabaseCompanyRow {
   id?: string | number
@@ -388,9 +389,9 @@ export const Clients: CollectionConfig = {
     ],
   },
   access: {
-    read: () => true,
-    create: () => true,
-    update: ({ req }) => !!req.user,
-    delete: ({ req }) => req.user?.role === "admin",
+    read: adminOnly,
+    create: adminOnly,
+    update: adminOnly,
+    delete: adminOnly,
   },
 }

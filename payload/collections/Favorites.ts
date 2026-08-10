@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { adminOnly } from "../access/adminOnly"
 import { favoritesAnalyticsHandler } from "../endpoints/favoritesAnalytics"
 
 export const Favorites: CollectionConfig = {
@@ -40,9 +41,9 @@ export const Favorites: CollectionConfig = {
     },
   ],
   access: {
-    read: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true,
+    read: adminOnly,
+    create: adminOnly,
+    update: adminOnly,
+    delete: adminOnly,
   },
 }

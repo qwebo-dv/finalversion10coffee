@@ -1,5 +1,6 @@
 import type { CollectionConfig } from "payload"
 import { productReviewsModerationHandler } from "../endpoints/productReviewsModeration"
+import { adminOnly } from "../access/adminOnly"
 
 export const ProductReviews: CollectionConfig = {
   slug: "product-reviews",
@@ -18,9 +19,19 @@ export const ProductReviews: CollectionConfig = {
   },
   access: {
     create: () => true,
-    read: () => true,
-    update: ({ req }) => !!req.user,
-    delete: ({ req }) => !!req.user,
+    read: ({ req }) => req.user?.role === "admin" || { status: { equals: "approved" } },
+    update: adminOnly,
+    delete: adminOnly,
+  },
+  hooks: {
+    beforeValidate: [
+      ({ data, operation, req }) => {
+        if (operation === "create" && req.user?.role !== "admin" && data) {
+          data.status = "pending"
+        }
+        return data
+      },
+    ],
   },
   fields: [
     {
@@ -80,6 +91,7 @@ export const ProductReviews: CollectionConfig = {
         description: "Отзыв появляется на сайте только после публикации администратором.",
       },
       access: {
+        create: ({ req }) => req.user?.role === "admin",
         update: ({ req }) => req.user?.role === "admin",
       },
     },

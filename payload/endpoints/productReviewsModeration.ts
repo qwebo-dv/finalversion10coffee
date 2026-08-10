@@ -1,39 +1,45 @@
 import type { Endpoint } from "payload"
-import { dbQuery } from "@/lib/db"
 
-interface ReviewRow {
+interface ReviewDocument {
   id: string | number
-  product_id: string | number | null
-  product_name: string | null
-  product_slug: string | null
-  author_name: string | null
-  client_id: string | null
-  rating: string | number
-  comment: string | null
-  status: string
-  created_at: string | Date
+  product: string | number | { id: string | number; name?: string | null; slug?: string | null } | null
+  authorName?: string | null
+  clientId?: string | null
+  rating?: string | number | null
+  comment?: string | null
+  status?: string | null
+  createdAt: string
 }
 
 function isAdminUser(user: { collection?: string; role?: string } | null): boolean {
   return !!user && user.collection === "admins" && user.role === "admin"
 }
 
-function reviewSummary(row: ReviewRow) {
+function reviewSummary(review: ReviewDocument) {
+  const product = typeof review.product === "object" && review.product !== null
+    ? review.product
+    : null
+
   return {
-    id: String(row.id),
-    rating: Number(row.rating) || 0,
-    comment: row.comment || null,
-    authorName: row.author_name || null,
-    clientId: row.client_id || null,
-    status: row.status || "pending",
-    createdAt: new Date(row.created_at).toISOString(),
-    product:
-      row.product_id == null
+    id: String(review.id),
+    rating: Number(review.rating) || 0,
+    comment: review.comment || null,
+    authorName: review.authorName || null,
+    clientId: review.clientId || null,
+    status: review.status || "pending",
+    createdAt: review.createdAt,
+    product: product
+      ? {
+          id: String(product.id),
+          name: product.name || `Товар #${product.id}`,
+          slug: product.slug || String(product.id),
+        }
+      : review.product == null
         ? null
         : {
-            id: String(row.product_id),
-            name: row.product_name || `Товар #${row.product_id}`,
-            slug: row.product_slug || String(row.product_id),
+            id: String(review.product),
+            name: `Товар #${review.product}`,
+            slug: String(review.product),
           },
   }
 }
@@ -48,27 +54,18 @@ export const productReviewsModerationHandler: Endpoint["handler"] = async (req) 
 
   if (method === "GET") {
     try {
-      const result = await dbQuery<ReviewRow>(`
-        SELECT
-          r.id,
-          r.product_id,
-          p.name AS product_name,
-          p.slug AS product_slug,
-          r.author_name,
-          r.client_id,
-          r.rating,
-          r.comment,
-          r.status,
-          r.created_at
-        FROM product_reviews r
-        LEFT JOIN products p ON p.id = r.product_id
-        WHERE r.status = 'pending'
-        ORDER BY r.created_at DESC
-        LIMIT 100
-      `)
+      const result = await req.payload.find({
+        collection: "product-reviews",
+        where: { status: { equals: "pending" } },
+        sort: "-createdAt",
+        limit: 100,
+        depth: 1,
+        overrideAccess: false,
+        req,
+      })
       return Response.json({
-        total: result.rows.length,
-        reviews: result.rows.map(reviewSummary),
+        total: result.totalDocs,
+        reviews: result.docs.map((review) => reviewSummary(review as unknown as ReviewDocument)),
       })
     } catch (error) {
       console.error("[reviews-moderation] list failed", error)
@@ -83,37 +80,35 @@ export const productReviewsModerationHandler: Endpoint["handler"] = async (req) 
     } catch {
       return Response.json({ error: "Invalid JSON" }, { status: 400 })
     }
+
     const id = Number(body.id)
-    const action = body.action
     if (!Number.isInteger(id) || id <= 0) {
       return Response.json({ error: "Неверный ID отзыва" }, { status: 400 })
     }
-    if (action !== "approve" && action !== "reject") {
+    if (body.action !== "approve" && body.action !== "reject") {
       return Response.json({ error: "Неверное действие" }, { status: 400 })
     }
 
     try {
-      const result = await dbQuery<ReviewRow>(`
-        UPDATE product_reviews
-        SET status = $2, updated_at = now()
-        WHERE id = $1
-        RETURNING
-          id,
-          product_id,
-          (SELECT p.name FROM products p WHERE p.id = product_reviews.product_id) AS product_name,
-          (SELECT p.slug FROM products p WHERE p.id = product_reviews.product_id) AS product_slug,
-          author_name,
-          client_id,
-          rating,
-          comment,
-          status,
-          created_at
-      `, [id, action === "approve" ? "approved" : "rejected"])
-      if (result.rows.length === 0) {
+      const review = await req.payload.update({
+        collection: "product-reviews",
+        id,
+        data: { status: body.action === "approve" ? "approved" : "rejected" },
+        depth: 1,
+        overrideAccess: false,
+        req,
+      })
+      return Response.json({
+        success: true,
+        review: reviewSummary(review as unknown as ReviewDocument),
+      })
+    } catch (error) {
+      const status = typeof error === "object" && error !== null && "status" in error
+        ? Number(error.status)
+        : 500
+      if (status === 404) {
         return Response.json({ error: "Отзыв не найден" }, { status: 404 })
       }
-      return Response.json({ success: true, review: reviewSummary(result.rows[0]) })
-    } catch (error) {
       console.error("[reviews-moderation] update failed", error)
       return Response.json({ error: "Не удалось обновить отзыв" }, { status: 500 })
     }

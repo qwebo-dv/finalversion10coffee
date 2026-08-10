@@ -3,10 +3,11 @@ import { Mail, MapPin, Phone } from "lucide-react"
 import { ShopAuthLinks } from "./shop-auth-links"
 
 const CATALOG_LINKS = [
-  { label: "Кофе", href: "/shop?type=kofe" },
-  { label: "Чай", href: "/shop?type=chay" },
-  { label: "Аксессуары", href: "/shop?type=aksessuary" },
-  { label: "Весь каталог", href: "/shop" },
+  { label: "Кофе", href: "/kofe" },
+  { label: "Чай", href: "/chay" },
+  { label: "Аксессуары", href: "/aksessuary" },
+  { label: "Химия", href: "/himiya" },
+  { label: "Весь каталог", href: "/" },
 ]
 
 const COMPANY_LINKS = [
@@ -19,7 +20,9 @@ const COMPANY_LINKS = [
 
 const CUSTOMER_LINKS = [
   { label: "Оформить заказ", href: "/checkout" },
-  { label: "Доставка и получение", href: "/delivery" },
+  { label: "Доставка и оплата", href: "/delivery" },
+  { label: "Возврат", href: "/return" },
+  { label: "Вопросы и ответы", href: "/faq" },
   { label: "Публичная оферта", href: "/oferta" },
   { label: "Напишите нам", href: "mailto:10coffee@mail.ru" },
 ]

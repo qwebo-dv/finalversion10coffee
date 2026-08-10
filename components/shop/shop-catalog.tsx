@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { LucideIcon } from "lucide-react"
 import { Check, ChevronDown, Coffee, Droplets, LayoutGrid, Leaf, Search, ShoppingBag, SlidersHorizontal, Sparkles, Sun, TrendingUp, Waves, X } from "lucide-react"
@@ -14,6 +15,7 @@ import type { Product, ProductTypeOption, ProductVariant } from "@/types"
 interface ShopCatalogProps {
   productTypes: ProductTypeOption[]
   products: Product[]
+  initialType?: string
 }
 
 type SortKey = "default" | "price-asc" | "price-desc" | "rating" | "new"
@@ -98,7 +100,7 @@ function FilterDropdown({ label, options, selected, onToggle, onClear }: {
   )
 }
 
-function ShopProductCard({ product }: { product: Product }) {
+export function ShopProductCard({ product }: { product: Product }) {
   const variants = product.variants || []
   const [variant, setVariant] = useState<ProductVariant | null>(variants[0] || null)
   const { items, addItem } = useGuestCart()
@@ -154,30 +156,39 @@ function matchesSelection(product: Product, group: "roast" | "region" | "process
   return !selectedValues.length || selectedValues.includes(field || "")
 }
 
-export function ShopCatalog({ productTypes, products }: ShopCatalogProps) {
-  const [activeType, setActiveType] = useState("")
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  kofe: "Свежеобжаренный кофе в зёрнах или с бесплатным помолом. Выберите фасовку прямо в карточке товара.",
+  chay: "Чай на каждый день и для особых случаев. Выберите сорт и подходящую фасовку.",
+  aksessuary: "Всё необходимое для приготовления и подачи любимых напитков.",
+  himiya: "Средства для ухода за кофейным оборудованием и поддержания чистоты.",
+}
+
+export function ShopCatalog({ productTypes, products, initialType = "" }: ShopCatalogProps) {
+  const router = useRouter()
+  const [activeType, setActiveType] = useState(initialType)
   const [query, setQuery] = useState("")
   const [selected, setSelected] = useState<{ roast: string[]; region: string[]; processing: string[] }>({ roast: [], region: [], processing: [] })
   const [sort, setSort] = useState<SortKey>("default")
   const [activeCollection, setActiveCollection] = useState("")
   const skipNextSync = useRef(true)
 
+  /* The URL is the external source of truth when a category/filter link is opened. */
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const type = params.get("type")
     const q = params.get("q")
     const coll = params.get("coll")
     const sortParam = params.get("sort") as SortKey | null
     const roast = (params.get("roast") || "").split("|").filter(Boolean)
     const region = (params.get("region") || "").split("|").filter(Boolean)
     const process = (params.get("process") || "").split("|").filter(Boolean)
-    if (type && productTypes.some((entry) => entry.slug === type)) setActiveType(type)
-    else setActiveType(productTypes[0]?.slug || "")
+    setActiveType(initialType && productTypes.some((entry) => entry.slug === initialType) ? initialType : "")
     if (q) setQuery(q)
     if (coll && COLLECTIONS.some((entry) => entry.id === coll)) setActiveCollection(coll)
     if (sortParam && SORT_OPTIONS.some((option) => option.value === sortParam)) setSort(sortParam)
     setSelected({ roast, region, processing: process })
-  }, [productTypes])
+  }, [initialType, productTypes])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (skipNextSync.current) {
@@ -190,7 +201,6 @@ export function ShopCatalog({ productTypes, products }: ShopCatalogProps) {
     existing.forEach((value, key) => {
       if (!managed.has(key)) params.set(key, value)
     })
-    if (activeType) params.set("type", activeType)
     if (query.trim()) params.set("q", query.trim())
     if (activeCollection && activeCollection !== "all") params.set("coll", activeCollection)
     if (sort !== "default") params.set("sort", sort)
@@ -274,23 +284,19 @@ export function ShopCatalog({ productTypes, products }: ShopCatalogProps) {
     const collection = COLLECTIONS.find((entry) => entry.id === id)
     if (!collection) return
     if (collection.reset) {
-      setActiveType(productTypes[0]?.slug || "")
       setQuery("")
       setSelected({ roast: [], region: [], processing: [] })
       setSort("default")
       setActiveCollection("all")
       return
     }
-    if (collection.type) setActiveType(collection.type)
+    if (collection.type && collection.type !== activeType) {
+      router.push(`/${collection.type}?coll=${collection.id}`)
+      return
+    }
     setSelected((current) => ({ ...current, roast: [], region: [], processing: [] }))
     setSort(collection.sort || "default")
     setActiveCollection(id)
-  }
-
-  function handleTypeSelect(slug: string) {
-    setActiveType(slug)
-    setActiveCollection("")
-    setSelected({ roast: [], region: [], processing: [] })
   }
 
   function toggleFilter(group: "roast" | "region" | "processing", value: string) {
@@ -308,21 +314,31 @@ export function ShopCatalog({ productTypes, products }: ShopCatalogProps) {
     setSort("default")
   }
 
+  const activeTypeName = productTypes.find((type) => type.slug === activeType)?.name || "Каталог"
+  const categoryDescription = activeType
+    ? CATEGORY_DESCRIPTIONS[activeType] || `Товары раздела «${activeTypeName}» с актуальными ценами и наличием.`
+    : "Кофе, чай, аксессуары и товары для ухода за оборудованием в одном каталоге."
+
   return (
     <main className="min-h-screen bg-[#f8f5f1] text-[#1d1d1b]">
       <ShopHeader products={products} productTypes={productTypes} />
 
-      <section className="mx-auto max-w-[1480px] px-5 pb-10 pt-14 lg:px-10 lg:pt-20">
-        <div className="grid gap-10 lg:grid-cols-[1fr_420px] lg:items-end">
-          <div><p className="text-xs font-black uppercase tracking-[0.24em] text-[#e6610d]">Свежий кофе каждый день</p><h1 className="mt-4 max-w-4xl text-5xl font-black leading-[0.95] tracking-[-0.06em] sm:text-7xl">Найдите кофе под свой вкус, а не под сложные термины</h1></div>
+      <section className="mx-auto max-w-[1480px] px-5 pb-8 pt-10 lg:px-10 lg:pt-16">
+        <div className="grid items-end gap-8 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.65fr)]">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#e6610d]">Свежий кофе каждый день</p>
+            <h1 className="mt-4 max-w-5xl text-4xl font-black leading-[0.98] tracking-[-0.06em] sm:text-6xl lg:text-7xl">Найдите кофе под свой вкус,<br className="hidden lg:block" /> а не под сложные термины</h1>
+          </div>
           <p className="max-w-md text-base leading-7 text-[#6e655e]">Выберите категорию, обжарку, страну или способ обработки — и добавьте фасовку прямо в карточке. Регистрация понадобится только по вашему желанию.</p>
         </div>
 
-        <div className="mt-12 flex flex-col gap-4 rounded-[26px] border border-black/[0.06] bg-white p-3 shadow-sm lg:flex-row lg:items-center">
-          <div className="flex flex-1 gap-2 overflow-x-auto p-1">
-            {productTypes.map((type) => <button key={type.id} type="button" onClick={() => handleTypeSelect(type.slug)} className={`whitespace-nowrap rounded-full px-5 py-3 text-sm font-bold transition ${activeType === type.slug ? "bg-[#5b328a] text-white" : "text-[#6e655e] hover:bg-[#f5f1ed]"}`}>{type.name} <span className="ml-1 opacity-50">{type.product_count}</span></button>)}
+        <div className="mt-12 flex flex-col gap-5 border-t border-black/[0.08] pt-8 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#91867d]">Категория</p>
+            <h2 className="mt-2 text-4xl font-black tracking-[-0.04em]">{activeTypeName}</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6e655e]">{categoryDescription}</p>
           </div>
-          <label className="flex h-12 min-w-0 items-center gap-3 rounded-full bg-[#f5f1ed] px-5 lg:w-[340px]"><Search className="h-4 w-4 text-[#8c8178]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Название, регион, обработка" className="w-full bg-transparent text-sm outline-none placeholder:text-[#aaa098]" /></label>
+          <label className="flex h-12 min-w-0 items-center gap-3 rounded-full bg-white px-5 shadow-sm ring-1 ring-black/[0.06] lg:w-[360px]"><Search className="h-4 w-4 text-[#8c8178]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Название, регион, обработка" className="w-full bg-transparent text-sm outline-none placeholder:text-[#aaa098]" /></label>
         </div>
 
         {/* Подборки */}

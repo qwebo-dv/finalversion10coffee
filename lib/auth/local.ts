@@ -15,8 +15,6 @@ interface UserRow {
   raw_app_meta_data: Record<string, unknown> | null
 }
 
-let schemaPromise: Promise<void> | null = null
-
 export function generatePassword(length = 12): string {
   const chars =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%"
@@ -82,24 +80,6 @@ export async function getCustomerSessionScope(explicitScope?: CustomerSessionSco
   return /\/(shop|main|checkout|order)(?:\/|\?|\s|$)/.test(requestContext)
     ? "individual"
     : "business"
-}
-
-export async function ensureLocalAuthSchema() {
-  if (!schemaPromise) {
-    schemaPromise = dbQuery(`
-      create table if not exists public.auth_sessions (
-        id uuid primary key default gen_random_uuid(),
-        user_id uuid not null,
-        token_hash text not null unique,
-        expires_at timestamptz not null,
-        created_at timestamptz not null default now()
-      );
-      create index if not exists auth_sessions_user_id_idx on public.auth_sessions(user_id);
-      create index if not exists auth_sessions_expires_at_idx on public.auth_sessions(expires_at);
-    `).then(() => undefined)
-  }
-
-  return schemaPromise
 }
 
 export async function getUserById(id: string): Promise<AppUser | null> {
@@ -230,8 +210,6 @@ export async function listAuthUsers() {
 }
 
 export async function createSession(userId: string, scope?: CustomerSessionScope) {
-  await ensureLocalAuthSchema()
-
   const token = crypto.randomBytes(32).toString("base64url")
   await dbQuery(
     `insert into public.auth_sessions (user_id, token_hash, expires_at)
@@ -244,8 +222,6 @@ export async function createSession(userId: string, scope?: CustomerSessionScope
 }
 
 export async function destroyCurrentSession(scope?: CustomerSessionScope) {
-  await ensureLocalAuthSchema()
-
   const cookieStore = await cookies()
   const cookieName = SESSION_COOKIE_NAMES[await getCustomerSessionScope(scope)]
   const token = cookieStore.get(cookieName)?.value
@@ -256,8 +232,6 @@ export async function destroyCurrentSession(scope?: CustomerSessionScope) {
 }
 
 export async function getCurrentUser(scope?: CustomerSessionScope): Promise<AppUser | null> {
-  await ensureLocalAuthSchema()
-
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE_NAMES[await getCustomerSessionScope(scope)])?.value
   if (!token) return null

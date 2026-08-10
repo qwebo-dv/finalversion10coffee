@@ -7,11 +7,7 @@ import { ru } from "@payloadcms/translations/languages/ru"
 import type { EmailAdapter, SendEmailOptions } from "payload"
 import nodemailer from "nodemailer"
 import sharp from "sharp"
-import { ensureProductDiscountSchema } from "./migrations/20260805_172254_product_discounts"
-import { ensureProductReviewsSchema } from "./migrations/20260806_172254_product_reviews"
-import { ensureSberAcquiringSettingsSchema } from "./migrations/20260809_143900_sber_acquiring_settings"
-import { ensurePaymentSettingsSchema } from "./migrations/20260809_145000_payment_settings"
-import { ensureRetailCustomerFieldsSchema } from "./migrations/20260809_181500_retail_customer_fields"
+import { migrations } from "./migrations/index.ts"
 
 import { Categories } from "./payload/collections/Categories"
 import { ProductTypes } from "./payload/collections/ProductTypes"
@@ -32,6 +28,15 @@ import { PriceListRequests } from "./payload/collections/PriceListRequests"
 import { SiteSettings } from "./payload/globals/SiteSettings"
 import { PaymentSettings } from "./payload/globals/PaymentSettings"
 import { businessDashboardHandler } from "./payload/endpoints/businessDashboard"
+
+function requiredEnv(name: "DATABASE_URL" | "PAYLOAD_SECRET"): string {
+  const value = process.env[name]?.trim()
+  if (!value) throw new Error(`${name} is required`)
+  return value
+}
+
+const databaseUrl = requiredEnv("DATABASE_URL")
+const payloadSecret = requiredEnv("PAYLOAD_SECRET")
 
 const smtpEmailAdapter: EmailAdapter = () => {
   const defaultFromAddress = process.env.SMTP_EMAIL || "noreply@10coffee.ru"
@@ -57,15 +62,6 @@ const smtpEmailAdapter: EmailAdapter = () => {
 
 export default buildConfig({
   serverURL: process.env.NEXT_PUBLIC_SERVER_URL || "",
-
-  onInit: async (payload) => {
-    if (process.env.NEXT_PHASE === "phase-production-build") return
-    await ensureRetailCustomerFieldsSchema(payload.db.drizzle)
-    await ensureProductDiscountSchema(payload.db.drizzle)
-    await ensureProductReviewsSchema(payload.db.drizzle)
-    await ensureSberAcquiringSettingsSchema(payload.db.drizzle)
-    await ensurePaymentSettingsSchema(payload.db.drizzle)
-  },
 
   admin: {
     user: Admins.slug,
@@ -116,7 +112,7 @@ export default buildConfig({
 
   email: smtpEmailAdapter,
 
-  secret: process.env.PAYLOAD_SECRET || "your-secret-key-change-this",
+  secret: payloadSecret,
 
   endpoints: [
     {
@@ -132,9 +128,10 @@ export default buildConfig({
 
   db: postgresAdapter({
     pool: {
-      connectionString: process.env.DATABASE_URL || "",
+      connectionString: databaseUrl,
     },
-    push: true,
+    push: process.env.PAYLOAD_DB_PUSH === "true",
+    prodMigrations: migrations,
   }),
 
   sharp,
