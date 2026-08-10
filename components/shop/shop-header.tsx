@@ -8,6 +8,7 @@ import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
 import { openAuthModal } from "@/components/auth/auth-modal-store"
 import { formatPrice } from "@/lib/utils/format"
+import { formatProductCount } from "@/lib/utils/plural"
 import type { Product, ProductTypeOption } from "@/types"
 
 const FALLBACK_TYPES = [
@@ -106,7 +107,6 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
 
           {/* Desktop nav */}
           <nav className="ml-4 hidden items-center gap-1 lg:flex">
-            <Link href="/" onClick={keepLocalShopRoute} className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Главная</Link>
             {typeLinks.slice(0, 4).map((type) => <Link key={type.slug} href={`/${type.slug}`} className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">{type.name}</Link>)}
             <Link href="/kontakty" className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Контакты</Link>
           </nav>
@@ -134,7 +134,6 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
             <form onSubmit={submitSearch} className="flex items-center gap-3 px-6 pt-5"><div className="flex flex-1 items-center gap-3 rounded-full bg-white px-5 py-3 shadow-sm"><Search className="h-4 w-4 text-[#8c8178]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по каталогу" className="w-full bg-transparent text-sm outline-none placeholder:text-[#aaa098]" /></div><button type="submit" className="rounded-full bg-[#5b328a] px-5 py-3 text-sm font-bold text-white">Найти</button></form>
             <nav className="flex-1 space-y-1 overflow-y-auto px-6 py-5">
               <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Каталог</p>
-              <Link href="/" onClick={(event) => { setMenuOpen(false); keepLocalShopRoute(event) }} className="block rounded-xl bg-[#5b328a] px-3 py-3 text-base font-bold text-white">Главная магазина</Link>
               {typeLinks.map((type) => <Link key={type.slug} href={`/${type.slug}`} onClick={() => setMenuOpen(false)} className="block rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{type.name}</Link>)}
               <p className="px-3 pb-1 pt-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#91867d]">Покупателям</p>
               {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="block rounded-xl px-3 py-3 text-base font-bold text-[#1d1d1b] transition hover:bg-black/[0.04]">{link.label}</Link>)}
@@ -164,7 +163,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
       {cartOpen && (
         <div className="fixed inset-0 z-50 bg-black/35 backdrop-blur-sm" onMouseDown={() => setCartOpen(false)}>
           <aside className="ml-auto flex h-full w-full max-w-md flex-col bg-white shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="flex items-center border-b border-black/[0.06] px-6 py-5"><div><h2 className="text-xl font-black">Корзина</h2><p className="text-xs text-[#8d827a]">{itemCount} товаров</p></div><button onClick={() => setCartOpen(false)} className="ml-auto rounded-full p-2 hover:bg-[#f5f1ed]"><X className="h-5 w-5" /></button></div>
+            <div className="flex items-center border-b border-black/[0.06] px-6 py-5"><div><h2 className="text-xl font-black">Корзина</h2><p className="text-xs text-[#8d827a]">{formatProductCount(itemCount)}</p></div><button onClick={() => setCartOpen(false)} className="ml-auto rounded-full p-2 hover:bg-[#f5f1ed]"><X className="h-5 w-5" /></button></div>
             <div className="flex-1 space-y-3 overflow-y-auto p-5">
               {cartLines.length === 0 ? <p className="py-20 text-center text-sm text-[#8d827a]">Корзина пока пуста</p> : cartLines.map(({ item, product, variant }) => (
                 <div key={item.id} className="rounded-2xl bg-[#f8f5f1] p-4">

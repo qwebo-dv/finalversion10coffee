@@ -4,6 +4,8 @@ import Link from "next/link"
 import { ArrowRight, Coffee, FlaskConical, Leaf, PackageCheck, Quote, ShieldCheck, Sparkles, Truck } from "lucide-react"
 import { ShopHeader } from "./shop-header"
 import { ShopProductCard } from "./shop-catalog"
+import { formatPrice } from "@/lib/utils/format"
+import { formatProductCount } from "@/lib/utils/plural"
 import type { Product, ProductTypeOption } from "@/types"
 
 const CATEGORY_STYLES = [
@@ -48,6 +50,8 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
   const newest = [...products]
     .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
     .slice(0, 4)
+  const featuredProduct = popular[0] || newest[0]
+  const featuredVariant = featuredProduct?.variants?.[0]
   const reviews = products
     .flatMap((product) => (product.reviews || []).map((review) => ({ ...review, productName: product.name })))
     .filter((review) => review.comment && review.status !== "rejected" && review.status !== "pending")
@@ -58,27 +62,43 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
       <ShopHeader products={products} productTypes={productTypes} />
 
       <section className="mx-auto max-w-[1480px] px-5 pb-16 pt-8 lg:px-10 lg:pb-24 lg:pt-12">
-        <div className="relative overflow-hidden rounded-[36px] bg-[#21180f] px-7 py-10 text-white sm:px-12 sm:py-14 lg:min-h-[590px] lg:px-16 lg:py-16">
-          <div className="absolute -right-24 -top-32 h-[420px] w-[420px] rounded-full bg-[#5b328a]/45 blur-3xl" />
-          <div className="absolute -bottom-48 right-[24%] h-[420px] w-[420px] rounded-full bg-[#e6610d]/30 blur-3xl" />
-          <div className="absolute bottom-10 right-10 top-10 hidden w-[36%] items-center justify-center overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.06] shadow-2xl lg:flex">
-            <div className="absolute -right-16 top-10 h-48 w-48 rounded-full border-[34px] border-[#e6610d]/55" />
-            <div className="absolute -bottom-10 -left-10 h-44 w-44 rounded-full border-[28px] border-[#5b328a]/70" />
-            <div className="relative flex h-[310px] w-[235px] rotate-3 flex-col justify-between rounded-[24px] bg-[#f1e8de] p-8 text-[#21180f] shadow-[0_35px_80px_rgba(0,0,0,0.35)]">
-              <p className="text-[11px] font-black uppercase tracking-[0.24em]">10coffee</p>
-              <div><p className="text-7xl font-black tracking-[-0.08em]">10</p><p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-[#e6610d]">Свежая обжарка</p></div>
-              <p className="text-xs font-bold leading-5 text-[#766d66]">Кофе, который легко выбрать и приятно пить каждый день.</p>
+        <div className="grid gap-4 lg:grid-cols-12 lg:grid-rows-[285px_285px]">
+          <div className="relative overflow-hidden rounded-[34px] bg-[#21180f] px-7 py-10 text-white sm:px-11 sm:py-12 lg:col-span-7 lg:row-span-2 lg:px-12">
+            <div className="absolute -right-32 -top-28 h-[390px] w-[390px] rounded-full bg-[#5b328a]/50 blur-3xl" />
+            <div className="absolute -bottom-52 right-[12%] h-[420px] w-[420px] rounded-full bg-[#e6610d]/35 blur-3xl" />
+            <div className="relative z-10 flex h-full min-h-[430px] flex-col justify-center lg:min-h-0">
+              <p className="text-xs font-black uppercase tracking-[0.26em] text-[#f58a42]">Свежий кофе каждый день</p>
+              <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[0.94] tracking-[-0.065em] sm:text-6xl xl:text-7xl">Найдите кофе под свой вкус, а не под сложные термины</h1>
+              <p className="mt-7 max-w-xl text-base leading-7 text-white/70">Обжариваем на ростерах Loring, помогаем выбрать сорт и отправляем свежий кофе по всей России.</p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link href="/kofe" className="flex h-14 items-center gap-2 rounded-full bg-[#e6610d] px-6 text-sm font-black transition hover:bg-[#f06d16]">Выбрать кофе <ArrowRight className="h-4 w-4" /></Link>
+                <Link href="#categories" className="flex h-14 items-center rounded-full border border-white/20 px-6 text-sm font-black transition hover:bg-white/10">Все категории</Link>
+              </div>
             </div>
           </div>
-          <div className="relative z-10 flex min-h-[440px] max-w-3xl flex-col justify-center">
-            <p className="text-xs font-black uppercase tracking-[0.26em] text-[#f58a42]">Свежий кофе каждый день</p>
-            <h1 className="mt-5 text-5xl font-black leading-[0.94] tracking-[-0.065em] sm:text-7xl lg:text-[86px]">Найдите кофе под свой вкус, а не под сложные термины</h1>
-            <p className="mt-7 max-w-xl text-base leading-7 text-white/70 sm:text-lg">Обжариваем на ростерах Loring, помогаем выбрать сорт и отправляем свежий кофе по всей России.</p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Link href="/kofe" className="flex h-14 items-center gap-2 rounded-full bg-[#e6610d] px-7 text-sm font-black transition hover:bg-[#f06d16]">Выбрать кофе <ArrowRight className="h-4 w-4" /></Link>
-              <Link href="#categories" className="flex h-14 items-center rounded-full border border-white/20 px-7 text-sm font-black transition hover:bg-white/10">Смотреть категории</Link>
-            </div>
-          </div>
+
+          {featuredProduct && (
+            <Link href={`/shop/${featuredProduct.slug}`} className="group relative flex min-h-[260px] flex-col justify-between overflow-hidden rounded-[34px] bg-[#5b328a] p-8 text-white lg:col-span-5 lg:min-h-0">
+              <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full border-[38px] border-white/10 transition duration-500 group-hover:scale-110" />
+              <div className="relative z-10 flex items-start justify-between gap-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-[#f2c8ff]">Выбор покупателей</p>{featuredProduct.rating && <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">★ {featuredProduct.rating.toFixed(1)}</span>}</div>
+              <div className="relative z-10 max-w-[80%]">
+                <h2 className="text-3xl font-black leading-tight tracking-[-0.04em] sm:text-4xl">{featuredProduct.name}</h2>
+                <div className="mt-4 flex items-center gap-4"><span className="text-lg font-black">{featuredVariant ? formatPrice(featuredVariant.price) : "Подробнее"}</span><span className="flex items-center gap-1 text-sm font-black text-white/75">Смотреть <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span></div>
+              </div>
+            </Link>
+          )}
+
+          <Link href="/chay" className="group relative flex min-h-[220px] flex-col justify-between overflow-hidden rounded-[30px] bg-[#dfe6cb] p-7 lg:col-span-2 lg:min-h-0">
+            <Leaf className="absolute -bottom-6 -right-5 h-36 w-36 text-[#52613a]/15 transition duration-500 group-hover:rotate-6 group-hover:scale-110" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/75"><Leaf className="h-5 w-5" /></span>
+            <div className="relative"><p className="text-xs font-black uppercase tracking-[0.16em] text-[#65724e]">Категория</p><h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">Чай</h2></div>
+          </Link>
+
+          <Link href="/kofe?coll=new" className="group relative flex min-h-[220px] flex-col justify-between overflow-hidden rounded-[30px] bg-[#f0d8bf] p-7 lg:col-span-3 lg:min-h-0">
+            <Sparkles className="absolute -bottom-5 -right-4 h-36 w-36 text-[#a85218]/15 transition duration-500 group-hover:rotate-6 group-hover:scale-110" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/75"><Sparkles className="h-5 w-5" /></span>
+            <div className="relative"><p className="text-xs font-black uppercase tracking-[0.16em] text-[#9a5c32]">Новое в каталоге</p><h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">Свежие поступления</h2><span className="mt-3 flex items-center gap-2 text-sm font-black">Смотреть <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span></div>
+          </Link>
         </div>
       </section>
 
@@ -93,7 +113,7 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
                 <div className="relative z-10 flex h-full min-h-[276px] flex-col justify-between text-[#1d1d1b]">
                   <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/80 text-[#1d1d1b]"><Icon className="h-5 w-5" /></span>
                   <div>
-                    <p className="text-sm font-bold text-[#1d1d1b]/55">{type.product_count} товаров</p>
+                    <p className="text-sm font-bold text-[#1d1d1b]/55">{formatProductCount(type.product_count)}</p>
                     <h2 className="mt-1 text-3xl font-black tracking-[-0.04em]">{type.name}</h2>
                     <span className="mt-4 flex items-center gap-2 text-sm font-black">Смотреть <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
                   </div>
