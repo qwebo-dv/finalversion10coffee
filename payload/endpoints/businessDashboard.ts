@@ -3,7 +3,11 @@ import { dbQuery } from "@/lib/db"
 
 type Period = "7" | "30" | "90" | "all"
 
-const ACTIVE_STATUSES = "o.status NOT IN ('cancelled', 'returned')"
+// Cast Payload's PostgreSQL enum to text before comparing it with application
+// status names. Production databases can briefly have an older enum while a
+// deployment migration is pending; comparing an enum directly with a missing
+// value makes the entire dashboard fail with PostgreSQL error 22P02.
+const ACTIVE_STATUSES = "o.status::text NOT IN ('cancelled', 'returned')"
 
 interface MetricRow {
   total_orders?: string | number
@@ -67,7 +71,7 @@ interface MoyskladRow {
   count: string | number
 }
 
-const EXCLUDED = "'cancelled','returned'"
+const ACTIVE_STATUS = "status::text NOT IN ('cancelled', 'returned')"
 
 async function safeDashboardQuery<T>(
   label: string,
@@ -114,19 +118,19 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
     const kpiResult = await safeDashboardQuery("kpi", () => dbQuery<MetricRow>(`
       SELECT
         COUNT(*) AS total_orders,
-        COUNT(*) FILTER (WHERE status NOT IN (${EXCLUDED})) AS valid_orders,
-        COALESCE(SUM(total) FILTER (WHERE status NOT IN (${EXCLUDED})), 0) AS total_revenue,
-        COALESCE(AVG(total) FILTER (WHERE status NOT IN (${EXCLUDED})), 0) AS avg_order
+        COUNT(*) FILTER (WHERE ${ACTIVE_STATUS}) AS valid_orders,
+        COALESCE(SUM(total) FILTER (WHERE ${ACTIVE_STATUS}), 0) AS total_revenue,
+        COALESCE(AVG(total) FILTER (WHERE ${ACTIVE_STATUS}), 0) AS avg_order
       FROM orders
     `), true)
 
     const periodResult = currentStart && previousStart
       ? await safeDashboardQuery("period", () => dbQuery<MetricRow>(`
           SELECT
-            COUNT(*) FILTER (WHERE status NOT IN (${EXCLUDED}) AND created_at >= $1) AS current_orders,
-            COALESCE(SUM(total) FILTER (WHERE status NOT IN (${EXCLUDED}) AND created_at >= $1), 0) AS current_revenue,
-            COUNT(*) FILTER (WHERE status NOT IN (${EXCLUDED}) AND created_at >= $2 AND created_at < $1) AS previous_orders,
-            COALESCE(SUM(total) FILTER (WHERE status NOT IN (${EXCLUDED}) AND created_at >= $2 AND created_at < $1), 0) AS previous_revenue
+            COUNT(*) FILTER (WHERE ${ACTIVE_STATUS} AND created_at >= $1) AS current_orders,
+            COALESCE(SUM(total) FILTER (WHERE ${ACTIVE_STATUS} AND created_at >= $1), 0) AS current_revenue,
+            COUNT(*) FILTER (WHERE ${ACTIVE_STATUS} AND created_at >= $2 AND created_at < $1) AS previous_orders,
+            COALESCE(SUM(total) FILTER (WHERE ${ACTIVE_STATUS} AND created_at >= $2 AND created_at < $1), 0) AS previous_revenue
           FROM orders
           WHERE created_at >= $2
         `, [currentStart, previousStart]))
@@ -160,8 +164,8 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
           ), totals AS (
             SELECT
               created_at::date AS bucket,
-              COUNT(*) FILTER (WHERE status NOT IN (${EXCLUDED})) AS orders,
-              COALESCE(SUM(total) FILTER (WHERE status NOT IN (${EXCLUDED})), 0) AS revenue
+              COUNT(*) FILTER (WHERE ${ACTIVE_STATUS}) AS orders,
+              COALESCE(SUM(total) FILTER (WHERE ${ACTIVE_STATUS}), 0) AS revenue
             FROM orders
             WHERE created_at >= CURRENT_DATE - ($1 * INTERVAL '1 day')
             GROUP BY created_at::date
@@ -184,8 +188,8 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
           ), totals AS (
             SELECT
               DATE_TRUNC('month', created_at) AS bucket,
-              COUNT(*) FILTER (WHERE status NOT IN (${EXCLUDED})) AS orders,
-              COALESCE(SUM(total) FILTER (WHERE status NOT IN (${EXCLUDED})), 0) AS revenue
+              COUNT(*) FILTER (WHERE ${ACTIVE_STATUS}) AS orders,
+              COALESCE(SUM(total) FILTER (WHERE ${ACTIVE_STATUS}), 0) AS revenue
             FROM orders
             GROUP BY DATE_TRUNC('month', created_at)
           )
@@ -211,7 +215,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
     `))
 
     const customerTypeResult = await safeDashboardQuery("customer types", () => dbQuery<CountRow>(`
-      SELECT customer_type AS value, COUNT(*) AS count, COALESCE(SUM(total) FILTER (WHERE status NOT IN (${EXCLUDED})), 0) AS revenue
+      SELECT customer_type AS value, COUNT(*) AS count, COALESCE(SUM(total) FILTER (WHERE ${ACTIVE_STATUS}), 0) AS revenue
       FROM orders
       GROUP BY customer_type
       ORDER BY count DESC
