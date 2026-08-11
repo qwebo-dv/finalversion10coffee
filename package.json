@@ -9,7 +9,9 @@
     "dev": "next dev",
     "build": "NODE_OPTIONS='--max-old-space-size=4096' next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "payload:migrate": "node scripts/payload-migrate.mjs migrate",
+    "payload:migrate:status": "node scripts/payload-migrate.mjs migrate:status"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
