@@ -172,6 +172,7 @@ export interface Product {
   description_images: string[]
   sort_order: number
   is_visible: boolean
+  is_popular: boolean
   stickers: ProductTag[]
 
   // Rating & reviews
@@ -187,6 +188,9 @@ export interface Product {
   processing_method: string | null
   taste_description: string | null
   acidity: number | null
+  bitterness: number | null
+  sweetness: number | null
+  body: number | null
   coffee_group: "espresso" | "filter" | "drip" | null
   growing_height: string | null
   q_grader_rating: number | null
@@ -260,7 +264,7 @@ export interface Order {
   customer_full_name?: string | null
   customer_email?: string | null
   customer_phone?: string | null
-  payment_method?: "invoice" | "sber_online"
+  payment_method?: "invoice" | "yookassa" | "sber_online"
   payment_external_id?: string | null
   payment_url?: string | null
   company_name: string | null

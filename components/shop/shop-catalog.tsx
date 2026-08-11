@@ -18,6 +18,7 @@ interface ShopCatalogProps {
   productTypes: ProductTypeOption[]
   products: Product[]
   initialType?: string
+  categoryGroups?: { id: number; name: string; children?: { id: number; name: string }[] }[]
 }
 
 type SortKey = "default" | "price-asc" | "price-desc" | "rating" | "new"
@@ -38,12 +39,13 @@ interface CollectionPreset {
   processingContains?: string[]
   brewGroup?: "espresso" | "filter" | "drip"
   sort?: SortKey
+  popular?: boolean
   reset?: boolean
 }
 
 const COLLECTIONS: CollectionPreset[] = [
   { id: "all", label: "Все товары", icon: LayoutGrid, reset: true },
-  { id: "popular", label: "Популярное", icon: TrendingUp, sort: "rating" },
+  { id: "popular", label: "Популярное", icon: TrendingUp, popular: true },
   { id: "new", label: "Новинки", icon: Sparkles, sort: "new" },
   { id: "espresso", label: "Для эспрессо", icon: Coffee, type: "kofe", brewGroup: "espresso" },
   { id: "filter", label: "Для фильтра", icon: Droplets, type: "kofe", brewGroup: "filter" },
@@ -224,7 +226,16 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   himiya: "Средства для ухода за кофейным оборудованием и поддержания чистоты.",
 }
 
-export function ShopCatalog({ productTypes, products, initialType = "" }: ShopCatalogProps) {
+function normalizeSearchText(value: string) {
+  return value
+    .replace(/<[^>]*>/g, " ")
+    .toLocaleLowerCase("ru-RU")
+    .replace(/ё/g, "е")
+    .replace(/[^a-zа-я0-9]+/gi, " ")
+    .trim()
+}
+
+export function ShopCatalog({ productTypes, products, initialType = "", categoryGroups = [] }: ShopCatalogProps) {
   const router = useRouter()
   const [activeType, setActiveType] = useState(initialType)
   const [query, setQuery] = useState("")
@@ -276,15 +287,26 @@ export function ShopCatalog({ productTypes, products, initialType = "" }: ShopCa
   const activeCollectionDef = COLLECTIONS.find((collection) => collection.id === activeCollection)
 
   const basePredicate = useMemo(() => {
-    const lowered = query.trim().toLowerCase()
+    const lowered = normalizeSearchText(query)
     return (product: Product) => {
       if (activeCollectionDef?.type && product.product_type !== activeCollectionDef.type) return false
       if (activeCollectionDef?.roast?.length && !activeCollectionDef.roast.some((roast) => (product.roast_level || "").toLowerCase().includes(roast))) return false
       if (activeCollectionDef?.processingContains?.length && !activeCollectionDef.processingContains.some((method) => (product.processing_method || "").toLowerCase().includes(method))) return false
       if (activeCollectionDef?.brewGroup && getCoffeeGroup(product) !== activeCollectionDef.brewGroup) return false
+      if (activeCollectionDef?.popular && !product.is_popular) return false
       if (activeType && product.product_type !== activeType) return false
       if (lowered) {
-        const haystack = `${product.name} ${product.country || ""} ${product.region || ""} ${product.processing_method || ""} ${product.roast_level || ""} ${product.taste_description || ""}`.toLowerCase()
+        const haystack = normalizeSearchText([
+          product.name,
+          product.product_type_name,
+          product.description,
+          product.country,
+          product.region,
+          product.processing_method,
+          product.roast_level,
+          product.taste_description,
+          ...product.stickers.map((sticker) => sticker.name),
+        ].filter(Boolean).join(" "))
         if (!haystack.includes(lowered)) return false
       }
       return true
@@ -347,6 +369,8 @@ export function ShopCatalog({ productTypes, products, initialType = "" }: ShopCa
   }, [activeType, categoryProducts, selected, effectiveSort])
 
   const showCoffeeGroups = activeType === "kofe" && (!activeCollection || activeCollection === "all")
+  const showTeaGroups = activeType === "chay" && categoryGroups.length > 0 && (!activeCollection || activeCollection === "all")
+  const teaGroups = categoryGroups.flatMap((root) => root.children?.length ? root.children : [root])
 
   function applyCollection(id: string) {
     const collection = COLLECTIONS.find((entry) => entry.id === id)
@@ -422,6 +446,24 @@ export function ShopCatalog({ productTypes, products, initialType = "" }: ShopCa
                   <section key={group.id}>
                     <div className="mb-6 flex items-baseline gap-3 border-b border-black/[0.08] pb-4">
                       <h2 className="text-3xl font-black tracking-[-0.04em]">{group.label}</h2>
+                      <span className="text-sm font-bold text-[#9b9087]">{groupProducts.length}</span>
+                    </div>
+                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {groupProducts.map((product) => <ShopProductCard key={product.id} product={product} />)}
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
+          ) : showTeaGroups ? (
+            <div className="space-y-14">
+              {teaGroups.map((group) => {
+                const groupProducts = filtered.filter((product) => product.category_ids?.includes(String(group.id)))
+                if (!groupProducts.length) return null
+                return (
+                  <section key={group.id}>
+                    <div className="mb-6 flex items-baseline gap-3 border-b border-black/[0.08] pb-4">
+                      <h2 className="text-3xl font-black tracking-[-0.04em]">{group.name}</h2>
                       <span className="text-sm font-bold text-[#9b9087]">{groupProducts.length}</span>
                     </div>
                     <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

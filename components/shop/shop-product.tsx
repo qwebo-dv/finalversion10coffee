@@ -7,13 +7,14 @@ import { useEffect, useState } from "react"
 import { Check, CheckCircle2, Coffee, Leaf, Loader2, Minus, Paperclip, Plus, ShoppingBag } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
+import { openAuthModal } from "@/components/auth/auth-modal-store"
 import { ShopHeader } from "@/components/shop/shop-header"
 import { StarRating } from "@/components/shop/star-rating"
-import { CoffeeAcidity } from "@/components/shop/coffee-acidity"
+import { CoffeeTasteScale } from "@/components/shop/coffee-acidity"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
 import { addRecentlyViewed } from "@/lib/recently-viewed"
 import { findVariantForSelection, getGrindOptions, getVariantGrindOption, getVariantWeights, GRIND_OPTION_LABELS } from "@/lib/shop-variant-options"
-import type { Product } from "@/types"
+import type { Product, ProductTypeOption } from "@/types"
 
 const DESCRIPTION_HTML_CLASSNAME = [
   "max-w-none text-[15px] leading-7 text-[#554b43]",
@@ -42,7 +43,7 @@ function formatReviewDate(value: string): string {
   return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(date)
 }
 
-export function ShopProduct({ product, products }: { product: Product; products: Product[] }) {
+export function ShopProduct({ product, products, productTypes }: { product: Product; products: Product[]; productTypes?: ProductTypeOption[] }) {
   const router = useRouter()
   const { user } = useAuth()
   const variants = (product.variants || []).filter((item) => item.is_available)
@@ -92,6 +93,10 @@ export function ShopProduct({ product, products }: { product: Product; products:
   }
 
   async function submitVote() {
+    if (!user) {
+      openAuthModal("login")
+      return
+    }
     if (!vote) return
     setSubmitting(true)
     setVoteError(null)
@@ -104,7 +109,6 @@ export function ShopProduct({ product, products }: { product: Product; products:
           rating: vote,
           authorName: authorName.trim() || undefined,
           comment: comment.trim() || undefined,
-          clientId: user?.id || undefined,
         }),
       })
       if (!response.ok) {
@@ -127,7 +131,7 @@ export function ShopProduct({ product, products }: { product: Product; products:
 
   return (
     <main className="min-h-screen bg-[#f8f5f1] text-[#1d1d1b]">
-      <ShopHeader products={products} />
+      <ShopHeader products={products} productTypes={productTypes} />
 
       <div className="mx-auto max-w-[1480px] px-5 pb-28 pt-10 lg:px-10">
         {/* Breadcrumb */}
@@ -171,12 +175,17 @@ export function ShopProduct({ product, products }: { product: Product; products:
             <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#e6610d]">{product.product_type_name}</p>
             <h1 className="mt-3 text-5xl font-black leading-[0.98] tracking-[-0.05em] sm:text-6xl">{product.name}</h1>
             {subtitle && <p className="mt-4 text-lg text-[#6e655e]">{subtitle}</p>}
-            {isCoffee && (product.taste_description || product.acidity) && (
+            {isCoffee && (product.taste_description || product.acidity || product.bitterness || product.sweetness || product.body) && (
               <div className="mt-5 rounded-[22px] border border-[#7540ad]/10 bg-white/70 px-5 py-4">
                 {product.taste_description && (
                   <p className="text-sm leading-6 text-[#554b43]"><span className="font-black text-[#1d1d1b]">Во вкусе:</span> {product.taste_description}</p>
                 )}
-                {product.acidity && <div className={product.taste_description ? "mt-3" : ""}><CoffeeAcidity value={product.acidity} /></div>}
+                <div className={`${product.taste_description ? "mt-4" : ""} grid max-w-sm gap-2.5`}>
+                  <CoffeeTasteScale label="Горечь" value={product.bitterness} />
+                  <CoffeeTasteScale label="Сладость" value={product.sweetness} />
+                  <CoffeeTasteScale label="Кислотность" value={product.acidity} />
+                  <CoffeeTasteScale label="Плотность" value={product.body} />
+                </div>
               </div>
             )}
             <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -330,12 +339,18 @@ export function ShopProduct({ product, products }: { product: Product; products:
             {reviews.length > 0 && <p className="mt-3 text-sm text-[#8d827a]">Средняя оценка из {reviews.length} отзывов</p>}
 
             <div id="shop-review-form" className="mt-9 rounded-[28px] bg-white p-7 shadow-[0_20px_60px_rgba(45,27,17,0.07)]">
-              <h3 className="text-lg font-black">Оцените товар</h3>
-              <div className="mt-4"><StarRating interactive={!voteDone} onRate={setVote} value={vote} size="lg" showValue={false} /></div>
-              {voteDone ? (
+              {!user ? (
+                <div className="text-center">
+                  <h3 className="text-lg font-black">Хотите оставить отзыв?</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#766d66]">Отзывы могут оставлять только зарегистрированные покупатели.</p>
+                  <button type="button" onClick={() => openAuthModal("login")} className="mt-5 w-full rounded-full bg-[#5b328a] px-6 py-4 text-sm font-black text-white transition hover:bg-[#47256e]">Войти в аккаунт</button>
+                </div>
+              ) : voteDone ? (
                 <div className="mt-4 flex items-center gap-3 rounded-2xl bg-[#e8f5e9] p-4 text-sm font-bold text-[#2e7d32]"><CheckCircle2 className="h-5 w-5 shrink-0" /> Спасибо! Отзыв отправлен на модерацию и появится после проверки.</div>
               ) : (
                 <>
+                  <h3 className="text-lg font-black">Оцените товар</h3>
+                  <div className="mt-4"><StarRating interactive onRate={setVote} value={vote} size="lg" showValue={false} /></div>
                   <input value={authorName} onChange={(event) => setAuthorName(event.target.value)} placeholder="Ваше имя (необязательно)" className="mt-5 h-12 w-full rounded-2xl border border-black/10 bg-[#f8f5f1] px-4 text-sm outline-none transition focus:border-[#5b328a]" />
                   <textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Напишите отзыв (необязательно)" rows={3} className="mt-3 w-full resize-none rounded-2xl border border-black/10 bg-[#f8f5f1] px-4 py-3 text-sm outline-none transition focus:border-[#5b328a]" />
                   <button type="button" onClick={submitVote} disabled={!vote || submitting} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#5b328a] px-6 py-4 text-sm font-black text-white transition hover:bg-[#47256e] disabled:opacity-40">

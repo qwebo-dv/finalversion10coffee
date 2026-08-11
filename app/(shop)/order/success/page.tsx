@@ -1,12 +1,12 @@
 import Link from "next/link"
-import { refreshSberOrderPayment } from "@/lib/payments/sber-order-status"
+import { refreshYooKassaOrderPayment } from "@/lib/payments/yookassa-order-status"
 
 export const dynamic = "force-dynamic"
 
 export default async function PaymentSuccessPage({ searchParams }: { searchParams: Promise<{ orderId?: string }> }) {
   const params = await searchParams
   const payment = params.orderId
-    ? await refreshSberOrderPayment(params.orderId).catch(() => null)
+    ? await refreshYooKassaOrderPayment(params.orderId, "order").catch(() => null)
     : null
   const paid = payment?.ok && payment.status === "paid"
 

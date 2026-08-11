@@ -211,7 +211,8 @@ export const Orders: CollectionConfig = {
       defaultValue: "invoice",
       options: [
         { label: "Счёт для юридического лица", value: "invoice" },
-        { label: "Онлайн-оплата Сбер", value: "sber_online" },
+        { label: "Онлайн-оплата YooKassa", value: "yookassa" },
+        { label: "Сбер (архив)", value: "sber_online" },
       ],
       admin: { position: "sidebar" },
     },

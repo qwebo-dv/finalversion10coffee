@@ -30,6 +30,7 @@ import { formatPrice } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { getTagBgClass, getTagStyle } from "@/lib/utils/constants"
+import { CoffeeTasteScale } from "@/components/shop/coffee-acidity"
 import type { Product, ProductVariant } from "@/types"
 
 interface ProductDetailProps {
@@ -233,7 +234,7 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
     : []
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="mx-auto max-w-[1480px] text-[#1d1d1b]">
       {/* Breadcrumb */}
       <Link
         href="/dashboard/catalog"
@@ -243,11 +244,11 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
         <span>Каталог</span>
       </Link>
 
-      <div className="grid gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-[1fr_1fr]">
+      <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-16">
         {/* ── LEFT: Gallery ── */}
         <div className="space-y-3">
           {/* Main image */}
-          <div className="aspect-square rounded-2xl bg-gradient-to-br bg-[#faead5] overflow-hidden relative group">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-[32px] bg-[#faead5] shadow-[0_30px_90px_rgba(45,27,17,0.12)] group">
             {product.images && product.images.length > 0 ? (
               <Image
                 src={product.images[activeImage] || product.images[0]}
@@ -326,16 +327,28 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
         </div>
 
         {/* ── RIGHT: Product info ── */}
-        <div className="space-y-6">
+        <div className="space-y-7">
           {/* Title & region */}
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight">
+            <p className="text-sm font-black uppercase tracking-[0.2em] text-[#e6610d]">{product.product_type_name}</p>
+            <h1 className="mt-3 text-5xl font-black leading-[0.98] tracking-[-0.05em] sm:text-6xl">
               {product.name}
             </h1>
             {product.region && (
               <div className="flex items-center gap-1.5 mt-2 text-neutral-400">
                 <MapPin className="h-3.5 w-3.5" />
                 <span className="text-sm">{product.region}</span>
+              </div>
+            )}
+            {isCoffee && (product.taste_description || product.acidity || product.bitterness || product.sweetness || product.body) && (
+              <div className="mt-5 rounded-[22px] border border-[#7540ad]/10 bg-white px-5 py-4 shadow-sm">
+                {product.taste_description && <p className="text-sm leading-6 text-[#554b43]"><span className="font-black text-[#1d1d1b]">Во вкусе:</span> {product.taste_description}</p>}
+                <div className={`${product.taste_description ? "mt-4" : ""} grid max-w-sm gap-2.5`}>
+                  <CoffeeTasteScale label="Горечь" value={product.bitterness} />
+                  <CoffeeTasteScale label="Сладость" value={product.sweetness} />
+                  <CoffeeTasteScale label="Кислотность" value={product.acidity} />
+                  <CoffeeTasteScale label="Плотность" value={product.body} />
+                </div>
               </div>
             )}
           </div>

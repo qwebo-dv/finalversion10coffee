@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation"
-import { getProductBySlug, getShopProducts } from "@/lib/actions/products"
+import { getProductBySlug, getProductTypes, getShopProducts } from "@/lib/actions/products"
 import { ShopProduct } from "@/components/shop/shop-product"
 
 export const dynamic = "force-dynamic"
@@ -10,8 +10,8 @@ interface ShopProductPageProps {
 
 export default async function ShopProductPage({ params }: ShopProductPageProps) {
   const { slug } = await params
-  const [product, products] = await Promise.all([getProductBySlug(slug), getShopProducts()])
+  const [product, products, productTypes] = await Promise.all([getProductBySlug(slug), getShopProducts(), getProductTypes()])
   if (!product) notFound()
 
-  return <ShopProduct product={product} products={products} />
+  return <ShopProduct product={product} products={products} productTypes={productTypes} />
 }

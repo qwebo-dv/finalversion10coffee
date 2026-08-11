@@ -83,7 +83,7 @@ export function ShopCheckout({ products }: { products: Product[] }) {
           <CheckCircle2 className="mx-auto h-16 w-16 text-[#5b328a]" />
           <h1 className="mt-6 text-3xl font-black tracking-tight">Заказ {result.orderNumber} принят</h1>
           <p className="mt-3 text-sm leading-6 text-[#756b63]">Мы отправили подтверждение на указанную почту и свяжемся с вами для уточнения доставки.</p>
-          {result.paymentPendingSetup && <div className="mt-6 rounded-2xl bg-[#fff4e8] p-4 text-sm text-[#8a4b1c]">Эквайринг работает в режиме подготовки. Платёжная ссылка появится после подключения реквизитов Сбера.</div>}
+          {result.paymentPendingSetup && <div className="mt-6 rounded-2xl bg-[#fff4e8] p-4 text-sm text-[#8a4b1c]">Эквайринг работает в режиме подготовки. Платёжная ссылка появится после подключения реквизитов YooKassa.</div>}
           {result.warning && <div className="mt-4 rounded-2xl bg-[#fff4e8] p-4 text-sm text-[#8a4b1c]">{result.warning}</div>}
           <Link href="/shop" className="mt-8 inline-flex h-12 items-center justify-center rounded-full bg-[#5b328a] px-6 text-sm font-bold text-white">Вернуться в каталог</Link>
         </div>
@@ -127,7 +127,7 @@ export function ShopCheckout({ products }: { products: Product[] }) {
               </span>
             </label>
 
-            <div className="mt-8 rounded-2xl border border-dashed border-[#5b328a]/30 bg-[#f8f4fb] p-4 text-sm text-[#5b328a]"><div className="flex gap-3"><LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" /><p><b>Онлайн-оплата Сбер подготовлена.</b><br />До получения API-реквизитов заказ создаётся без списания денег.</p></div></div>
+            <div className="mt-8 rounded-2xl border border-dashed border-[#5b328a]/30 bg-[#f8f4fb] p-4 text-sm text-[#5b328a]"><div className="flex gap-3"><LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" /><p><b>Онлайн-оплата YooKassa подготовлена.</b><br />До получения API-реквизитов заказ создаётся без списания денег.</p></div></div>
             <button disabled={loading || !hydrated} className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#5b328a] text-sm font-black text-white hover:bg-[#47256e] disabled:opacity-60">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{loading ? "Оформляем…" : `Оформить заказ · ${formatPrice(subtotal)}`}</button>
           </form>
 

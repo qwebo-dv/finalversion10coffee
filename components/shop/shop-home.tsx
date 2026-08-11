@@ -6,7 +6,6 @@ import { ShopHeader } from "./shop-header"
 import { ShopProductCard } from "./shop-catalog"
 import { formatPrice } from "@/lib/utils/format"
 import { formatProductCount } from "@/lib/utils/plural"
-import { getCoffeeGroup } from "@/lib/coffee-groups"
 import type { Product, ProductTypeOption } from "@/types"
 
 const CATEGORY_STYLES = [
@@ -45,13 +44,15 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
   const visibleTypes = productTypes
     .filter((type) => !["sluzhebnoe", "oprihodovanie-i-to"].includes(type.slug))
     .slice(0, 4)
-  const popular = [...products]
-    .sort((a, b) => (b.reviews_count || 0) - (a.reviews_count || 0) || (b.rating || 0) - (a.rating || 0))
+  const popular = products
+    .filter((product) => product.is_popular)
+    .sort((a, b) => a.sort_order - b.sort_order)
     .slice(0, 4)
   const newest = [...products]
     .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
     .slice(0, 4)
   const featuredProduct = popular[0] || newest[0]
+  const featuredIsPopular = Boolean(featuredProduct?.is_popular)
   const featuredVariant = featuredProduct?.variants?.[0]
   const reviews = products
     .flatMap((product) => (product.reviews || []).map((review) => ({ ...review, productName: product.name })))
@@ -81,7 +82,7 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
           {featuredProduct && (
             <Link href={`/shop/${featuredProduct.slug}`} className="group relative flex min-h-[260px] flex-col justify-between overflow-hidden rounded-[34px] bg-[#5b328a] p-8 text-white lg:col-span-5 lg:min-h-0">
               <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full border-[38px] border-white/10 transition duration-500 group-hover:scale-110" />
-              <div className="relative z-10 flex items-start justify-between gap-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-[#f2c8ff]">Выбор покупателей</p>{featuredProduct.rating && <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">★ {featuredProduct.rating.toFixed(1)}</span>}</div>
+              <div className="relative z-10 flex items-start justify-between gap-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-[#f2c8ff]">{featuredIsPopular ? "Выбор покупателей" : "Новинка"}</p>{featuredProduct.rating && <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">★ {featuredProduct.rating.toFixed(1)}</span>}</div>
               <div className="relative z-10 max-w-[80%]">
                 <h2 className="text-3xl font-black leading-tight tracking-[-0.04em] sm:text-4xl">{featuredProduct.name}</h2>
                 <div className="mt-4 flex items-center gap-4"><span className="text-lg font-black">{featuredVariant ? formatPrice(featuredVariant.price) : "Подробнее"}</span><span className="flex items-center gap-1 text-sm font-black text-white/75">Смотреть <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span></div>
@@ -107,13 +108,10 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
         <SectionHeading eyebrow="Каталог" title="Выберите свою категорию" href="/kofe" linkLabel="Перейти к кофе" />
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {visibleTypes.map((type, index) => {
-            const isEspressoTile = type.slug === "chay"
-            const Icon = isEspressoTile ? Coffee : CATEGORY_ICONS[index] || Coffee
-            const href = isEspressoTile ? "/kofe?coll=espresso" : `/${type.slug}`
-            const name = isEspressoTile ? "Кофе для эспрессо" : type.name
-            const productCount = isEspressoTile
-              ? products.filter((product) => getCoffeeGroup(product) === "espresso").length
-              : type.product_count
+            const Icon = CATEGORY_ICONS[index] || Coffee
+            const href = `/${type.slug}`
+            const name = type.name
+            const productCount = type.product_count
             return (
               <Link key={type.id} href={href} className={`group relative min-h-[330px] overflow-hidden rounded-[30px] p-7 ${CATEGORY_STYLES[index] || CATEGORY_STYLES[0]}`}>
                 <Icon className="absolute -bottom-4 -right-4 h-44 w-44 text-[#1d1d1b]/10 transition duration-500 group-hover:rotate-6 group-hover:scale-110" />
@@ -133,7 +131,7 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
 
       {popular.length > 0 && (
         <section className="mx-auto max-w-[1480px] px-5 pb-24 lg:px-10">
-          <SectionHeading eyebrow="Выбор покупателей" title="Популярные товары" href="/kofe?coll=popular" linkLabel="Смотреть все" />
+          <SectionHeading eyebrow="Выбор покупателей" title="Популярные товары" href="/shop?coll=popular" linkLabel="Смотреть все" />
           <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{popular.map((product) => <ShopProductCard key={product.id} product={product} />)}</div>
         </section>
       )}

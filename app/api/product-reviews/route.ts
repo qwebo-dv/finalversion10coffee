@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPayload } from "payload"
 import configPromise from "@payload-config"
+import { createClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
+  const auth = await createClient("individual")
+  const { data: { user } } = await auth.auth.getUser()
+  if (!user || user.user_metadata?.customer_type !== "individual") {
+    return NextResponse.json({ error: "Оставлять отзывы могут только зарегистрированные покупатели" }, { status: 401 })
+  }
+
   let body: Record<string, unknown>
   try {
     body = await request.json()
@@ -22,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   const authorName = typeof body.authorName === "string" ? body.authorName.trim() : ""
   const comment = typeof body.comment === "string" ? body.comment.trim() : ""
-  const clientId = typeof body.clientId === "string" ? body.clientId.trim() : ""
+  const accountName = typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : ""
 
   try {
     const payload = await getPayload({ config: configPromise })
@@ -31,9 +38,9 @@ export async function POST(request: NextRequest) {
       data: {
         product,
         rating,
-        authorName: authorName || null,
+        authorName: authorName || accountName || user.email || null,
         comment: comment || null,
-        clientId: clientId || null,
+        clientId: user.id,
         status: "pending",
       },
     })

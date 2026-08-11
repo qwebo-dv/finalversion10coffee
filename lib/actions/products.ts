@@ -78,6 +78,7 @@ interface PayloadProductTypeDoc {
   icon?: PayloadMediaRef
   sortOrder?: number
   isVisible?: boolean
+  isPopular?: boolean
 }
 
 interface PayloadCategoryRef {
@@ -104,6 +105,9 @@ interface PayloadProductDoc {
     processingMethod?: string
     tasteDescription?: string
     acidity?: number
+    bitterness?: number
+    sweetness?: number
+    body?: number
     brewGroup?: "espresso" | "filter" | "drip"
     growingHeight?: string
     qGraderRating?: number
@@ -456,6 +460,7 @@ function transformProduct(doc: PayloadProductDoc, reviews: ProductReview[] = [])
     description_images: [],
     sort_order: doc.sortOrder || 0,
     is_visible: doc.isVisible ?? true,
+    is_popular: doc.isPopular ?? false,
     stickers: (doc.stickers || []).map(transformTag).filter(isDefined),
 
     // Rating & reviews
@@ -470,6 +475,9 @@ function transformProduct(doc: PayloadProductDoc, reviews: ProductReview[] = [])
     processing_method: coffee.processingMethod || null,
     taste_description: coffee.tasteDescription || null,
     acidity: typeof coffee.acidity === "number" ? coffee.acidity : null,
+    bitterness: typeof coffee.bitterness === "number" ? coffee.bitterness : null,
+    sweetness: typeof coffee.sweetness === "number" ? coffee.sweetness : null,
+    body: typeof coffee.body === "number" ? coffee.body : null,
     coffee_group: coffee.brewGroup || null,
     growing_height: coffee.growingHeight || null,
     q_grader_rating: coffee.qGraderRating || null,

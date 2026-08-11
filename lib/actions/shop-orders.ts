@@ -5,7 +5,7 @@ import configPromise from "@payload-config"
 import { getShopProducts } from "@/lib/actions/products"
 import { signUp } from "@/lib/actions/auth"
 import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad/sync"
-import { createSberPayment } from "@/lib/payments/sber"
+import { createYooKassaPayment } from "@/lib/payments/yookassa"
 import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
 import type { CartItem, DeliveryMethod, Product } from "@/types"
 
@@ -216,7 +216,7 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
   const orderData: Record<string, unknown> = {
     customerType: "individual",
     checkoutMode: clientId ? "account" : "guest",
-    paymentMethod: "sber_online",
+    paymentMethod: "yookassa",
     paymentStatus: "pending",
     customerFullName: fullName,
     customerEmail: email,
@@ -265,12 +265,11 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
     })
   }
 
-  const payment = await createSberPayment({
+  const payment = await createYooKassaPayment({
+    orderId: String(order.id),
     orderNumber: order.orderId || String(order.id),
     amountRubles: total,
     description: `Заказ ${order.orderId || order.id} в 10coffee`,
-    clientEmail: email,
-    clientId: clientId ? String(clientId) : undefined,
   })
 
   if (payment.ok) {

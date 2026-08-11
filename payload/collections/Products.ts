@@ -10,7 +10,7 @@ export const Products: CollectionConfig = {
     useAsTitle: "name",
     group: "Каталог",
     description: "Товары каталога",
-    defaultColumns: ["name", "productTypeRef", "category", "isVisible", "stickers"],
+    defaultColumns: ["name", "productTypeRef", "category", "isPopular", "isVisible", "stickers"],
     components: {
       beforeList: ["/payload/components/MoyskladCatalogSyncButton"],
     },
@@ -159,11 +159,22 @@ export const Products: CollectionConfig = {
       },
     },
     {
+      name: "isPopular",
+      type: "checkbox",
+      label: "Популярный товар",
+      defaultValue: false,
+      index: true,
+      admin: {
+        position: "sidebar",
+        description: "Показывать товар в блоке «Популярные товары» на главной странице магазина.",
+      },
+    },
+    {
       name: "manualRating",
       type: "number",
       label: "Рейтинг (ручной)",
       min: 0,
-      max: 5,
+            max: 7,
       admin: {
         position: "sidebar",
         description: "Оставьте пустым, чтобы рейтинг считался автоматически из оценок в разделе «Отзывы». Укажите значение, чтобы зафиксировать рейтинг вручную (например, 4.9).",
@@ -307,7 +318,37 @@ export const Products: CollectionConfig = {
           min: 1,
           max: 7,
           admin: {
-            description: "Количество заполненных точек по семибалльной шкале. Не заполняйте без подтвержденных данных.",
+            description: "Количество заполненных точек по семибалльной шкале.",
+          },
+        },
+        {
+          name: "bitterness",
+          type: "number",
+          label: "Горечь",
+          min: 1,
+          max: 7,
+          admin: {
+            description: "Интенсивность горечи по семибалльной шкале.",
+          },
+        },
+        {
+          name: "sweetness",
+          type: "number",
+          label: "Сладость",
+          min: 1,
+          max: 7,
+          admin: {
+            description: "Интенсивность сладости по семибалльной шкале.",
+          },
+        },
+        {
+          name: "body",
+          type: "number",
+          label: "Плотность",
+          min: 1,
+          max: 7,
+          admin: {
+            description: "Плотность напитка по семибалльной шкале.",
           },
         },
         {

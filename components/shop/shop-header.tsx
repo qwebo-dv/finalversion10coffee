@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { ArrowUpRight, ChevronRight, Menu, Minus, Plus, Search, ShoppingBag, User, X } from "lucide-react"
+import { ArrowUpRight, ChevronDown, ChevronRight, Menu, Minus, Plus, Search, ShoppingBag, User, X } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
 import { openAuthModal } from "@/components/auth/auth-modal-store"
@@ -25,6 +25,7 @@ const NAV_LINKS = [
 
 const COMPANY_LINKS = [
   { label: "О нас", href: "/o-nas" },
+  { label: "Новости", href: "/news" },
   { label: "Блог", href: "/blog" },
   { label: "Контакты", href: "/kontakty" },
 ]
@@ -57,7 +58,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
     event.preventDefault()
     setMenuOpen(false)
     const search = `?q=${encodeURIComponent(query.trim())}`
-    router.push(isLocalShop() ? `/shop${search}` : `/${search}`)
+    router.push(`/shop${search}`)
   }
 
   function isLocalShop() {
@@ -79,17 +80,16 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
     <>
       {/* Utility bar */}
       <div className="bg-[#1d1d1b] text-white">
-        <div className="mx-auto flex h-9 max-w-[1480px] items-center justify-between gap-4 px-5 text-[11px] font-semibold tracking-wide lg:px-10">
+        <div className="mx-auto flex h-11 max-w-[1480px] items-center justify-between gap-4 px-5 text-xs font-semibold tracking-wide lg:px-10">
           <p className="truncate text-[#cfc7bf]">Свежая обжарка · доставка по всей России</p>
           <div className="flex shrink-0 items-center gap-5">
             <a href="https://10coffee.ru" className="flex items-center gap-1 transition hover:text-[#e6610d]">Оптовый сайт <ArrowUpRight className="h-3 w-3" /></a>
-            {NAV_LINKS.map((link, index) => <Link key={link.href} href={link.href} className={`hidden transition hover:text-[#e6610d] ${index === 0 ? "sm:inline" : "xl:inline"}`}>{link.label}</Link>)}
             {individualUser ? (
               <Link href="/main" title={displayName} className="hidden items-center gap-2 transition hover:text-[#e6610d] lg:flex">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-[10px] font-black text-white">
                   {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
                 </span>
-                <span className="max-w-[130px] truncate text-[11px] font-bold">{displayName}</span>
+                <span className="max-w-[130px] truncate text-xs font-bold">{displayName}</span>
               </Link>
             ) : (
               <button type="button" onClick={() => openAuth("login")} className="hidden items-center gap-1.5 transition hover:text-[#e6610d] lg:flex"><User className="h-3 w-3" /> Войти</button>
@@ -101,14 +101,26 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
 
       {/* Main bar */}
       <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-[#f8f5f1]/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-[1480px] items-center gap-6 px-5 lg:px-10">
+        <div className="mx-auto flex h-24 max-w-[1480px] items-center gap-6 px-5 lg:px-10">
           <button type="button" onClick={() => setMenuOpen(true)} className="flex h-11 w-11 items-center justify-center rounded-full text-[#1d1d1b] transition hover:bg-black/[0.05] lg:hidden"><Menu className="h-5 w-5" /></button>
-          <Link href="/" onClick={keepLocalShopRoute} className="flex shrink-0 items-center"><img src="/logo.svg" alt="10COFFEE" className="h-9 w-auto" /></Link>
+          <Link href="/" onClick={keepLocalShopRoute} className="flex shrink-0 items-center"><img src="/logo.svg" alt="10COFFEE" className="h-12 w-auto" /></Link>
 
           {/* Desktop nav */}
           <nav className="ml-4 hidden items-center gap-1 lg:flex">
-            {typeLinks.slice(0, 4).map((type) => <Link key={type.slug} href={`/${type.slug}`} className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">{type.name}</Link>)}
-            <Link href="/kontakty" className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Контакты</Link>
+            <div className="group relative">
+              <button type="button" className="flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Купить <ChevronDown className="h-4 w-4 transition group-hover:rotate-180" /></button>
+              <div className="invisible absolute left-0 top-full z-50 w-60 translate-y-2 rounded-2xl border border-black/[0.06] bg-white p-2 opacity-0 shadow-[0_24px_70px_rgba(45,27,17,0.16)] transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
+                {typeLinks.map((type) => <Link key={type.slug} href={`/${type.slug}`} className="block rounded-xl px-4 py-3 text-sm font-bold text-[#554b43] transition hover:bg-[#f8f5f1] hover:text-[#5b328a]">{type.name}</Link>)}
+              </div>
+            </div>
+            <Link href="/news" className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Новости</Link>
+            <Link href="/blog" className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Блог</Link>
+            <div className="group relative">
+              <button type="button" className="flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Покупателю <ChevronDown className="h-4 w-4 transition group-hover:rotate-180" /></button>
+              <div className="invisible absolute left-0 top-full z-50 w-64 translate-y-2 rounded-2xl border border-black/[0.06] bg-white p-2 opacity-0 shadow-[0_24px_70px_rgba(45,27,17,0.16)] transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
+                {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} className="block rounded-xl px-4 py-3 text-sm font-bold text-[#554b43] transition hover:bg-[#f8f5f1] hover:text-[#5b328a]">{link.label}</Link>)}
+              </div>
+            </div>
           </nav>
 
           <form onSubmit={submitSearch} className="ml-auto hidden min-w-0 items-center gap-3 rounded-full bg-white px-5 py-2.5 shadow-sm ring-1 ring-black/[0.06] transition focus-within:ring-2 focus-within:ring-[#5b328a]/40 lg:flex lg:w-[300px]">
@@ -128,7 +140,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
         <div className="fixed inset-0 z-50 bg-black/35 backdrop-blur-sm lg:hidden" onMouseDown={() => setMenuOpen(false)}>
           <aside className="flex h-full w-full max-w-sm flex-col bg-[#f8f5f1] shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
             <div className="flex items-center border-b border-black/[0.06] px-6 py-5">
-              <Link href="/" onClick={(event) => { setMenuOpen(false); keepLocalShopRoute(event) }} className="flex shrink-0 items-center"><img src="/logo.svg" alt="10COFFEE" className="h-9 w-auto" /></Link>
+              <Link href="/" onClick={(event) => { setMenuOpen(false); keepLocalShopRoute(event) }} className="flex shrink-0 items-center"><img src="/logo.svg" alt="10COFFEE" className="h-12 w-auto" /></Link>
               <button onClick={() => setMenuOpen(false)} className="ml-auto rounded-full p-2 hover:bg-black/[0.05]"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={submitSearch} className="flex items-center gap-3 px-6 pt-5"><div className="flex flex-1 items-center gap-3 rounded-full bg-white px-5 py-3 shadow-sm"><Search className="h-4 w-4 text-[#8c8178]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по каталогу" className="w-full bg-transparent text-sm outline-none placeholder:text-[#aaa098]" /></div><button type="submit" className="rounded-full bg-[#5b328a] px-5 py-3 text-sm font-bold text-white">Найти</button></form>

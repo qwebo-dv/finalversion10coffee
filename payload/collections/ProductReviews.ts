@@ -18,7 +18,10 @@ export const ProductReviews: CollectionConfig = {
     plural: "Отзывы",
   },
   access: {
-    create: () => true,
+    // Public review creation goes through /api/product-reviews, where the
+    // retail session is verified. Payload REST remains closed to anonymous
+    // requests so clientId cannot be spoofed.
+    create: ({ req }) => req.user?.role === "admin",
     read: ({ req }) => req.user?.role === "admin" || { status: { equals: "approved" } },
     update: adminOnly,
     delete: adminOnly,

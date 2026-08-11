@@ -42,9 +42,9 @@ export async function middleware(request: NextRequest) {
   const hostname = getHostname(request)
   const isShopHost = hostname === "shop.10coffee.ru" || hostname.startsWith("shop.localhost")
   const isShopPath = pathname === "/shop" || pathname.startsWith("/shop/") || pathname === "/main" || pathname.startsWith("/main/") || pathname === "/checkout" || pathname.startsWith("/order/")
-  const isSberCallback = pathname === "/api/shop/payments/sber/callback"
+  const isPaymentWebhook = pathname === "/api/shop/payments/yookassa/webhook"
 
-  if ((isShopHost || isShopPath) && !isSberCallback && !isShopPreviewAllowed(request)) {
+  if ((isShopHost || isShopPath) && !isPaymentWebhook && !isShopPreviewAllowed(request)) {
     return new NextResponse("Страница временно недоступна", {
       status: 404,
       headers: { "Cache-Control": "private, no-store" },
