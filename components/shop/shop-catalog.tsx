@@ -401,37 +401,6 @@ export function ShopCatalog({ productTypes, products, initialType = "" }: ShopCa
           <label className="flex h-12 min-w-0 items-center gap-3 rounded-full bg-white px-5 shadow-sm ring-1 ring-black/[0.06] lg:w-[360px]"><Search className="h-4 w-4 text-[#8c8178]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Название, регион, обработка" className="w-full bg-transparent text-sm outline-none placeholder:text-[#aaa098]" /></label>
         </div>
 
-        {/* Подборки */}
-        <div className="mt-5 overflow-x-auto pb-1">
-          <div className="flex w-max gap-2.5">
-            {COLLECTIONS.map((collection) => {
-              const Icon = collection.icon
-              const isActive = activeCollection === collection.id
-              return (
-                <button key={collection.id} type="button" onClick={() => applyCollection(collection.id)} className={`flex h-12 shrink-0 items-center gap-2.5 rounded-full border px-5 text-sm font-bold transition ${isActive ? "border-[#e6610d] bg-[#e6610d] text-white shadow-[0_12px_30px_rgba(230,97,13,0.28)]" : "border-black/[0.08] bg-white text-[#554b43] hover:border-[#e6610d]/50 hover:text-[#e6610d]"}`}>
-                  <Icon className="h-4 w-4" />
-                  {collection.label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Filters */}
-        {hasFilterOptions && (
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-[#91867d]"><SlidersHorizontal className="h-4 w-4" /> Фильтры</span>
-            {roastOptions.length > 0 && <FilterDropdown label="Степень обжарки" options={roastOptions} selected={selected.roast} onToggle={(value) => toggleFilter("roast", value)} onClear={() => setSelected((current) => ({ ...current, roast: [] }))} />}
-            {regionOptions.length > 0 && <FilterDropdown label="Регион / страна" options={regionOptions} selected={selected.region} onToggle={(value) => toggleFilter("region", value)} onClear={() => setSelected((current) => ({ ...current, region: [] }))} />}
-            {processingOptions.length > 0 && <FilterDropdown label="Способ обработки" options={processingOptions} selected={selected.processing} onToggle={(value) => toggleFilter("processing", value)} onClear={() => setSelected((current) => ({ ...current, processing: [] }))} />}
-            {activeFilters > 0 && <button type="button" onClick={resetFilters} className="flex h-12 items-center gap-1.5 rounded-full px-4 text-sm font-bold text-[#e6610d] transition hover:bg-[#e6610d]/10">Сбросить всё <X className="h-4 w-4" /></button>}
-            <div className="ml-auto">
-              <select value={sort} onChange={(event) => { setSort(event.target.value as SortKey); setActiveCollection("") }} className="h-12 rounded-full border border-black/[0.1] bg-white px-5 text-sm font-bold text-[#554b43] outline-none transition hover:border-black/25 focus:border-[#5b328a]">
-                {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </div>
-          </div>
-        )}
       </section>
 
       <section className="mx-auto max-w-[1480px] px-5 pb-24 lg:px-10">
