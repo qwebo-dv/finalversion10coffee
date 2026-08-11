@@ -7,7 +7,6 @@ import { ru } from "@payloadcms/translations/languages/ru"
 import type { EmailAdapter, SendEmailOptions } from "payload"
 import nodemailer from "nodemailer"
 import sharp from "sharp"
-import { migrations } from "./migrations/index.ts"
 
 import { Categories } from "./payload/collections/Categories"
 import { ProductTypes } from "./payload/collections/ProductTypes"
@@ -130,8 +129,9 @@ export default buildConfig({
     pool: {
       connectionString: databaseUrl,
     },
-    push: process.env.PAYLOAD_DB_PUSH === "true",
-    prodMigrations: migrations,
+    // Database changes must be an explicit deployment step. Initializing
+    // Payload during `next build` or a page request must stay read-only.
+    push: process.env.NODE_ENV !== "production" && process.env.PAYLOAD_DB_PUSH === "true",
   }),
 
   sharp,

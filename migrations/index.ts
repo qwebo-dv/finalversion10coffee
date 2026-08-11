@@ -6,6 +6,7 @@ import * as migration_20260809_181500_retail_customer_fields from './20260809_18
 import * as migration_20260810_120000_runtime_infrastructure from './20260810_120000_runtime_infrastructure.ts';
 import * as migration_20260810_140000_coffee_profiles from './20260810_140000_coffee_profiles.ts';
 import * as migration_20260810_150000_preference_source_fields from './20260810_150000_preference_source_fields.ts';
+import * as migration_20260811_170000_repair_preference_source_fields from './20260811_170000_repair_preference_source_fields.ts';
 
 export const migrations = [
   {
@@ -47,5 +48,10 @@ export const migrations = [
     up: migration_20260810_150000_preference_source_fields.up,
     down: migration_20260810_150000_preference_source_fields.down,
     name: '20260810_150000_preference_source_fields'
+  },
+  {
+    up: migration_20260811_170000_repair_preference_source_fields.up,
+    down: migration_20260811_170000_repair_preference_source_fields.down,
+    name: '20260811_170000_repair_preference_source_fields'
   },
 ];
