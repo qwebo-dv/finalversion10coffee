@@ -8,7 +8,10 @@ const payloadCLI = path.resolve("node_modules/payload/bin.js")
 const migrationConfig = path.resolve("payload.migrations.config.ts")
 const command = process.argv[2] || "migrate"
 
-const result = spawnSync(process.execPath, [payloadCLI, command], {
+// Payload discovers migration files dynamically. Register tsx at the process
+// level so production Node versions that do not natively load `.ts` files can
+// import them as well as the main migration config.
+const result = spawnSync(process.execPath, ["--import", "tsx", payloadCLI, command], {
   stdio: "inherit",
   env: {
     ...process.env,
