@@ -1,5 +1,8 @@
 import { spawnSync } from "node:child_process"
 import path from "node:path"
+import nextEnv from "@next/env"
+
+nextEnv.loadEnvConfig(process.cwd())
 
 const payloadCLI = path.resolve("node_modules/payload/bin.js")
 const migrationConfig = path.resolve("payload.migrations.config.ts")

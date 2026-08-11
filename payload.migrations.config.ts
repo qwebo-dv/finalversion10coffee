@@ -1,20 +1,12 @@
+// Keep this file valid plain JavaScript even though it uses a .ts extension.
+// Some production Node 22 builds load the Payload config before TS transforms.
 import { postgresAdapter } from "@payloadcms/db-postgres"
-import * as nextEnvModule from "@next/env"
 import { buildConfig } from "payload"
-import { migrations } from "./migrations/index.ts"
 
-const nextEnv = nextEnvModule as typeof nextEnvModule & {
-  default?: typeof nextEnvModule
-}
-const loadEnvConfig = nextEnv.loadEnvConfig || nextEnv.default?.loadEnvConfig
-if (!loadEnvConfig) throw new Error("Unable to load Next.js environment configuration")
-loadEnvConfig(process.cwd())
-
-function requiredEnv(name: "DATABASE_URL" | "PAYLOAD_SECRET"): string {
-  const value = process.env[name]?.trim()
-  if (!value) throw new Error(`${name} is required`)
-  return value
-}
+const databaseUrl = process.env.DATABASE_URL?.trim()
+const payloadSecret = process.env.PAYLOAD_SECRET?.trim()
+if (!databaseUrl) throw new Error("DATABASE_URL is required")
+if (!payloadSecret) throw new Error("PAYLOAD_SECRET is required")
 
 /**
  * Dependency-light config for Payload's migration CLI.
@@ -24,11 +16,10 @@ function requiredEnv(name: "DATABASE_URL" | "PAYLOAD_SECRET"): string {
  * must remain runnable independently from the web application module graph.
  */
 export default buildConfig({
-  secret: requiredEnv("PAYLOAD_SECRET"),
+  secret: payloadSecret,
   collections: [],
   db: postgresAdapter({
-    pool: { connectionString: requiredEnv("DATABASE_URL") },
+    pool: { connectionString: databaseUrl },
     push: false,
-    prodMigrations: migrations,
   }),
 })
