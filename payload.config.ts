@@ -7,6 +7,7 @@ import { ru } from "@payloadcms/translations/languages/ru"
 import type { EmailAdapter, SendEmailOptions } from "payload"
 import nodemailer from "nodemailer"
 import sharp from "sharp"
+import { migrations } from "./migrations/index.ts"
 
 import { Categories } from "./payload/collections/Categories"
 import { ProductTypes } from "./payload/collections/ProductTypes"
@@ -129,10 +130,8 @@ export default buildConfig({
     pool: {
       connectionString: databaseUrl,
     },
-    // Schema pushes are a local-development convenience only. Production
-    // migrations are run explicitly through payload.migrations.config.ts so
-    // that a page render or `next build` can never mutate the database.
-    push: process.env.NODE_ENV !== "production" && process.env.PAYLOAD_DB_PUSH === "true",
+    push: process.env.PAYLOAD_DB_PUSH === "true",
+    prodMigrations: migrations,
   }),
 
   sharp,

@@ -43,4 +43,3 @@ public/uploads/avatars/*.jpg
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-README.md
