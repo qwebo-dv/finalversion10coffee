@@ -141,6 +141,7 @@ interface PayloadReviewDoc {
   id?: string | number
   product?: PayloadProductDoc | string | number | null
   authorName?: string
+  authorClient?: { id?: string | number; fullName?: string | null } | string | number | null
   clientId?: string | null
   rating?: number
   comment?: string
@@ -413,7 +414,7 @@ async function fetchReviewsMap(): Promise<Map<string, ProductReview[]>> {
       collection: "product-reviews",
       where: { status: { equals: "approved" } },
       limit: 20000,
-      depth: 0,
+      depth: 1,
       sort: "-createdAt",
     })
     const map = new Map<string, ProductReview[]>()
@@ -422,7 +423,7 @@ async function fetchReviewsMap(): Promise<Map<string, ProductReview[]>> {
       if (productId === null) continue
       const review: ProductReview = {
         id: String(doc.id),
-        author_name: doc.authorName || null,
+        author_name: (typeof doc.authorClient === "object" && doc.authorClient?.fullName) || doc.authorName || null,
         client_id: doc.clientId || null,
         rating: typeof doc.rating === "number" ? doc.rating : 0,
         comment: doc.comment || null,

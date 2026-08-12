@@ -6,6 +6,7 @@ import { getShopProducts } from "@/lib/actions/products"
 import { signUp } from "@/lib/actions/auth"
 import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad/sync"
 import { createYooKassaPayment } from "@/lib/payments/yookassa"
+import { createOrderPaymentToken } from "@/lib/payments/order-payment-token"
 import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
 import type { CartItem, DeliveryMethod, Product } from "@/types"
 
@@ -142,6 +143,7 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
   orderId?: string
   orderNumber?: string
   paymentUrl?: string
+  paymentToken?: string
   paymentPendingSetup?: boolean
 }> {
   const fullName = input.fullName.trim()
@@ -292,22 +294,13 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
     warning = warning || "Заказ создан, но перейти к онлайн-оплате не удалось. Мы свяжемся с вами для уточнения оплаты."
   }
 
-  try {
-    await payload.sendEmail({
-      to: email,
-      subject: `Заказ ${order.orderId || order.id} принят`,
-      html: `<p>Здравствуйте, ${fullName}!</p><p>Мы приняли ваш заказ <strong>${order.orderId || order.id}</strong> на сумму ${total.toLocaleString("ru-RU")} ₽.</p>`,
-    })
-  } catch {
-    warning = warning || "Заказ создан, но письмо с подтверждением не отправилось"
-  }
-
   return {
     success: true,
     warning,
     orderId: String(order.id),
     orderNumber: order.orderId || String(order.id),
     paymentUrl: payment.ok ? payment.paymentUrl : undefined,
+    paymentToken: payment.ok ? createOrderPaymentToken(String(order.id)) : undefined,
     paymentPendingSetup: !payment.ok && payment.code === "not_configured",
   }
 }

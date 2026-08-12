@@ -7,6 +7,7 @@ import { ArrowUpRight, ChevronDown, ChevronRight, Menu, Minus, Plus, Search, Sho
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
 import { openAuthModal } from "@/components/auth/auth-modal-store"
+import { PendingPaymentCard } from "@/components/shop/pending-payment-card"
 import { formatPrice } from "@/lib/utils/format"
 import { formatProductCount } from "@/lib/utils/plural"
 import type { Product, ProductTypeOption } from "@/types"
@@ -35,7 +36,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
   const [cartOpen, setCartOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [query, setQuery] = useState("")
-  const { items, itemCount, updateQuantity, removeItem, clearCart } = useGuestCart()
+  const { items, itemCount, updateQuantity, removeItem, clearCart, pendingPayment } = useGuestCart()
   const { user } = useAuth()
   const individualUser = user?.user_metadata?.customer_type === "individual"
 
@@ -177,6 +178,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
           <aside className="ml-auto flex h-full w-full max-w-md flex-col bg-white shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
             <div className="flex items-center border-b border-black/[0.06] px-6 py-5"><div><h2 className="text-xl font-black">Корзина</h2><p className="text-xs text-[#8d827a]">{formatProductCount(itemCount)}</p></div><button onClick={() => setCartOpen(false)} className="ml-auto rounded-full p-2 hover:bg-[#f5f1ed]"><X className="h-5 w-5" /></button></div>
             <div className="flex-1 space-y-3 overflow-y-auto p-5">
+              <PendingPaymentCard />
               {cartLines.length === 0 ? <p className="py-20 text-center text-sm text-[#8d827a]">Корзина пока пуста</p> : cartLines.map(({ item, product, variant }) => (
                 <div key={item.id} className="rounded-2xl bg-[#f8f5f1] p-4">
                   <div className="flex gap-3"><div className="min-w-0 flex-1"><p className="truncate font-bold">{product?.name}</p><p className="text-xs text-[#887d75]">{variant?.name}{item.grindOption ? ` · ${item.grindOption}` : ""}</p></div><button onClick={() => removeItem(item.id)}><X className="h-4 w-4 text-[#a0948c]" /></button></div>
@@ -184,7 +186,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
                 </div>
               ))}
             </div>
-            <div className="border-t border-black/[0.06] p-6"><div className="mb-4 flex items-end justify-between"><span className="text-sm text-[#766d66]">Итого</span><strong className="text-2xl">{formatPrice(cartTotal)}</strong></div><Link href="/checkout" className={`flex h-14 items-center justify-center gap-2 rounded-full text-sm font-black ${cartLines.length ? "bg-[#5b328a] text-white" : "pointer-events-none bg-[#eee9e5] text-[#aaa098]"}`}>Оформить заказ <ChevronRight className="h-4 w-4" /></Link>{cartLines.length > 0 && <button onClick={clearCart} className="mt-3 w-full text-xs font-bold text-[#9b9087] hover:text-red-600">Очистить корзину</button>}</div>
+            <div className="border-t border-black/[0.06] p-6"><div className="mb-4 flex items-end justify-between"><span className="text-sm text-[#766d66]">Итого</span><strong className="text-2xl">{formatPrice(cartTotal)}</strong></div><Link href="/checkout" className={`flex h-14 items-center justify-center gap-2 rounded-full text-sm font-black ${cartLines.length && !pendingPayment ? "bg-[#5b328a] text-white" : "pointer-events-none bg-[#eee9e5] text-[#aaa098]"}`}>{pendingPayment ? "Сначала завершите текущий заказ" : "Оформить заказ"} <ChevronRight className="h-4 w-4" /></Link>{cartLines.length > 0 && <button onClick={clearCart} className="mt-3 w-full text-xs font-bold text-[#9b9087] hover:text-red-600">Очистить корзину</button>}</div>
           </aside>
         </div>
       )}

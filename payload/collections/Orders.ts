@@ -274,6 +274,12 @@ export const Orders: CollectionConfig = {
       admin: { position: "sidebar", readOnly: true },
     },
     {
+      name: "paymentConfirmationEmailSentAt",
+      type: "date",
+      label: "Письмо об оплате отправлено",
+      admin: { position: "sidebar", readOnly: true },
+    },
+    {
       name: "subtotal",
       type: "number",
       label: "Сумма товаров",

@@ -10,7 +10,7 @@ export const ProductReviews: CollectionConfig = {
     group: "Каталог",
     description: "Оценки и отзывы на товары",
     baseFilter: retailOnlyBaseFilter,
-    defaultColumns: ["product", "authorName", "rating", "comment", "status", "createdAt"],
+    defaultColumns: ["product", "authorClient", "authorName", "rating", "comment", "status", "createdAt"],
     components: {
       beforeList: ["/payload/components/ProductReviewsModeration"],
     },
@@ -30,9 +30,20 @@ export const ProductReviews: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [
-      ({ data, operation, req }) => {
+      ({ data, operation, req, originalDoc }) => {
         if (operation === "create" && !canManageOperations(req.user) && data) {
           data.status = "pending"
+        }
+        if (data && canManageOperations(req.user)) {
+          const authorClient = data.authorClient ?? originalDoc?.authorClient
+          const authorName = String(data.authorName ?? originalDoc?.authorName ?? "").trim()
+          if (authorClient && authorName) {
+            throw new Error("Укажите либо клиента, либо другое имя автора — не оба поля одновременно.")
+          }
+          if (!authorClient && !authorName) {
+            throw new Error("Выберите клиента или укажите другое имя автора.")
+          }
+          if (typeof data.authorName === "string") data.authorName = data.authorName.trim()
         }
         return data
       },
@@ -50,9 +61,35 @@ export const ProductReviews: CollectionConfig = {
       },
     },
     {
-      name: "authorName",
-      type: "text",
-      label: "Имя",
+      type: "row",
+      fields: [
+        {
+          name: "authorClient",
+          type: "relationship",
+          label: "Клиент",
+          relationTo: "clients",
+          filterOptions: {
+            and: [
+              { salesChannel: { equals: "retail" } },
+              { customerType: { equals: "individual" } },
+            ],
+          },
+          admin: {
+            width: "50%",
+            description: "Выберите реального розничного клиента либо оставьте поле пустым и укажите другое имя.",
+          },
+        },
+        {
+          name: "authorName",
+          type: "text",
+          label: "Другое имя",
+          admin: {
+            width: "50%",
+            placeholder: "Например, Анна",
+            description: "Произвольное имя автора. Не заполняйте, если выбран клиент.",
+          },
+        },
+      ],
     },
     {
       name: "clientId",
@@ -61,6 +98,8 @@ export const ProductReviews: CollectionConfig = {
       index: true,
       admin: {
         description: "ID пользователя, оставившего отзыв (для личного кабинета).",
+        readOnly: true,
+        position: "sidebar",
       },
     },
     {

@@ -11,6 +11,8 @@ import * as migration_20260811_180000_orders_returned_status from './20260811_18
 import * as migration_20260811_190000_product_merchandising_and_taste from './20260811_190000_product_merchandising_and_taste.ts';
 import * as migration_20260811_200000_yookassa_settings from './20260811_200000_yookassa_settings.ts';
 import * as migration_20260812_120000_sales_channels_and_admin_workspaces from './20260812_120000_sales_channels_and_admin_workspaces.ts';
+import * as migration_20260812_210000_paid_order_confirmation_email from './20260812_210000_paid_order_confirmation_email.ts';
+import * as migration_20260812_220000_product_review_authors from './20260812_220000_product_review_authors.ts';
 
 export const migrations = [
   {
@@ -77,5 +79,15 @@ export const migrations = [
     up: migration_20260812_120000_sales_channels_and_admin_workspaces.up,
     down: migration_20260812_120000_sales_channels_and_admin_workspaces.down,
     name: '20260812_120000_sales_channels_and_admin_workspaces'
+  },
+  {
+    up: migration_20260812_210000_paid_order_confirmation_email.up,
+    down: migration_20260812_210000_paid_order_confirmation_email.down,
+    name: '20260812_210000_paid_order_confirmation_email'
+  },
+  {
+    up: migration_20260812_220000_product_review_authors.up,
+    down: migration_20260812_220000_product_review_authors.down,
+    name: '20260812_220000_product_review_authors'
   },
 ];

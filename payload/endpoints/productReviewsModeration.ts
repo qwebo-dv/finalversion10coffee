@@ -5,6 +5,7 @@ interface ReviewDocument {
   id: string | number
   product: string | number | { id: string | number; name?: string | null; slug?: string | null } | null
   authorName?: string | null
+  authorClient?: string | number | { id: string | number; fullName?: string | null } | null
   clientId?: string | null
   rating?: string | number | null
   comment?: string | null
@@ -21,7 +22,7 @@ function reviewSummary(review: ReviewDocument) {
     id: String(review.id),
     rating: Number(review.rating) || 0,
     comment: review.comment || null,
-    authorName: review.authorName || null,
+    authorName: (typeof review.authorClient === "object" && review.authorClient?.fullName) || review.authorName || null,
     clientId: review.clientId || null,
     status: review.status || "pending",
     createdAt: review.createdAt,

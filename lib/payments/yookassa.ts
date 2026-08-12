@@ -53,14 +53,14 @@ async function yooKassaRequest<T>(path: string, config: YooKassaConfig, init?: R
   return result
 }
 
-export async function createYooKassaPayment(params: { orderId: string; orderNumber: string; amountRubles: number; description?: string }) {
+export async function createYooKassaPayment(params: { orderId: string; orderNumber: string; amountRubles: number; description?: string; attemptKey?: string }) {
   const config = await getYooKassaConfig()
   if (!isYooKassaReady(config)) return { ok: false as const, code: "not_configured" as const, error: "Онлайн-оплата YooKassa пока не подключена" }
   if (!Number.isFinite(params.amountRubles) || params.amountRubles <= 0) return { ok: false as const, code: "invalid_amount" as const, error: "Некорректная сумма платежа" }
 
   const returnUrl = new URL(config.returnUrl)
   returnUrl.searchParams.set("orderId", params.orderId)
-  const idempotenceKey = createHash("sha256").update(`10coffee:${params.orderId}:create`).digest("hex")
+  const idempotenceKey = createHash("sha256").update(`10coffee:${params.orderId}:${params.attemptKey || "create"}`).digest("hex")
   try {
     const payment = await yooKassaRequest<YooKassaPayment>("/payments", config, {
       method: "POST",
@@ -89,6 +89,7 @@ export async function getYooKassaPayment(paymentId: string) {
     return {
       ok: true as const,
       paymentId: payment.id || paymentId,
+      paymentUrl: payment.confirmation?.confirmation_url,
       status: statusMap[payment.status || ""] || "failed",
       amountRubles: Number(payment.amount?.value),
       orderId: payment.metadata?.order_id,

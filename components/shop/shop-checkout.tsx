@@ -7,6 +7,7 @@ import { createShopOrder } from "@/lib/actions/shop-orders"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
 import PhoneInput from "@/components/shared/phone-input"
+import { PendingPaymentCard } from "@/components/shop/pending-payment-card"
 import { formatPrice } from "@/lib/utils/format"
 import type { DeliveryMethod, Product } from "@/types"
 
@@ -17,7 +18,7 @@ export function ShopCheckout({
   products: Product[]
   onlinePaymentReady: boolean
 }) {
-  const { items, clearCart, hydrated } = useGuestCart()
+  const { items, clearCart, hydrated, pendingPayment, setPendingPayment } = useGuestCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [redirectingToPayment, setRedirectingToPayment] = useState(false)
@@ -71,9 +72,14 @@ export function ShopCheckout({
       return
     }
 
-    if (response.paymentUrl) {
+    if (response.paymentUrl && response.paymentToken && response.orderId) {
       setRedirectingToPayment(true)
-      clearCart()
+      setPendingPayment({
+        orderId: response.orderId,
+        orderNumber: response.orderNumber || response.orderId,
+        token: response.paymentToken,
+        paymentUrl: response.paymentUrl,
+      })
       window.location.assign(response.paymentUrl)
       return
     }
@@ -93,7 +99,7 @@ export function ShopCheckout({
         <div className="w-full max-w-xl rounded-[32px] bg-white p-8 text-center shadow-[0_24px_80px_rgba(45,27,17,0.1)] sm:p-12">
           <CheckCircle2 className="mx-auto h-16 w-16 text-[#5b328a]" />
           <h1 className="mt-6 text-3xl font-black tracking-tight">Заказ {result.orderNumber} принят</h1>
-          <p className="mt-3 text-sm leading-6 text-[#756b63]">Мы отправили подтверждение на указанную почту и свяжемся с вами для уточнения доставки.</p>
+          <p className="mt-3 text-sm leading-6 text-[#756b63]">Заказ сохранён. Подтверждение на почту будет отправлено только после успешной оплаты.</p>
           {result.paymentPendingSetup && <div className="mt-6 rounded-2xl bg-[#fff4e8] p-4 text-sm text-[#8a4b1c]">Эквайринг работает в режиме подготовки. Платёжная ссылка появится после подключения реквизитов YooKassa.</div>}
           {result.warning && <div className="mt-4 rounded-2xl bg-[#fff4e8] p-4 text-sm text-[#8a4b1c]">{result.warning}</div>}
           <Link href="/shop" className="mt-8 inline-flex h-12 items-center justify-center rounded-full bg-[#5b328a] px-6 text-sm font-bold text-white">Вернуться в каталог</Link>
@@ -110,6 +116,19 @@ export function ShopCheckout({
           <h1 className="mt-6 text-2xl font-black tracking-tight">Переходим к безопасной оплате</h1>
           <p className="mt-3 text-sm leading-6 text-[#756b63]">Заказ создан. Сейчас откроется защищённая платёжная страница YooKassa.</p>
           <p className="mt-5 text-xs text-[#9a9088]">Пожалуйста, не закрывайте страницу.</p>
+        </div>
+      </main>
+    )
+  }
+
+  if (hydrated && pendingPayment) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f8f5f1] px-5">
+        <div className="w-full max-w-xl rounded-[32px] bg-white p-8 shadow-[0_24px_80px_rgba(45,27,17,0.1)] sm:p-10">
+          <h1 className="text-center text-3xl font-black tracking-tight">Заказ уже ожидает оплаты</h1>
+          <p className="mx-auto mt-3 max-w-md text-center text-sm leading-6 text-[#756b63]">Чтобы не создавать дубликат, завершите оплату текущего заказа или откажитесь от него.</p>
+          <div className="mt-7"><PendingPaymentCard /></div>
+          <Link href="/shop" className="mx-auto mt-3 flex w-fit items-center gap-2 text-sm font-bold text-[#5b328a]"><ArrowLeft className="h-4 w-4" /> Вернуться в каталог</Link>
         </div>
       </main>
     )
