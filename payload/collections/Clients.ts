@@ -1,5 +1,6 @@
 import type { CollectionConfig } from "payload"
-import { adminOnly } from "../access/adminOnly"
+import { operationsCreateAccess, operationsDeleteAccess, operationsReadAccess, operationsUpdateAccess } from "../access/adminRoles"
+import { workspaceBaseFilter } from "../admin/workspace"
 
 interface SupabaseCompanyRow {
   id?: string | number
@@ -32,8 +33,9 @@ export const Clients: CollectionConfig = {
     useAsTitle: "fullName",
     group: "Клиенты",
     description: "Клиенты платформы",
+    baseFilter: workspaceBaseFilter,
     listSearchableFields: ["fullName", "email", "phone"],
-    defaultColumns: ["fullName", "customerType", "email", "phone", "createdAt"],
+    defaultColumns: ["fullName", "salesChannel", "customerType", "email", "phone", "createdAt"],
   },
   labels: {
     singular: "Клиент",
@@ -41,6 +43,22 @@ export const Clients: CollectionConfig = {
   },
   fields: [
     // === Sidebar ===
+    {
+      name: "salesChannel",
+      type: "select",
+      label: "Основной контур",
+      required: true,
+      defaultValue: "wholesale",
+      index: true,
+      options: [
+        { label: "Опт", value: "wholesale" },
+        { label: "Розница", value: "retail" },
+      ],
+      admin: {
+        position: "sidebar",
+        description: "Используется для разделения клиентских кабинетов и административных списков.",
+      },
+    },
     {
       name: "customerType",
       type: "select",
@@ -301,6 +319,14 @@ export const Clients: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeValidate: [
+      ({ data, operation }) => {
+        if (operation === "create" && data && !data.salesChannel) {
+          data.salesChannel = data.customerType === "individual" ? "retail" : "wholesale"
+        }
+        return data
+      },
+    ],
     afterRead: [
       async ({ doc }) => {
         doc.customerType = doc.customerType || "business"
@@ -389,9 +415,9 @@ export const Clients: CollectionConfig = {
     ],
   },
   access: {
-    read: adminOnly,
-    create: adminOnly,
-    update: adminOnly,
-    delete: adminOnly,
+    read: operationsReadAccess,
+    create: operationsCreateAccess,
+    update: operationsUpdateAccess,
+    delete: operationsDeleteAccess,
   },
 }

@@ -1,4 +1,5 @@
 import type { CollectionConfig, Where } from "payload"
+import { contentManagerOnly, superAdminOnly } from "../access/adminRoles"
 import { PRODUCT_DETAILS_SCHEMA_OPTIONS } from "@/lib/product-types"
 
 export const ProductTypes: CollectionConfig = {
@@ -106,8 +107,8 @@ export const ProductTypes: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: ({ req }) => !!req.user,
-    update: ({ req }) => !!req.user,
-    delete: ({ req }) => !!req.user,
+    create: contentManagerOnly,
+    update: contentManagerOnly,
+    delete: superAdminOnly,
   },
 }

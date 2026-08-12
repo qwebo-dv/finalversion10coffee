@@ -1,4 +1,6 @@
 import type { CollectionConfig } from "payload"
+import { canManageOperations, canReadOperations, operationsDeleteAccess } from "../access/adminRoles"
+import { wholesaleOnlyBaseFilter } from "../admin/workspace"
 
 export const PriceListRequests: CollectionConfig = {
   slug: "price-list-requests",
@@ -6,6 +8,7 @@ export const PriceListRequests: CollectionConfig = {
     useAsTitle: "name",
     group: "Маркетинг",
     description: "Заявки на прайс-лист с лендинга",
+    baseFilter: wholesaleOnlyBaseFilter,
     defaultColumns: ["name", "email", "phone", "company", "createdAt"],
   },
   labels: {
@@ -14,6 +17,9 @@ export const PriceListRequests: CollectionConfig = {
   },
   access: {
     create: () => true,
+    read: ({ req }) => canReadOperations(req.user),
+    update: ({ req }) => canManageOperations(req.user),
+    delete: operationsDeleteAccess,
   },
   fields: [
     {

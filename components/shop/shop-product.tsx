@@ -174,6 +174,14 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
             )}
             <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#e6610d]">{product.product_type_name}</p>
             <h1 className="mt-3 text-5xl font-black leading-[0.98] tracking-[-0.05em] sm:text-6xl">{product.name}</h1>
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <StarRating value={product.rating} count={product.reviews_count} size="lg" />
+              {!product.reviews_count && (
+                <button type="button" onClick={scrollToReview} className="inline-flex items-center text-sm font-semibold text-[#8d827a] transition hover:text-[#5b328a]">
+                  Пока не оценили
+                </button>
+              )}
+            </div>
             {subtitle && <p className="mt-4 text-lg text-[#6e655e]">{subtitle}</p>}
             {isCoffee && (product.taste_description || product.acidity || product.bitterness || product.sweetness || product.body) && (
               <div className="mt-5 rounded-[22px] border border-[#7540ad]/10 bg-white/70 px-5 py-4">
@@ -188,14 +196,6 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
                 </div>
               </div>
             )}
-            <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
-              <StarRating value={product.rating} count={product.reviews_count} size="lg" />
-              {!product.reviews_count && (
-                <button type="button" onClick={scrollToReview} className="inline-flex items-center text-sm font-semibold text-[#8d827a] transition hover:text-[#5b328a]">
-                  Пока не оценили
-                </button>
-              )}
-            </div>
 
             {/* Packaging */}
             <div className="mt-10">

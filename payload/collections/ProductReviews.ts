@@ -1,6 +1,7 @@
 import type { CollectionConfig } from "payload"
 import { productReviewsModerationHandler } from "../endpoints/productReviewsModeration"
-import { adminOnly } from "../access/adminOnly"
+import { operationsDeleteAccess, canManageOperations } from "../access/adminRoles"
+import { retailOnlyBaseFilter } from "../admin/workspace"
 
 export const ProductReviews: CollectionConfig = {
   slug: "product-reviews",
@@ -8,6 +9,7 @@ export const ProductReviews: CollectionConfig = {
     useAsTitle: "id",
     group: "Каталог",
     description: "Оценки и отзывы на товары",
+    baseFilter: retailOnlyBaseFilter,
     defaultColumns: ["product", "authorName", "rating", "comment", "status", "createdAt"],
     components: {
       beforeList: ["/payload/components/ProductReviewsModeration"],
@@ -21,15 +23,15 @@ export const ProductReviews: CollectionConfig = {
     // Public review creation goes through /api/product-reviews, where the
     // retail session is verified. Payload REST remains closed to anonymous
     // requests so clientId cannot be spoofed.
-    create: ({ req }) => req.user?.role === "admin",
-    read: ({ req }) => req.user?.role === "admin" || { status: { equals: "approved" } },
-    update: adminOnly,
-    delete: adminOnly,
+    create: ({ req }) => canManageOperations(req.user),
+    read: ({ req }) => canManageOperations(req.user) || { status: { equals: "approved" } },
+    update: ({ req }) => canManageOperations(req.user),
+    delete: operationsDeleteAccess,
   },
   hooks: {
     beforeValidate: [
       ({ data, operation, req }) => {
-        if (operation === "create" && req.user?.role !== "admin" && data) {
+        if (operation === "create" && !canManageOperations(req.user) && data) {
           data.status = "pending"
         }
         return data
@@ -94,8 +96,8 @@ export const ProductReviews: CollectionConfig = {
         description: "Отзыв появляется на сайте только после публикации администратором.",
       },
       access: {
-        create: ({ req }) => req.user?.role === "admin",
-        update: ({ req }) => req.user?.role === "admin",
+        create: ({ req }) => canManageOperations(req.user),
+        update: ({ req }) => canManageOperations(req.user),
       },
     },
   ],

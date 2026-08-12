@@ -1,11 +1,13 @@
 import type { CollectionConfig } from "payload"
-import { adminOnly } from "../access/adminOnly"
+import { canReadOperations, operationsDeleteAccess } from "../access/adminRoles"
+import { retailOnlyBaseFilter } from "../admin/workspace"
 
 export const CartItems: CollectionConfig = {
   slug: "cart-items",
   admin: {
     group: "Клиенты",
     description: "Корзины клиентов",
+    baseFilter: retailOnlyBaseFilter,
     defaultColumns: ["clientId", "product", "variantId", "quantity"],
   },
   labels: {
@@ -48,9 +50,9 @@ export const CartItems: CollectionConfig = {
     },
   ],
   access: {
-    read: adminOnly,
-    create: adminOnly,
-    update: adminOnly,
-    delete: adminOnly,
+    read: ({ req }) => canReadOperations(req.user),
+    create: () => false,
+    update: () => false,
+    delete: operationsDeleteAccess,
   },
 }

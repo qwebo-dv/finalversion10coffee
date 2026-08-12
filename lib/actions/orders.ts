@@ -67,6 +67,7 @@ interface PayloadOrderItem {
 interface PayloadOrderDoc {
   id: string | number
   orderId?: string
+  salesChannel?: "wholesale" | "retail"
   client?: PayloadClientRef | string | number | null
   companyName?: string | null
   companyInn?: string | null
@@ -715,6 +716,7 @@ export async function createOrder(params: {
   const payload = await getPayloadClient()
   const orderData: Record<string, unknown> = {
     client: clientDocId,
+    salesChannel: "wholesale",
     customerType: "business",
     checkoutMode: "account",
     paymentMethod: "invoice",
@@ -769,6 +771,8 @@ export async function createOrder(params: {
     order: {
       id: doc.id,
       orderId: doc.orderId,
+      salesChannel: "wholesale",
+      customerType: "business",
       createdAt: doc.createdAt,
       subtotal,
       discountAmount,

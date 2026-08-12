@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { contentManagerOnly, superAdminOnly } from "../access/adminRoles"
 
 export const Media: CollectionConfig = {
   slug: "media",
@@ -49,8 +50,8 @@ export const Media: CollectionConfig = {
   ],
   access: {
     read: () => true,
-    create: ({ req }) => !!req.user,
-    update: ({ req }) => !!req.user,
-    delete: ({ req }) => !!req.user,
+    create: contentManagerOnly,
+    update: contentManagerOnly,
+    delete: superAdminOnly,
   },
 }

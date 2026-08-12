@@ -37,6 +37,7 @@ interface MoyskladItem { value: string; count: number }
 
 interface DashboardResponse {
   error?: string
+  workspace: "wholesale" | "retail" | "all"
   period: Period
   generatedAt: string
   metrics: {
@@ -109,13 +110,6 @@ const DELIVERY_LABELS: Record<string, string> = {
   cdek: "СДЭК",
   cap_2000: "ЦАП 2000",
   sochi_delivery: "Доставка по Сочи",
-}
-
-const MOYSKLAD_LABELS: Record<string, string> = {
-  pending: "Ожидают",
-  synced: "Синхронизированы",
-  error: "Ошибки",
-  disabled: "Отключено",
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -245,14 +239,15 @@ function MiniBars({ items, max, color }: { items: CountItem[]; max: number; colo
 
 export default function BusinessDashboard() {
   const { user } = useAuth()
-  const isSuperAdmin = (user as { role?: string } | null)?.role === "admin"
+  const role = (user as { role?: string } | null)?.role
+  const canViewDashboard = Boolean(role && ["admin", "manager", "super_admin", "content_manager", "wholesale_manager", "retail_manager", "support", "integration_operator"].includes(role))
   const [period, setPeriod] = useState<Period>("30")
   const [data, setData] = useState<DashboardResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
   const load = useCallback(async () => {
-    if (!isSuperAdmin) return
+    if (!canViewDashboard) return
     setLoading(true)
     setError("")
     try {
@@ -265,7 +260,7 @@ export default function BusinessDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [isSuperAdmin, period])
+  }, [canViewDashboard, period])
 
   useEffect(() => {
     void load()
@@ -296,7 +291,7 @@ export default function BusinessDashboard() {
   const maxDelivery = Math.max(1, ...deliveryItems.map((item) => item.count))
   const maxProductRevenue = Math.max(1, ...(data?.topProducts || []).map((item) => item.revenue))
 
-  if (!isSuperAdmin) return null
+  if (!canViewDashboard) return null
   const m = data?.metrics
   const periodRevenue = m?.periodRevenue ?? 0
   const periodOrders = m?.periodOrders ?? 0
@@ -304,6 +299,12 @@ export default function BusinessDashboard() {
   return (
     <section className="business-dashboard">
       <div className="business-dashboard__header">
+        <div>
+          <div className="business-dashboard__eyebrow">
+            {data?.workspace === "wholesale" ? "Оптовый контур" : data?.workspace === "retail" ? "Розничный контур" : "Сводно по всем контурам"}
+          </div>
+          <p>Заказы, клиенты и показатели отфильтрованы выбранным рабочим пространством.</p>
+        </div>
         <div className="business-dashboard__controls">
           <select value={period} onChange={(event) => setPeriod(event.target.value as Period)} aria-label="Период дашборда">
             {(Object.entries(PERIOD_LABELS) as [Period, string][]).map(([value, label]) => (

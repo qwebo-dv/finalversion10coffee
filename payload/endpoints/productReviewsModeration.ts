@@ -1,4 +1,5 @@
 import type { Endpoint } from "payload"
+import { canManageOperations } from "../access/adminRoles"
 
 interface ReviewDocument {
   id: string | number
@@ -9,10 +10,6 @@ interface ReviewDocument {
   comment?: string | null
   status?: string | null
   createdAt: string
-}
-
-function isAdminUser(user: { collection?: string; role?: string } | null): boolean {
-  return !!user && user.collection === "admins" && user.role === "admin"
 }
 
 function reviewSummary(review: ReviewDocument) {
@@ -45,9 +42,8 @@ function reviewSummary(review: ReviewDocument) {
 }
 
 export const productReviewsModerationHandler: Endpoint["handler"] = async (req) => {
-  const user = req.user as { collection?: string; role?: string } | null
-  if (!isAdminUser(user)) {
-    return Response.json({ error: "Доступ разрешён только суперадминистратору" }, { status: 403 })
+  if (!canManageOperations(req.user)) {
+    return Response.json({ error: "Недостаточно прав для модерации отзывов" }, { status: 403 })
   }
 
   const method = req.method || "GET"

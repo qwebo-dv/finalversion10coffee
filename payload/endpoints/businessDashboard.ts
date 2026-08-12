@@ -1,5 +1,7 @@
 import type { Endpoint } from "payload"
 import { dbQuery } from "@/lib/db"
+import { canReadOperations } from "../access/adminRoles"
+import { resolveAdminWorkspace, workspaceToSalesChannel } from "../admin/workspace"
 
 type Period = "7" | "30" | "90" | "all"
 
@@ -60,6 +62,7 @@ interface RecentOrderRow {
   customer: string | null
   email: string | null
   customer_type: string
+  sales_channel: string
   status: string
   payment_status: string
   total: string | number
@@ -90,12 +93,30 @@ async function safeDashboardQuery<T>(
 }
 
 export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
-  const user = req.user as { collection?: string; role?: string } | null
-  if (!user || user.collection !== "admins" || user.role !== "admin") {
-    return Response.json({ error: "Доступ разрешён только администраторам" }, { status: 403 })
+  if (!canReadOperations(req.user)) {
+    return Response.json({ error: "Недостаточно прав для просмотра операционной аналитики" }, { status: 403 })
   }
 
   try {
+    const workspace = resolveAdminWorkspace(req)
+    const salesChannel = workspaceToSalesChannel(workspace)
+    const orderWhere = salesChannel ? `sales_channel = '${salesChannel}'` : "TRUE"
+    const orderWhereAliased = salesChannel ? `o.sales_channel = '${salesChannel}'` : "TRUE"
+    const orderAnd = salesChannel ? `AND o.sales_channel = '${salesChannel}'` : ""
+    const orderAndUnaliased = salesChannel ? `AND sales_channel = '${salesChannel}'` : ""
+    const clientWhere = salesChannel ? `sales_channel = '${salesChannel}'` : "TRUE"
+    const reviewWhere = salesChannel === "wholesale" ? "FALSE" : "status = 'pending'"
+    const priceRequestWhere = salesChannel === "retail" ? "FALSE" : "email_sent = false"
+    const promoWhere = salesChannel === "retail"
+      ? "is_active = true AND audience IN ('individual', 'all')"
+      : salesChannel === "wholesale"
+        ? "is_active = true AND audience IN ('business', 'all')"
+        : "is_active = true"
+    const promoAudienceWhere = salesChannel === "retail"
+      ? "audience IN ('individual', 'all')"
+      : salesChannel === "wholesale"
+        ? "audience IN ('business', 'all')"
+        : "TRUE"
     const requestedPeriod = req.url
       ? new URL(req.url, "http://payload.local").searchParams.get("period")
       : null
@@ -122,6 +143,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
         COALESCE(SUM(total) FILTER (WHERE ${ACTIVE_STATUS}), 0) AS total_revenue,
         COALESCE(AVG(total) FILTER (WHERE ${ACTIVE_STATUS}), 0) AS avg_order
       FROM orders
+      WHERE ${orderWhere}
     `), true)
 
     const periodResult = currentStart && previousStart
@@ -132,7 +154,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
             COUNT(*) FILTER (WHERE ${ACTIVE_STATUS} AND created_at >= $2 AND created_at < $1) AS previous_orders,
             COALESCE(SUM(total) FILTER (WHERE ${ACTIVE_STATUS} AND created_at >= $2 AND created_at < $1), 0) AS previous_revenue
           FROM orders
-          WHERE created_at >= $2
+          WHERE created_at >= $2 ${orderAndUnaliased}
         `, [currentStart, previousStart]))
       : null
 
@@ -141,14 +163,15 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
         COUNT(*) AS total_clients,
         COUNT(*) FILTER (WHERE created_at >= $1) AS new_clients
       FROM clients
+      WHERE ${clientWhere}
     `, currentStart ? [currentStart] : [new Date(0)]))
 
     const countersResult = await safeDashboardQuery("operational counters", () => dbQuery<MetricRow>(`
       SELECT
-        (SELECT COUNT(*) FROM product_reviews WHERE status = 'pending') AS pending_reviews,
-        (SELECT COUNT(*) FROM price_list_requests WHERE email_sent = false) AS pending_price_requests,
-        (SELECT COUNT(*) FROM promo_codes WHERE is_active = true) AS active_promos,
-        (SELECT COALESCE(SUM(current_uses), 0) FROM promo_codes) AS promo_uses,
+        (SELECT COUNT(*) FROM product_reviews WHERE ${reviewWhere}) AS pending_reviews,
+        (SELECT COUNT(*) FROM price_list_requests WHERE ${priceRequestWhere}) AS pending_price_requests,
+        (SELECT COUNT(*) FROM promo_codes WHERE ${promoWhere}) AS active_promos,
+        (SELECT COALESCE(SUM(current_uses), 0) FROM promo_codes WHERE ${promoAudienceWhere}) AS promo_uses,
         (SELECT COUNT(*) FROM products WHERE is_visible = true) AS visible_products
     `))
 
@@ -167,7 +190,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
               COUNT(*) FILTER (WHERE ${ACTIVE_STATUS}) AS orders,
               COALESCE(SUM(total) FILTER (WHERE ${ACTIVE_STATUS}), 0) AS revenue
             FROM orders
-            WHERE created_at >= CURRENT_DATE - ($1 * INTERVAL '1 day')
+            WHERE created_at >= CURRENT_DATE - ($1 * INTERVAL '1 day') ${orderAndUnaliased}
             GROUP BY created_at::date
           )
           SELECT buckets.bucket, COALESCE(totals.orders, 0) AS orders, COALESCE(totals.revenue, 0) AS revenue
@@ -179,6 +202,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
           WITH bounds AS (
             SELECT COALESCE(DATE_TRUNC('month', MIN(created_at)), DATE_TRUNC('month', CURRENT_DATE)) AS first_month
             FROM orders
+            WHERE ${orderWhere}
           ), buckets AS (
             SELECT GENERATE_SERIES(
               (SELECT first_month FROM bounds),
@@ -191,6 +215,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
               COUNT(*) FILTER (WHERE ${ACTIVE_STATUS}) AS orders,
               COALESCE(SUM(total) FILTER (WHERE ${ACTIVE_STATUS}), 0) AS revenue
             FROM orders
+            WHERE ${orderWhere}
             GROUP BY DATE_TRUNC('month', created_at)
           )
           SELECT buckets.bucket, COALESCE(totals.orders, 0) AS orders, COALESCE(totals.revenue, 0) AS revenue
@@ -203,6 +228,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
     const statusResult = await safeDashboardQuery("order statuses", () => dbQuery<CountRow>(`
       SELECT status AS value, COUNT(*) AS count
       FROM orders
+      WHERE ${orderWhere}
       GROUP BY status
       ORDER BY count DESC
     `))
@@ -210,6 +236,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
     const paymentResult = await safeDashboardQuery("payment statuses", () => dbQuery<CountRow>(`
       SELECT payment_status AS value, COUNT(*) AS count
       FROM orders
+      WHERE ${orderWhere}
       GROUP BY payment_status
       ORDER BY count DESC
     `))
@@ -217,6 +244,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
     const customerTypeResult = await safeDashboardQuery("customer types", () => dbQuery<CountRow>(`
       SELECT customer_type AS value, COUNT(*) AS count, COALESCE(SUM(total) FILTER (WHERE ${ACTIVE_STATUS}), 0) AS revenue
       FROM orders
+      WHERE ${orderWhere}
       GROUP BY customer_type
       ORDER BY count DESC
     `))
@@ -224,6 +252,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
     const deliveryResult = await safeDashboardQuery("delivery methods", () => dbQuery<CountRow>(`
       SELECT delivery_method AS value, COUNT(*) AS count
       FROM orders
+      WHERE ${orderWhere}
       GROUP BY delivery_method
       ORDER BY count DESC
     `))
@@ -238,6 +267,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
       FROM orders_items i
       JOIN orders o ON o.id = i._parent_id
       WHERE ${ACTIVE_STATUSES}
+        ${orderAnd}
         ${currentFilter}
       GROUP BY i.product_name
       ORDER BY revenue DESC
@@ -254,6 +284,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
       FROM orders o
       LEFT JOIN clients c ON c.id = o.client_id
       WHERE ${ACTIVE_STATUSES}
+        ${orderAnd}
         ${currentFilter}
       GROUP BY COALESCE(c.full_name, o.customer_full_name, o.customer_email, 'Гость'), c.id, o.customer_email
       ORDER BY revenue DESC
@@ -267,12 +298,14 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
         COALESCE(c.full_name, o.customer_full_name, o.customer_email, 'Гость') AS customer,
         o.customer_email AS email,
         o.customer_type,
+        o.sales_channel,
         o.status,
         o.payment_status,
         o.total,
         o.created_at
       FROM orders o
       LEFT JOIN clients c ON c.id = o.client_id
+      WHERE ${orderWhereAliased}
       ORDER BY o.created_at DESC
       LIMIT 8
     `))
@@ -280,6 +313,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
     const moyskladResult = await safeDashboardQuery("moysklad statuses", () => dbQuery<MoyskladRow>(`
       SELECT moysklad_sync_status, COUNT(*) AS count
       FROM orders
+      WHERE ${orderWhere}
       GROUP BY moysklad_sync_status
       ORDER BY count DESC
     `))
@@ -312,6 +346,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
         : Math.round(((currentOrders - previousOrders) / previousOrders) * 100)
 
     return Response.json({
+      workspace,
       period,
       generatedAt: now.toISOString(),
       metrics: {
@@ -379,6 +414,7 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
         orderId: order.order_id || `#${order.id}`,
         customer: order.customer,
         customerType: order.customer_type,
+        salesChannel: order.sales_channel,
         status: order.status,
         paymentStatus: order.payment_status,
         total: Math.round(Number(order.total) || 0),

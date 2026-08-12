@@ -136,6 +136,7 @@ export async function signUp(formData: {
         supabaseId: data.user?.id || "",
         address: formData.address || "",
         customerType: formData.customer_type || "business",
+        salesChannel: formData.customer_type === "individual" ? "retail" : "wholesale",
       },
     })
   } catch (syncError) {

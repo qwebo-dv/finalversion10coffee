@@ -1,6 +1,7 @@
 import type { CollectionConfig } from "payload"
-import { adminOnly } from "../access/adminOnly"
+import { canReadOperations, operationsDeleteAccess } from "../access/adminRoles"
 import { favoritesAnalyticsHandler } from "../endpoints/favoritesAnalytics"
+import { retailOnlyBaseFilter } from "../admin/workspace"
 
 export const Favorites: CollectionConfig = {
   slug: "favorites",
@@ -8,6 +9,7 @@ export const Favorites: CollectionConfig = {
   admin: {
     group: "Клиенты",
     description: "Избранные товары клиентов",
+    baseFilter: retailOnlyBaseFilter,
     defaultColumns: ["clientId", "product", "createdAt"],
     components: {
       beforeList: ["/payload/components/FavoritesAnalyticsDashboard"],
@@ -41,9 +43,9 @@ export const Favorites: CollectionConfig = {
     },
   ],
   access: {
-    read: adminOnly,
-    create: adminOnly,
-    update: adminOnly,
-    delete: adminOnly,
+    read: ({ req }) => canReadOperations(req.user),
+    create: () => false,
+    update: () => false,
+    delete: operationsDeleteAccess,
   },
 }

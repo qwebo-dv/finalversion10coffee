@@ -119,14 +119,15 @@ function TimelineChart({ timeline }: { timeline: AnalyticsResponse["timeline"] }
 
 export default function FavoritesAnalyticsDashboard() {
   const { user } = useAuth()
-  const isAdmin = (user as { role?: string } | null)?.role === "admin"
+  const role = (user as { role?: string } | null)?.role
+  const canViewAnalytics = Boolean(role && ["admin", "manager", "super_admin", "content_manager", "wholesale_manager", "retail_manager", "support", "integration_operator"].includes(role))
   const [period, setPeriod] = useState<Period>("all")
   const [data, setData] = useState<AnalyticsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
   const load = useCallback(async () => {
-    if (!isAdmin) return
+    if (!canViewAnalytics) return
     setLoading(true)
     setError("")
     try {
@@ -139,7 +140,7 @@ export default function FavoritesAnalyticsDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [isAdmin, period])
+  }, [canViewAnalytics, period])
 
   useEffect(() => {
     void load()
@@ -147,7 +148,7 @@ export default function FavoritesAnalyticsDashboard() {
 
   const maxProductCount = Math.max(1, ...(data?.topProducts.map((product) => product.count) || [1]))
 
-  if (!isAdmin) return null
+  if (!canViewAnalytics) return null
 
   return (
     <section className="favorites-analytics">

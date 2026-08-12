@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { contentManagerOnly, superAdminOnly } from "../access/adminRoles"
 import { importMoyskladCatalog } from "@/lib/moysklad/import-catalog"
 import { notifyProductRestock } from "../hooks/productRestock"
 import { PRODUCT_DETAILS_SCHEMA_OPTIONS, getRelationshipId } from "@/lib/product-types"
@@ -468,8 +469,8 @@ export const Products: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: ({ req }) => !!req.user,
-    update: ({ req }) => !!req.user,
-    delete: ({ req }) => req.user?.role === "admin",
+    create: contentManagerOnly,
+    update: contentManagerOnly,
+    delete: superAdminOnly,
   },
 }

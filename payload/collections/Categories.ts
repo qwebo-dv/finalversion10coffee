@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { contentManagerOnly, superAdminOnly } from "../access/adminRoles"
 import { getRelationshipId } from "@/lib/product-types"
 import { validateCategoryProductType } from "../hooks/validateCategoryProductType"
 
@@ -102,9 +103,9 @@ export const Categories: CollectionConfig = {
   ],
   access: {
     read: () => true,
-    create: ({ req }) => !!req.user,
-    update: ({ req }) => !!req.user,
-    delete: ({ req }) => req.user?.role === "admin",
+    create: contentManagerOnly,
+    update: contentManagerOnly,
+    delete: superAdminOnly,
   },
   hooks: {
     beforeChange: [validateCategoryProductType],

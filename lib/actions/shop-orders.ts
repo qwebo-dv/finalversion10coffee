@@ -214,6 +214,7 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
   })
 
   const orderData: Record<string, unknown> = {
+    salesChannel: "retail",
     customerType: "individual",
     checkoutMode: clientId ? "account" : "guest",
     paymentMethod: "yookassa",
@@ -241,6 +242,7 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
     order: {
       id: order.id,
       orderId: order.orderId,
+      salesChannel: "retail",
       customerType: "individual",
       createdAt: order.createdAt,
       subtotal,

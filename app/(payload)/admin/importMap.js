@@ -32,6 +32,7 @@ import { BoldFeatureClient as BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864
 import { ItalicFeatureClient as ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { default as default_6e6a3ba665b4a0e4a4c9d853e6fe8fe4 } from '../../../payload/components/MoyskladCatalogSyncButton'
 import { default as default_bb3957fe0f89fddca7438d012e6e1646 } from '../../../payload/components/ProductReviewsModeration'
+import { default as default_d0aaeb6a5f0fcf9e8d48f7e71fb582f6 } from '../../../payload/components/AdminWorkspaceSwitcher'
 import { default as default_c463efc4ecef0c45aeb8ffabbb51cf57 } from '../../../payload/components/BusinessDashboard'
 import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
@@ -71,6 +72,7 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#ItalicFeatureClient": ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "/payload/components/MoyskladCatalogSyncButton#default": default_6e6a3ba665b4a0e4a4c9d853e6fe8fe4,
   "/payload/components/ProductReviewsModeration#default": default_bb3957fe0f89fddca7438d012e6e1646,
+  "/payload/components/AdminWorkspaceSwitcher#default": default_d0aaeb6a5f0fcf9e8d48f7e71fb582f6,
   "/payload/components/BusinessDashboard#default": default_c463efc4ecef0c45aeb8ffabbb51cf57,
   "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1

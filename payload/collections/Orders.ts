@@ -3,7 +3,8 @@ import { calculateOrderLineDiscounts } from "@/lib/order-line-discounts"
 import { dbQuery } from "@/lib/db"
 import { getMoyskladConfig } from "@/lib/moysklad/config"
 import { retryFailedMoyskladOrders } from "@/lib/moysklad/order-retry"
-import { adminOnly } from "../access/adminOnly"
+import { canRunIntegrations, operationsCreateAccess, operationsDeleteAccess, operationsReadAccess, operationsUpdateAccess } from "../access/adminRoles"
+import { workspaceBaseFilter } from "../admin/workspace"
 
 async function generateSequentialOrderId() {
   const nextResult = await dbQuery<{ next_number: number }>(
@@ -20,10 +21,11 @@ export const Orders: CollectionConfig = {
     useAsTitle: "orderId",
     group: "Заказы и продажи",
     description: "Заказы клиентов",
+    baseFilter: workspaceBaseFilter,
     listSearchableFields: ["orderId", "companyName", "companyInn"],
     defaultColumns: [
       "orderId",
-      "customerType",
+      "salesChannel",
       "client",
       "status",
       "paymentMethod",
@@ -46,8 +48,8 @@ export const Orders: CollectionConfig = {
       path: "/moysklad/retry",
       method: "post",
       handler: async (req) => {
-        if (!req.user) {
-          return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+        if (!canRunIntegrations(req.user)) {
+          return Response.json({ ok: false, error: "Недостаточно прав" }, { status: 403 })
         }
 
         const config = getMoyskladConfig()
@@ -110,6 +112,10 @@ export const Orders: CollectionConfig = {
       async ({ data, operation, req, originalDoc }) => {
         if (operation === "create" && data && !data.orderId) {
           data.orderId = await generateSequentialOrderId()
+        }
+
+        if (operation === "create" && data && !data.salesChannel) {
+          data.salesChannel = data.customerType === "individual" ? "retail" : "wholesale"
         }
 
         if (data) {
@@ -179,6 +185,22 @@ export const Orders: CollectionConfig = {
   },
   fields: [
     // === Sidebar (always visible) ===
+    {
+      name: "salesChannel",
+      type: "select",
+      label: "Контур продаж",
+      required: true,
+      defaultValue: "wholesale",
+      index: true,
+      options: [
+        { label: "Опт", value: "wholesale" },
+        { label: "Розница", value: "retail" },
+      ],
+      admin: {
+        position: "sidebar",
+        description: "Определяет рабочее пространство, аналитику и политику синхронизации с МойСклад.",
+      },
+    },
     {
       name: "customerType",
       type: "select",
@@ -675,9 +697,9 @@ export const Orders: CollectionConfig = {
     },
   ],
   access: {
-    read: adminOnly,
-    create: adminOnly,
-    update: adminOnly,
-    delete: adminOnly,
+    read: operationsReadAccess,
+    create: operationsCreateAccess,
+    update: operationsUpdateAccess,
+    delete: operationsDeleteAccess,
   },
 }

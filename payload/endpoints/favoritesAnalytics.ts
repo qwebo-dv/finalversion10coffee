@@ -1,4 +1,5 @@
 import type { Endpoint } from "payload"
+import { canReadOperations } from "../access/adminRoles"
 import { dbQuery } from "@/lib/db"
 
 type Period = "7" | "30" | "90" | "all"
@@ -58,9 +59,8 @@ function clientSummary(row: ClientRow) {
 }
 
 export const favoritesAnalyticsHandler: Endpoint["handler"] = async (req) => {
-  const user = req.user as { collection?: string; role?: string } | null
-  if (!user || user.collection !== "admins" || user.role !== "admin") {
-    return Response.json({ error: "Доступ разрешён только администраторам" }, { status: 403 })
+  if (!canReadOperations(req.user)) {
+    return Response.json({ error: "Недостаточно прав для просмотра аналитики" }, { status: 403 })
   }
 
   try {

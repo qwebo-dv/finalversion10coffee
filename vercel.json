@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/moysklad-order-retry",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/moysklad-status-sync",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

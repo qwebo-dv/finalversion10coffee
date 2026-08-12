@@ -72,6 +72,7 @@ async function syncClientProfile(userId: string, profile: SocialProfile) {
           phone: profile.phone || "",
           supabaseId: userId,
           customerType: "individual",
+          salesChannel: "retail",
         },
       })
     }

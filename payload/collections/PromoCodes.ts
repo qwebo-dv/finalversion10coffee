@@ -1,4 +1,6 @@
 import type { CollectionConfig } from "payload"
+import { canManageOperations, canReadOperations, operationsDeleteAccess } from "../access/adminRoles"
+import { promoWorkspaceBaseFilter } from "../admin/workspace"
 import { randomBytes } from "crypto"
 import nodemailer from "nodemailer"
 import { PROMO_PRESETS } from "../promo-presets"
@@ -47,6 +49,7 @@ export const PromoCodes: CollectionConfig = {
   admin: {
     useAsTitle: "code",
     group: "Заказы и продажи",
+    baseFilter: promoWorkspaceBaseFilter,
     description: "Промокоды и скидки",
     defaultColumns: [
       "code",
@@ -304,9 +307,9 @@ export const PromoCodes: CollectionConfig = {
     },
   ],
   access: {
-    read: ({ req }) => !!req.user,
-    create: ({ req }) => !!req.user,
-    update: ({ req }) => !!req.user,
-    delete: ({ req }) => req.user?.role === "admin",
+    read: ({ req }) => canReadOperations(req.user),
+    create: ({ req }) => canManageOperations(req.user),
+    update: ({ req }) => canManageOperations(req.user),
+    delete: operationsDeleteAccess,
   },
 }

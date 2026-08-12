@@ -1,4 +1,5 @@
 import type { GlobalConfig } from "payload"
+import { isSuperAdmin } from "../access/adminRoles"
 
 export const PaymentSettings: GlobalConfig = {
   slug: "payment-settings",
@@ -17,14 +18,14 @@ export const PaymentSettings: GlobalConfig = {
       type: "text",
       label: "shopId",
       admin: { description: "Идентификатор магазина из личного кабинета YooKassa." },
-      access: { read: ({ req }) => Boolean(req.user) },
+      access: { read: ({ req }) => isSuperAdmin(req.user) },
     },
     {
       name: "secretKey",
       type: "text",
       label: "Секретный ключ",
       admin: { description: "Секретный ключ YooKassa. Не публикуйте его и не передавайте третьим лицам." },
-      access: { read: ({ req }) => Boolean(req.user) },
+      access: { read: ({ req }) => isSuperAdmin(req.user) },
     },
     {
       name: "returnUrl",
@@ -42,7 +43,7 @@ export const PaymentSettings: GlobalConfig = {
     },
   ],
   access: {
-    read: ({ req }) => Boolean(req.user),
-    update: ({ req }) => Boolean(req.user),
+    read: ({ req }) => isSuperAdmin(req.user),
+    update: ({ req }) => isSuperAdmin(req.user),
   },
 }

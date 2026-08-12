@@ -34,3 +34,24 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## B2B / B2C administration
+
+Payload uses one database and one admin application with explicit sales channels:
+
+- `wholesale` — the B2B cabinet at `/dashboard`;
+- `retail` — the B2C cabinet at `/main`;
+- `/admin` — staff administration with the `Опт / Розница / Все` workspace switcher.
+
+Orders and clients always store `salesChannel`. The legacy `customerType` field remains for backwards compatibility and describes the legal/customer type rather than the sales channel.
+
+Before deploying this change:
+
+1. Configure `CRON_SECRET` and the channel-specific MoySklad variables documented in `.env.example`.
+2. Run `npm run payload:migrate` as an explicit deployment step.
+3. Verify that the MoySklad sales channels, projects, stores and initial states referenced by the environment variables exist.
+4. Test one wholesale and one retail order, then confirm that `/api/cron/moysklad-status-sync` updates their statuses.
+
+The old shared `MOYSKLAD_*` variables remain fallbacks, so the migration can be deployed before the channel-specific IDs are populated.
+
+MoySklad sales-channel types use its documented enum. The recommended mapping is `DIRECT_SALES` for the wholesale cabinet and `ECOMMERCE` for the retail online shop. Use `RETAIL_SALES` only when the source is a physical POS retail sale rather than an online order.

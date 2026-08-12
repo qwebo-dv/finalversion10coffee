@@ -45,14 +45,15 @@ function RatingStars({ rating }: { rating: number }) {
 
 export default function ProductReviewsModeration() {
   const { user } = useAuth()
-  const isSuperAdmin = (user as { role?: string } | null)?.role === "admin"
+  const role = (user as { role?: string } | null)?.role
+  const canModerate = Boolean(role && ["admin", "manager", "super_admin", "wholesale_manager", "retail_manager"].includes(role))
   const [reviews, setReviews] = useState<ModerationReview[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    if (!isSuperAdmin) return
+    if (!canModerate) return
     setLoading(true)
     setError("")
     try {
@@ -65,7 +66,7 @@ export default function ProductReviewsModeration() {
     } finally {
       setLoading(false)
     }
-  }, [isSuperAdmin])
+  }, [canModerate])
 
   useEffect(() => {
     void load()
@@ -90,7 +91,7 @@ export default function ProductReviewsModeration() {
     }
   }
 
-  if (!isSuperAdmin) return null
+  if (!canModerate) return null
 
   return (
     <section className="reviews-moderation">

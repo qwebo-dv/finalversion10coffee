@@ -10,6 +10,7 @@ import * as migration_20260811_170000_repair_preference_source_fields from './20
 import * as migration_20260811_180000_orders_returned_status from './20260811_180000_orders_returned_status.ts';
 import * as migration_20260811_190000_product_merchandising_and_taste from './20260811_190000_product_merchandising_and_taste.ts';
 import * as migration_20260811_200000_yookassa_settings from './20260811_200000_yookassa_settings.ts';
+import * as migration_20260812_120000_sales_channels_and_admin_workspaces from './20260812_120000_sales_channels_and_admin_workspaces.ts';
 
 export const migrations = [
   {
@@ -71,5 +72,10 @@ export const migrations = [
     up: migration_20260811_200000_yookassa_settings.up,
     down: migration_20260811_200000_yookassa_settings.down,
     name: '20260811_200000_yookassa_settings'
+  },
+  {
+    up: migration_20260812_120000_sales_channels_and_admin_workspaces.up,
+    down: migration_20260812_120000_sales_channels_and_admin_workspaces.down,
+    name: '20260812_120000_sales_channels_and_admin_workspaces'
   },
 ];

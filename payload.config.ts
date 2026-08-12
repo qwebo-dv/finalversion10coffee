@@ -70,6 +70,7 @@ export default buildConfig({
     },
     dateFormat: "dd.MM.yyyy HH:mm",
     components: {
+      header: ["/payload/components/AdminWorkspaceSwitcher"],
       beforeDashboard: ["/payload/components/BusinessDashboard"],
     },
   },

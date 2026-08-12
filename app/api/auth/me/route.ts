@@ -8,6 +8,7 @@ async function syncPayloadClientProfile(params: {
   email?: string | null
   fullName?: string | null
   phone?: string | null
+  customerType?: "individual" | "business"
 }) {
   try {
     const { getPayload } = await import("payload")
@@ -51,6 +52,8 @@ async function syncPayloadClientProfile(params: {
           email: params.email,
           supabaseId: params.supabaseId,
           fullName: params.fullName,
+          customerType: params.customerType || "business",
+          salesChannel: params.customerType === "individual" ? "retail" : "wholesale",
         },
       })
     }
@@ -121,6 +124,7 @@ export async function PATCH(request: NextRequest) {
       email: result.user?.email || user.email,
       fullName,
       phone,
+      customerType: user.user_metadata?.customer_type === "individual" ? "individual" : "business",
     })
   }
 

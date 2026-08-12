@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { contentManagerOnly, superAdminOnly } from "../access/adminRoles"
 
 export const Tags: CollectionConfig = {
   slug: "tags",
@@ -45,4 +46,10 @@ export const Tags: CollectionConfig = {
       },
     },
   ],
+  access: {
+    read: () => true,
+    create: contentManagerOnly,
+    update: contentManagerOnly,
+    delete: superAdminOnly,
+  },
 }

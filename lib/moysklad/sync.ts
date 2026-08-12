@@ -1,6 +1,7 @@
 import type { Payload } from "payload"
 import { dbQuery } from "@/lib/db"
 import { getMoyskladConfig, assertMoyskladReady } from "./config"
+import type { MoyskladConfig, MoyskladSalesChannel as SalesChannel } from "./config"
 import { hasMoyskladErrorCode, MoyskladApiError, extractMoyskladId, moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
 import { writeMoyskladLog } from "./logs"
 import { computeOrderContentHash } from "./order-hash"
@@ -40,6 +41,7 @@ interface SyncCompany {
 interface SyncOrder {
   id: string | number
   orderId?: string
+  salesChannel?: SalesChannel
   customerType?: "individual" | "business"
   createdAt?: string
   subtotal?: number
@@ -253,8 +255,7 @@ async function updateCounterpartyContactData(id: string, client: SyncClient, com
   })
 }
 
-async function ensureCounterparty(payload: Payload, client: SyncClient, company?: SyncCompany | null) {
-  const config = getMoyskladConfig()
+async function ensureCounterparty(payload: Payload, client: SyncClient, company: SyncCompany | null | undefined, config: MoyskladConfig) {
   assertMoyskladReady(config)
 
   if (company) {
@@ -347,8 +348,7 @@ async function findSalesChannelByName(name: string) {
   return result.rows[0] || null
 }
 
-async function ensureSalesChannel() {
-  const config = getMoyskladConfig()
+async function ensureSalesChannel(config: MoyskladConfig) {
   if (config.salesChannelId) return config.salesChannelId
   if (!config.salesChannelName) return null
 
@@ -362,8 +362,10 @@ async function ensureSalesChannel() {
     method: "POST",
     body: JSON.stringify({
       name: config.salesChannelName,
-      type: "ECOMMERCE",
-      description: "Автоматически создано для заказов сайта 10coffee",
+      type: config.salesChannelType,
+      description: config.channel === "wholesale"
+        ? "Оптовые заказы кабинета 10coffee"
+        : "Розничные заказы интернет-магазина 10coffee",
     }),
   })
 
@@ -573,9 +575,9 @@ async function buildCustomerPositions(
   cartItems: CartItem[],
   deliveryCost: number,
   discountLines: MoyskladDiscountLine[] = [],
-  positionVat = 0
+  positionVat = 0,
+  config: MoyskladConfig,
 ) {
-  const config = getMoyskladConfig()
   const discountByItem = new Map(
     discountLines.map((line) => [
       line.cartItemId,
@@ -672,8 +674,7 @@ function buildDocumentRefs(params: {
   shipmentAddress?: string | null
   salesChannelId?: string | null
   createdAt?: string
-}) {
-  const config = getMoyskladConfig()
+}, config: MoyskladConfig) {
   const orderDate = params.createdAt ? new Date(params.createdAt) : undefined
   const body: Record<string, unknown> = {
     moment: formatMoment(orderDate),
@@ -751,6 +752,7 @@ async function createInvoiceOut(params: {
   description: string
   shipmentAddress?: string | null
   salesChannelId?: string | null
+  config: MoyskladConfig
 }) {
   const externalCode = `${params.order.orderId || params.order.id}-invoice`
   const invoiceBody = {
@@ -761,7 +763,7 @@ async function createInvoiceOut(params: {
       shipmentAddress: params.shipmentAddress,
       salesChannelId: params.salesChannelId,
       createdAt: params.order.createdAt,
-    }),
+    }, params.config),
     externalCode,
     customerOrder: {
       meta: moyskladMeta("customerorder", params.moyskladOrderId),
@@ -981,7 +983,8 @@ export async function ensureMoyskladStockLossForOrder(
 }
 
 export async function syncOrderToMoysklad(params: SyncOrderParams) {
-  const config = getMoyskladConfig()
+  const salesChannel: SalesChannel = params.order.salesChannel || (params.order.customerType === "individual" ? "retail" : "wholesale")
+  const config = getMoyskladConfig(salesChannel)
   if (!config.enabled || !config.syncOrdersOnCreate) {
     return { skipped: true as const }
   }
@@ -1004,9 +1007,9 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
     })
 
 
-    const counterpartyId = await ensureCounterparty(params.payload, params.client, params.company)
+    const counterpartyId = await ensureCounterparty(params.payload, params.client, params.company, config)
     counterpartyIdForUpdate = counterpartyId
-    const salesChannelId = await ensureSalesChannel()
+    const salesChannelId = await ensureSalesChannel(config)
     let positionVat = config.defaultVat
     if (config.vatEnabled && positionVat <= 0) {
       try {
@@ -1022,7 +1025,8 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       params.cartItems,
       Number(params.order.deliveryCost) || 0,
       params.discountLines || [],
-      positionVat
+      positionVat,
+      config,
     )
 
     if (skipped.length > 0) {
@@ -1050,7 +1054,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
         shipmentAddress: params.order.deliveryAddress,
         salesChannelId,
         createdAt: params.order.createdAt,
-      }),
+      }, config),
       name: params.order.orderId || String(orderId),
       externalCode: String(orderId),
     }
@@ -1153,6 +1157,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
         description,
         shipmentAddress: params.order.deliveryAddress,
         salesChannelId,
+        config,
       })
       if (invoiceResult) {
         moyskladInvoiceOutId = invoiceResult.invoiceId

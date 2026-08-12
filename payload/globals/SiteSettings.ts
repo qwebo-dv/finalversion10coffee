@@ -1,4 +1,5 @@
 import type { GlobalConfig } from "payload"
+import { contentManagerOnly } from "../access/adminRoles"
 
 export const SiteSettings: GlobalConfig = {
   slug: "site-settings",
@@ -61,6 +62,6 @@ export const SiteSettings: GlobalConfig = {
   ],
   access: {
     read: () => true,
-    update: ({ req }) => !!req.user,
+    update: contentManagerOnly,
   },
 }

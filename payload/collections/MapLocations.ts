@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { contentManagerOnly, superAdminOnly } from "../access/adminRoles"
 
 export const MapLocations: CollectionConfig = {
   slug: "map-locations",
@@ -144,8 +145,8 @@ export const MapLocations: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: ({ req }) => !!req.user,
-    update: ({ req }) => !!req.user,
-    delete: ({ req }) => !!req.user,
+    create: contentManagerOnly,
+    update: contentManagerOnly,
+    delete: superAdminOnly,
   },
 }

@@ -100,6 +100,7 @@ interface PayloadOrderDoc {
   id: string | number
   orderId?: string
   createdAt?: string
+  salesChannel?: "wholesale" | "retail" | null
   customerType?: "individual" | "business" | null
   client?: PayloadClientDoc | string | number | null
   customerFullName?: string | null
@@ -781,6 +782,7 @@ async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
     order: {
       id: order.id,
       orderId: order.orderId,
+      salesChannel: order.salesChannel || undefined,
       customerType: order.customerType || undefined,
       createdAt: order.createdAt,
       subtotal: numberValue(order.subtotal),
