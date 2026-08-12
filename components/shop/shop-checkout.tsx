@@ -36,7 +36,6 @@ export function ShopCheckout({
   useEffect(() => {
     const saved = user?.user_metadata?.delivery_method as DeliveryMethod | undefined
     // Auth state is hydrated asynchronously, so the saved delivery method must be applied after login data arrives.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved) setDeliveryMethod(saved)
   }, [user])
 
@@ -52,45 +51,49 @@ export function ShopCheckout({
     setLoading(true)
     setError(null)
     const data = new FormData(event.currentTarget)
-
-    const response = await createShopOrder({
-      items,
-      fullName: String(data.get("fullName") || ""),
-      email: String(data.get("email") || ""),
-      phone: String(data.get("phone") || ""),
-      address: String(data.get("address") || ""),
-      deliveryMethod,
-      comment: String(data.get("comment") || ""),
-      promoCode: String(data.get("promoCode") || ""),
-      createAccount: data.get("createAccount") === "on",
-      acceptTerms: data.get("acceptTerms") === "on",
-    })
-
-    if (response.error) {
-      setError(response.error)
-      setLoading(false)
-      return
-    }
-
-    if (response.paymentUrl && response.paymentToken && response.orderId) {
-      setRedirectingToPayment(true)
-      setPendingPayment({
-        orderId: response.orderId,
-        orderNumber: response.orderNumber || response.orderId,
-        token: response.paymentToken,
-        paymentUrl: response.paymentUrl,
+    try {
+      const response = await createShopOrder({
+        items,
+        fullName: String(data.get("fullName") || ""),
+        email: String(data.get("email") || ""),
+        phone: String(data.get("phone") || ""),
+        address: String(data.get("address") || ""),
+        deliveryMethod,
+        comment: String(data.get("comment") || ""),
+        promoCode: String(data.get("promoCode") || ""),
+        createAccount: data.get("createAccount") === "on",
+        acceptTerms: data.get("acceptTerms") === "on",
       })
-      window.location.assign(response.paymentUrl)
-      return
-    }
 
-    clearCart()
-    setResult({
-      orderNumber: response.orderNumber || response.orderId || "",
-      warning: response.warning,
-      paymentPendingSetup: response.paymentPendingSetup,
-    })
-    setLoading(false)
+      if (response.error) {
+        setError(response.error)
+        return
+      }
+
+      if (response.paymentUrl && response.paymentToken && response.orderId) {
+        setRedirectingToPayment(true)
+        setPendingPayment({
+          orderId: response.orderId,
+          orderNumber: response.orderNumber || response.orderId,
+          token: response.paymentToken,
+          paymentUrl: response.paymentUrl,
+        })
+        window.location.assign(response.paymentUrl)
+        return
+      }
+
+      clearCart()
+      setResult({
+        orderNumber: response.orderNumber || response.orderId || "",
+        warning: response.warning,
+        paymentPendingSetup: response.paymentPendingSetup,
+      })
+    } catch (caught) {
+      console.error("[shop-checkout] order creation failed", caught)
+      setError("Не удалось оформить заказ. Попробуйте ещё раз. Если ошибка повторится, сообщите нам — товары останутся в корзине.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (result) {

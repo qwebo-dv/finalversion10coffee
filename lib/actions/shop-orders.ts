@@ -136,7 +136,7 @@ async function resolvePromo(params: {
   }
 }
 
-export async function createShopOrder(input: ShopOrderInput): Promise<{
+export interface ShopOrderResult {
   success?: boolean
   error?: string
   warning?: string
@@ -145,7 +145,9 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
   paymentUrl?: string
   paymentToken?: string
   paymentPendingSetup?: boolean
-}> {
+}
+
+async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrderResult> {
   const fullName = input.fullName.trim()
   const email = input.email.trim().toLowerCase()
   const phone = normalizeRussianPhone(input.phone)
@@ -302,5 +304,16 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
     paymentUrl: payment.ok ? payment.paymentUrl : undefined,
     paymentToken: payment.ok ? createOrderPaymentToken(String(order.id)) : undefined,
     paymentPendingSetup: !payment.ok && payment.code === "not_configured",
+  }
+}
+
+export async function createShopOrder(input: ShopOrderInput): Promise<ShopOrderResult> {
+  try {
+    return await createShopOrderInternal(input)
+  } catch (error) {
+    console.error("[shop-orders] Не удалось оформить розничный заказ", error)
+    return {
+      error: "Не удалось оформить заказ из-за временной ошибки сервера. Товары сохранены в корзине — попробуйте ещё раз.",
+    }
   }
 }
