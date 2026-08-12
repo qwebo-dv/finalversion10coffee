@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react"
 import { Check, ChevronDown, Coffee, Droplets, LayoutGrid, Leaf, Search, ShoppingBag, SlidersHorizontal, Sparkles, Star, Sun, TrendingUp, Waves, X } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { ShopHeader } from "@/components/shop/shop-header"
+import { AdminEditProductLink } from "@/components/shop/admin-edit-product-link"
 import { CoffeeAcidity, CoffeeTasteScale } from "@/components/shop/coffee-acidity"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
 import { getTagColorStyle } from "@/lib/tag-color"
@@ -130,7 +131,8 @@ export function ShopProductCard({ product, tasteMetric = "acidity" }: { product:
   }
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-[24px] border border-black/[0.05] bg-white shadow-[0_12px_36px_rgba(45,27,17,0.045)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(91,50,138,0.1)]">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-[24px] border border-black/[0.05] bg-white shadow-[0_12px_36px_rgba(45,27,17,0.045)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(91,50,138,0.1)]">
+      <div className="absolute right-4 top-4 z-20"><AdminEditProductLink productId={product.id} compact /></div>
       <Link href={`/shop/${product.slug}`} className="relative block aspect-[4/3] overflow-hidden bg-[#faead5] xl:aspect-[16/11]">
         {product.images[0] ? (
           <Image src={product.images[0]} alt={product.name} fill className="object-cover transition duration-700 group-hover:scale-[1.04]" sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 100vw" />
@@ -214,7 +216,7 @@ export function ShopProductCard({ product, tasteMetric = "acidity" }: { product:
           </div>
         ) : null}
 
-        <div className="mt-auto flex items-center justify-between gap-3 pt-4 mt-4 2xl:gap-4 2xl:pt-5 2xl:mt-5">
+        <div className="mt-auto flex items-center justify-between gap-3 pt-4 2xl:gap-4 2xl:pt-5">
           <span className="text-xl font-black tracking-tight text-[#1d1d1b] 2xl:text-[22px]">{variant ? formatPrice(variant.price) : "—"}</span>
           <button type="button" onClick={addToCart} disabled={!variant} className={`flex h-11 items-center gap-2 rounded-full px-4 text-sm font-bold text-white shadow-md transition disabled:opacity-40 ${inCart ? "bg-[#e6610d] shadow-[#e6610d]/20 hover:bg-[#cf5206]" : "bg-[#1d1d1b] shadow-black/10 hover:bg-black"}`}>
             {inCart ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}{inCart ? "В корзине" : "В корзину"}

@@ -9,6 +9,7 @@ import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
 import { openAuthModal } from "@/components/auth/auth-modal-store"
 import { ShopHeader } from "@/components/shop/shop-header"
+import { AdminEditProductLink } from "@/components/shop/admin-edit-product-link"
 import { StarRating } from "@/components/shop/star-rating"
 import { CoffeeTasteScale } from "@/components/shop/coffee-acidity"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
@@ -168,6 +169,7 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
 
           {/* Buy panel */}
           <div>
+            <div className="mb-4 flex justify-end"><AdminEditProductLink productId={product.id} /></div>
             {product.stickers.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {product.stickers.map((sticker) => <span key={sticker.id} style={getTagColorStyle(sticker.color)} className="rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em]">{sticker.name}</span>)}

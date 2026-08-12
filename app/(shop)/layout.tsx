@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { HtmlWrapper } from "@/components/shared/html-wrapper"
 import { AuthProvider } from "@/providers/auth-provider"
 import { GuestCartProvider } from "@/providers/guest-cart-provider"
+import { PayloadAdminEditProvider } from "@/providers/payload-admin-edit-provider"
 import { ShopFooter } from "@/components/shop/shop-footer"
 import { AuthModal } from "@/components/auth/auth-modal"
 
@@ -18,10 +19,12 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
     <HtmlWrapper>
       <AuthProvider>
         <GuestCartProvider>
-          <div className="flex min-h-screen flex-col">
-            <div className="flex-1">{children}</div>
-            <ShopFooter />
-          </div>
+          <PayloadAdminEditProvider>
+            <div className="flex min-h-screen flex-col">
+              <div className="flex-1">{children}</div>
+              <ShopFooter />
+            </div>
+          </PayloadAdminEditProvider>
         </GuestCartProvider>
       </AuthProvider>
 
