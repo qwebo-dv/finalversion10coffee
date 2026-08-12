@@ -32,7 +32,18 @@ export const PaymentSettings: GlobalConfig = {
       type: "text",
       label: "URL возврата после оплаты",
       defaultValue: "https://shop.10coffee.ru/order/success",
-      admin: { description: "Покупатель попадёт сюда после оплаты; ID заказа добавляется автоматически." },
+      validate: (value: string | null | undefined) => {
+        if (!value) return "Укажите URL возврата после оплаты"
+        try {
+          const url = new URL(value)
+          return url.protocol === "https:" || url.hostname === "localhost"
+            ? true
+            : "URL возврата должен использовать HTTPS"
+        } catch {
+          return "Укажите корректный абсолютный URL"
+        }
+      },
+      admin: { description: "Рекомендуемый адрес: https://shop.10coffee.ru/order/success. ID заказа добавляется автоматически." },
     },
     {
       name: "webhookUrl",

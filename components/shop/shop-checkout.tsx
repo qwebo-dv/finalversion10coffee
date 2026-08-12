@@ -10,7 +10,13 @@ import PhoneInput from "@/components/shared/phone-input"
 import { formatPrice } from "@/lib/utils/format"
 import type { DeliveryMethod, Product } from "@/types"
 
-export function ShopCheckout({ products }: { products: Product[] }) {
+export function ShopCheckout({
+  products,
+  onlinePaymentReady,
+}: {
+  products: Product[]
+  onlinePaymentReady: boolean
+}) {
   const { items, clearCart, hydrated } = useGuestCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
@@ -27,6 +33,8 @@ export function ShopCheckout({ products }: { products: Product[] }) {
 
   useEffect(() => {
     const saved = user?.user_metadata?.delivery_method as DeliveryMethod | undefined
+    // Auth state is hydrated asynchronously, so the saved delivery method must be applied after login data arrives.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved) setDeliveryMethod(saved)
   }, [user])
 
@@ -127,7 +135,16 @@ export function ShopCheckout({ products }: { products: Product[] }) {
               </span>
             </label>
 
-            <div className="mt-8 rounded-2xl border border-dashed border-[#5b328a]/30 bg-[#f8f4fb] p-4 text-sm text-[#5b328a]"><div className="flex gap-3"><LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" /><p><b>Онлайн-оплата YooKassa подготовлена.</b><br />До получения API-реквизитов заказ создаётся без списания денег.</p></div></div>
+            <div className="mt-8 rounded-2xl border border-dashed border-[#5b328a]/30 bg-[#f8f4fb] p-4 text-sm text-[#5b328a]">
+              <div className="flex gap-3">
+                <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" />
+                {onlinePaymentReady ? (
+                  <p><b>Безопасная онлайн-оплата через YooKassa.</b><br />После оформления заказа вы перейдёте на защищённую страницу оплаты.</p>
+                ) : (
+                  <p><b>Онлайн-оплата временно недоступна.</b><br />Заказ будет создан без списания денег, а менеджер свяжется с вами.</p>
+                )}
+              </div>
+            </div>
             <button disabled={loading || !hydrated} className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#5b328a] text-sm font-black text-white hover:bg-[#47256e] disabled:opacity-60">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{loading ? "Оформляем…" : `Оформить заказ · ${formatPrice(subtotal)}`}</button>
           </form>
 

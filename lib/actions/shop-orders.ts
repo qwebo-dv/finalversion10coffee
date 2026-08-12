@@ -284,6 +284,12 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
         paymentUpdatedAt: new Date().toISOString(),
       },
     })
+  } else if (payment.code !== "not_configured") {
+    console.error("Не удалось создать платёж YooKassa", {
+      orderId: String(order.id),
+      reason: payment.error,
+    })
+    warning = warning || "Заказ создан, но перейти к онлайн-оплате не удалось. Мы свяжемся с вами для уточнения оплаты."
   }
 
   try {
@@ -302,6 +308,6 @@ export async function createShopOrder(input: ShopOrderInput): Promise<{
     orderId: String(order.id),
     orderNumber: order.orderId || String(order.id),
     paymentUrl: payment.ok ? payment.paymentUrl : undefined,
-    paymentPendingSetup: !payment.ok,
+    paymentPendingSetup: !payment.ok && payment.code === "not_configured",
   }
 }

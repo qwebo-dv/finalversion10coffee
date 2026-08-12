@@ -18,15 +18,19 @@ export async function getYooKassaConfig(): Promise<YooKassaConfig> {
   try {
     const [{ getPayload }, { default: payloadConfig }] = await Promise.all([import("payload"), import("@payload-config")])
     settings = await (await getPayload({ config: payloadConfig })).findGlobal({ slug: "payment-settings", overrideAccess: true }) as unknown as YooKassaSettings
-  } catch {
+  } catch (error) {
     // Environment variables keep deploys operable before Payload is initialized.
+    console.error(
+      "Не удалось прочитать настройки YooKassa из Payload:",
+      error instanceof Error ? error.message : "неизвестная ошибка",
+    )
   }
   return {
     enabled: settings?.enabled ?? process.env.YOOKASSA_ENABLED === "true",
-    shopId: settings?.shopId || process.env.YOOKASSA_SHOP_ID || "",
-    secretKey: settings?.secretKey || process.env.YOOKASSA_SECRET_KEY || "",
-    returnUrl: settings?.returnUrl || process.env.YOOKASSA_RETURN_URL || "https://shop.10coffee.ru/order/success",
-    webhookUrl: settings?.webhookUrl || process.env.YOOKASSA_WEBHOOK_URL || "https://shop.10coffee.ru/api/shop/payments/yookassa/webhook",
+    shopId: (settings?.shopId || process.env.YOOKASSA_SHOP_ID || "").trim(),
+    secretKey: (settings?.secretKey || process.env.YOOKASSA_SECRET_KEY || "").trim(),
+    returnUrl: (settings?.returnUrl || process.env.YOOKASSA_RETURN_URL || "https://shop.10coffee.ru/order/success").trim(),
+    webhookUrl: (settings?.webhookUrl || process.env.YOOKASSA_WEBHOOK_URL || "https://shop.10coffee.ru/api/shop/payments/yookassa/webhook").trim(),
   }
 }
 
@@ -51,8 +55,8 @@ async function yooKassaRequest<T>(path: string, config: YooKassaConfig, init?: R
 
 export async function createYooKassaPayment(params: { orderId: string; orderNumber: string; amountRubles: number; description?: string }) {
   const config = await getYooKassaConfig()
-  if (!isYooKassaReady(config)) return { ok: false as const, error: "Онлайн-оплата YooKassa пока не подключена" }
-  if (!Number.isFinite(params.amountRubles) || params.amountRubles <= 0) return { ok: false as const, error: "Некорректная сумма платежа" }
+  if (!isYooKassaReady(config)) return { ok: false as const, code: "not_configured" as const, error: "Онлайн-оплата YooKassa пока не подключена" }
+  if (!Number.isFinite(params.amountRubles) || params.amountRubles <= 0) return { ok: false as const, code: "invalid_amount" as const, error: "Некорректная сумма платежа" }
 
   const returnUrl = new URL(config.returnUrl)
   returnUrl.searchParams.set("orderId", params.orderId)
@@ -69,10 +73,10 @@ export async function createYooKassaPayment(params: { orderId: string; orderNumb
         metadata: { order_id: params.orderId, order_number: params.orderNumber },
       }),
     })
-    if (!payment.id || !payment.confirmation?.confirmation_url) return { ok: false as const, error: "YooKassa не вернула ссылку на оплату" }
+    if (!payment.id || !payment.confirmation?.confirmation_url) return { ok: false as const, code: "api_error" as const, error: "YooKassa не вернула ссылку на оплату" }
     return { ok: true as const, paymentId: payment.id, paymentUrl: payment.confirmation.confirmation_url }
   } catch (error) {
-    return { ok: false as const, error: error instanceof Error ? error.message : "Не удалось создать платёж YooKassa" }
+    return { ok: false as const, code: "api_error" as const, error: error instanceof Error ? error.message : "Не удалось создать платёж YooKassa" }
   }
 }
 
