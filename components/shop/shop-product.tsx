@@ -13,6 +13,7 @@ import { StarRating } from "@/components/shop/star-rating"
 import { CoffeeTasteScale } from "@/components/shop/coffee-acidity"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
 import { addRecentlyViewed } from "@/lib/recently-viewed"
+import { getTagColorStyle } from "@/lib/tag-color"
 import { findVariantForSelection, getGrindOptions, getVariantGrindOption, getVariantWeights, GRIND_OPTION_LABELS } from "@/lib/shop-variant-options"
 import type { Product, ProductTypeOption } from "@/types"
 
@@ -133,7 +134,7 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
     <main className="min-h-screen bg-[#f8f5f1] text-[#1d1d1b]">
       <ShopHeader products={products} productTypes={productTypes} />
 
-      <div className="mx-auto max-w-[1480px] px-5 pb-28 pt-10 lg:px-10">
+      <div className="mx-auto max-w-[1320px] px-5 pb-24 pt-8 lg:px-8 2xl:max-w-[1480px] 2xl:px-10 2xl:pb-28 2xl:pt-10">
         {/* Breadcrumb */}
         <nav className="flex flex-wrap items-center gap-2 text-sm text-[#8d827a]">
           <Link href="/shop" className="font-bold text-[#6f655e] transition hover:text-[#5b328a]">Каталог</Link>
@@ -144,7 +145,7 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
         </nav>
 
         {/* Hero: gallery + buy panel */}
-        <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-16">
+        <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:gap-12 2xl:mt-10 2xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)] 2xl:gap-16">
           {/* Gallery */}
           <div className="lg:sticky lg:top-28 lg:self-start">
             <div className="relative aspect-[4/3] overflow-hidden rounded-[32px] bg-[#faead5] shadow-[0_30px_90px_rgba(45,27,17,0.12)]">
@@ -169,11 +170,11 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
           <div>
             {product.stickers.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {product.stickers.map((sticker) => <span key={sticker.id} className="rounded-full border border-[#e6610d]/25 bg-[#fff4e8] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#b0531a]">{sticker.name}</span>)}
+                {product.stickers.map((sticker) => <span key={sticker.id} style={getTagColorStyle(sticker.color)} className="rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em]">{sticker.name}</span>)}
               </div>
             )}
             <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#e6610d]">{product.product_type_name}</p>
-            <h1 className="mt-3 text-5xl font-black leading-[0.98] tracking-[-0.05em] sm:text-6xl">{product.name}</h1>
+            <h1 className="mt-3 text-4xl font-black leading-[0.98] tracking-[-0.05em] sm:text-5xl 2xl:text-6xl">{product.name}</h1>
             <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
               <StarRating value={product.rating} count={product.reviews_count} size="lg" />
               {!product.reviews_count && (
@@ -198,7 +199,7 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
             )}
 
             {/* Packaging */}
-            <div className="mt-10">
+            <div className="mt-8 2xl:mt-10">
               {hasStructuredCoffeeOptions ? (
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div>
@@ -238,10 +239,10 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
             </div>
 
             {/* Price + quantity + CTA */}
-            <div className="mt-10 flex items-end justify-between gap-6">
+            <div className="mt-8 flex items-end justify-between gap-6 2xl:mt-10">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8d827a]">Цена</p>
-                <p className="mt-2 text-5xl font-black tracking-tight">{variant ? formatPrice(variant.price) : "—"}</p>
+                <p className="mt-2 text-4xl font-black tracking-tight 2xl:text-5xl">{variant ? formatPrice(variant.price) : "—"}</p>
               </div>
               <div className="flex items-center rounded-full bg-white p-1 shadow-sm">
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="h-11 w-11 rounded-full text-[#6f655e] transition hover:bg-[#f5f1ed]"><Minus className="mx-auto h-4 w-4" /></button>
@@ -257,8 +258,33 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
           </div>
         </div>
 
+        {(isCoffee && product.brewing_methods && product.brewing_methods.length > 0) || (isTea && product.brewing_instructions && product.brewing_instructions.length > 0) ? (
+          <section className="mt-16">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#faead5]">
+                {isTea ? <Leaf className="h-5 w-5 text-[#5b328a]" /> : <Coffee className="h-5 w-5 text-[#5b328a]" />}
+              </div>
+              <h2 className="text-xl font-black tracking-tight">{isTea ? "Как заваривать" : "Способы приготовления"}</h2>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {isCoffee && product.brewing_methods?.map((method, index) => (
+                <article key={index} className="flex items-center gap-4 rounded-[20px] border border-black/[0.06] bg-white p-4 shadow-sm">
+                  {method.image_url && <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#faead5]"><Image src={method.image_url} alt={method.method} fill className="object-cover" sizes="64px" /></div>}
+                  <div className="min-w-0"><h3 className="font-bold">{method.method}</h3><p className="mt-0.5 line-clamp-2 text-sm leading-5 text-[#6e655e]">{method.description}</p></div>
+                </article>
+              ))}
+              {isTea && product.brewing_instructions?.map((instruction, index) => (
+                <article key={index} className="flex items-center gap-4 rounded-[20px] border border-black/[0.06] bg-white p-4 shadow-sm">
+                  {instruction.image_url && <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#faead5]"><Image src={instruction.image_url} alt={instruction.title} fill className="object-cover" sizes="64px" /></div>}
+                  <div className="min-w-0"><h3 className="font-bold">{instruction.title}</h3><p className="mt-0.5 line-clamp-2 text-sm leading-5 text-[#6e655e]">{instruction.text}</p></div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {/* Lower: description + characteristics */}
-        <div className="mt-24 grid gap-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16">
+        <div className="mt-16 grid gap-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16">
           <section>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-[#e6610d]">Описание</p>
             <h2 className="mt-3 text-3xl font-black tracking-[-0.03em]">{product.name}</h2>
@@ -281,34 +307,6 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
                     </div>
                   ))}
                 </dl>
-              </div>
-            )}
-
-            {isCoffee && product.brewing_methods && product.brewing_methods.length > 0 && (
-              <div>
-                <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#faead5]"><Coffee className="h-5 w-5 text-[#5b328a]" /></div><h2 className="text-xl font-black tracking-tight">Способы приготовления</h2></div>
-                <div className="mt-5 space-y-3">
-                  {product.brewing_methods.map((method, index) => (
-                    <div key={index} className="flex items-center gap-4 rounded-[20px] border border-black/[0.06] bg-white p-4 shadow-sm">
-                      {method.image_url && <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#faead5]"><Image src={method.image_url} alt={method.method} fill className="object-cover" sizes="64px" /></div>}
-                      <div className="min-w-0"><h4 className="font-bold">{method.method}</h4><p className="mt-0.5 line-clamp-2 text-sm leading-5 text-[#6e655e]">{method.description}</p></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {isTea && product.brewing_instructions && product.brewing_instructions.length > 0 && (
-              <div>
-                <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#faead5]"><Leaf className="h-5 w-5 text-[#5b328a]" /></div><h2 className="text-xl font-black tracking-tight">Как заваривать</h2></div>
-                <div className="mt-5 space-y-3">
-                  {product.brewing_instructions.map((instruction, index) => (
-                    <div key={index} className="flex items-center gap-4 rounded-[20px] border border-black/[0.06] bg-white p-4 shadow-sm">
-                      {instruction.image_url && <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#faead5]"><Image src={instruction.image_url} alt={instruction.title} fill className="object-cover" sizes="64px" /></div>}
-                      <div className="min-w-0"><h4 className="font-bold">{instruction.title}</h4><p className="mt-0.5 line-clamp-2 text-sm leading-5 text-[#6e655e]">{instruction.text}</p></div>
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
 

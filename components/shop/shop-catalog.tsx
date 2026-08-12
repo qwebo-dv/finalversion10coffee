@@ -8,17 +8,24 @@ import type { LucideIcon } from "lucide-react"
 import { Check, ChevronDown, Coffee, Droplets, LayoutGrid, Leaf, Search, ShoppingBag, SlidersHorizontal, Sparkles, Star, Sun, TrendingUp, Waves, X } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { ShopHeader } from "@/components/shop/shop-header"
-import { CoffeeAcidity } from "@/components/shop/coffee-acidity"
+import { CoffeeAcidity, CoffeeTasteScale } from "@/components/shop/coffee-acidity"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
+import { getTagColorStyle } from "@/lib/tag-color"
 import { COFFEE_GROUPS, getCoffeeGroup } from "@/lib/coffee-groups"
 import { findVariantForSelection, getGrindOptions, getVariantGrindOption, getVariantWeights, GRIND_OPTION_LABELS } from "@/lib/shop-variant-options"
 import type { Product, ProductTypeOption, ProductVariant } from "@/types"
+
+interface CatalogGroup {
+  id: number
+  name: string
+  children?: CatalogGroup[]
+}
 
 interface ShopCatalogProps {
   productTypes: ProductTypeOption[]
   products: Product[]
   initialType?: string
-  categoryGroups?: { id: number; name: string; children?: { id: number; name: string }[] }[]
+  categoryGroups?: CatalogGroup[]
 }
 
 type SortKey = "default" | "price-asc" | "price-desc" | "rating" | "new"
@@ -106,7 +113,7 @@ function FilterDropdown({ label, options, selected, onToggle, onClear }: {
   )
 }
 
-export function ShopProductCard({ product }: { product: Product }) {
+export function ShopProductCard({ product, tasteMetric = "acidity" }: { product: Product; tasteMetric?: "acidity" | "bitterness" | null }) {
   const variants = (product.variants || []).filter((item) => item.is_available)
   const [variant, setVariant] = useState<ProductVariant | null>(variants[0] || null)
   const { items, addItem } = useGuestCart()
@@ -123,8 +130,8 @@ export function ShopProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-[26px] border border-black/[0.05] bg-white shadow-[0_12px_36px_rgba(45,27,17,0.045)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(91,50,138,0.1)]">
-      <Link href={`/shop/${product.slug}`} className="relative block aspect-[4/3] overflow-hidden bg-[#faead5]">
+    <article className="group flex h-full flex-col overflow-hidden rounded-[24px] border border-black/[0.05] bg-white shadow-[0_12px_36px_rgba(45,27,17,0.045)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(91,50,138,0.1)]">
+      <Link href={`/shop/${product.slug}`} className="relative block aspect-[4/3] overflow-hidden bg-[#faead5] xl:aspect-[16/11]">
         {product.images[0] ? (
           <Image src={product.images[0]} alt={product.name} fill className="object-cover transition duration-700 group-hover:scale-[1.04]" sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 100vw" />
         ) : (
@@ -132,12 +139,12 @@ export function ShopProductCard({ product }: { product: Product }) {
         )}
         {product.stickers.length > 0 && (
           <div className="absolute left-4 top-4 flex flex-wrap gap-2">
-            {product.stickers.slice(0, 2).map((sticker) => <span key={sticker.id} className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-[#2d1b11] shadow-sm backdrop-blur">{sticker.name}</span>)}
+            {product.stickers.slice(0, 2).map((sticker) => <span key={sticker.id} style={getTagColorStyle(sticker.color)} className="rounded-full border px-3 py-1 text-[11px] font-bold shadow-sm">{sticker.name}</span>)}
           </div>
         )}
       </Link>
 
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col p-4 2xl:p-5">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#e6610d]">{product.product_type_name}</p>
           {typeof product.rating === "number" && product.rating > 0 && (
@@ -148,13 +155,17 @@ export function ShopProductCard({ product }: { product: Product }) {
             </span>
           )}
         </div>
-        <h2 className="mt-1.5 text-xl font-black leading-tight tracking-tight text-[#1d1d1b]"><Link href={`/shop/${product.slug}`} className="transition hover:text-[#5b328a]">{product.name}</Link></h2>
+        <h2 className="mt-1.5 text-lg font-black leading-tight tracking-tight text-[#1d1d1b] 2xl:text-xl"><Link href={`/shop/${product.slug}`} className="transition hover:text-[#5b328a]">{product.name}</Link></h2>
         {(product.region || product.processing_method) && <p className="mt-2 text-xs leading-5 text-[#91867d]">{[product.region, product.processing_method].filter(Boolean).join(" · ")}</p>}
         {product.product_type_schema === "coffee" && product.taste_description && (
           <p className="mt-3 line-clamp-2 text-sm leading-5 text-[#554b43]">{product.taste_description}</p>
         )}
-        {product.product_type_schema === "coffee" && product.acidity && (
-          <div className="mt-3"><CoffeeAcidity value={product.acidity} compact /></div>
+        {product.product_type_schema === "coffee" && tasteMetric && (
+          <div className="mt-3">
+            {tasteMetric === "bitterness"
+              ? <CoffeeTasteScale label="Горечь" value={product.bitterness} compact />
+              : <CoffeeAcidity value={product.acidity} compact />}
+          </div>
         )}
 
         {hasStructuredCoffeeOptions ? (
@@ -203,8 +214,8 @@ export function ShopProductCard({ product }: { product: Product }) {
           </div>
         ) : null}
 
-        <div className="mt-auto flex items-center justify-between gap-4 pt-5 mt-5">
-          <span className="text-[22px] font-black tracking-tight text-[#1d1d1b]">{variant ? formatPrice(variant.price) : "—"}</span>
+        <div className="mt-auto flex items-center justify-between gap-3 pt-4 mt-4 2xl:gap-4 2xl:pt-5 2xl:mt-5">
+          <span className="text-xl font-black tracking-tight text-[#1d1d1b] 2xl:text-[22px]">{variant ? formatPrice(variant.price) : "—"}</span>
           <button type="button" onClick={addToCart} disabled={!variant} className={`flex h-11 items-center gap-2 rounded-full px-4 text-sm font-bold text-white shadow-md transition disabled:opacity-40 ${inCart ? "bg-[#e6610d] shadow-[#e6610d]/20 hover:bg-[#cf5206]" : "bg-[#1d1d1b] shadow-black/10 hover:bg-black"}`}>
             {inCart ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}{inCart ? "В корзине" : "В корзину"}
           </button>
@@ -233,6 +244,26 @@ function normalizeSearchText(value: string) {
     .replace(/ё/g, "е")
     .replace(/[^a-zа-я0-9]+/gi, " ")
     .trim()
+}
+
+function flattenCatalogGroups(groups: CatalogGroup[]): CatalogGroup[] {
+  return groups.flatMap((group) => group.children?.length ? flattenCatalogGroups(group.children) : [group])
+}
+
+function getCatalogGroupLabel(name: string, productType: string) {
+  let label = name.trim()
+  if (productType === "kofe") label = label.replace(/^кофе\s+для\s+/i, "").replace(/^кофе\s+/i, "")
+  if (productType === "chay") label = label.replace(/^чай\s+/i, "")
+  if (/^фильтра$/i.test(label)) label = "Фильтр"
+  if (/^дрип\s+кофе$/i.test(label)) label = "Дрип-кофе"
+  return label.charAt(0).toLocaleUpperCase("ru-RU") + label.slice(1)
+}
+
+function getCatalogSectionTitle(name: string, productType: string) {
+  if (productType === "kofe" && /эспрессо/i.test(name)) return "Кофе для эспрессо"
+  if (productType === "kofe" && /фильтр/i.test(name)) return "Кофе для фильтра"
+  if (productType === "kofe" && /дрип/i.test(name)) return "Дрип-кофе"
+  return name
 }
 
 export function ShopCatalog({ productTypes, products, initialType = "", categoryGroups = [] }: ShopCatalogProps) {
@@ -368,9 +399,29 @@ export function ShopCatalog({ productTypes, products, initialType = "", category
     }
   }, [activeType, categoryProducts, selected, effectiveSort])
 
-  const showCoffeeGroups = activeType === "kofe" && (!activeCollection || activeCollection === "all")
-  const showTeaGroups = activeType === "chay" && categoryGroups.length > 0 && (!activeCollection || activeCollection === "all")
-  const teaGroups = categoryGroups.flatMap((root) => root.children?.length ? root.children : [root])
+  const categoryLeafGroups = useMemo(() => flattenCatalogGroups(categoryGroups), [categoryGroups])
+  const categorySections = useMemo(() => categoryLeafGroups
+    .map((group) => ({
+      id: `category-${group.id}`,
+      label: getCatalogSectionTitle(group.name, activeType),
+      navigationLabel: getCatalogGroupLabel(group.name, activeType),
+      products: filtered.filter((product) => product.category_ids?.includes(String(group.id))),
+    }))
+    .filter((group) => group.products.length > 0), [activeType, categoryLeafGroups, filtered])
+
+  const coffeeSections = useMemo(() => COFFEE_GROUPS
+    .map((group) => ({
+      id: `coffee-${group.id}`,
+      label: group.label,
+      navigationLabel: group.label,
+      products: filtered.filter((product) => getCoffeeGroup(product) === group.id),
+    }))
+    .filter((group) => group.products.length > 0), [filtered])
+
+  const showGroupedCatalog = (!activeCollection || activeCollection === "all")
+  const groupedSections = showGroupedCatalog
+    ? categorySections.length > 0 ? categorySections : activeType === "kofe" ? coffeeSections : []
+    : []
 
   function applyCollection(id: string) {
     const collection = COLLECTIONS.find((entry) => entry.id === id)
@@ -415,7 +466,7 @@ export function ShopCatalog({ productTypes, products, initialType = "", category
     <main className="min-h-screen bg-[#f8f5f1] text-[#1d1d1b]">
       <ShopHeader products={products} productTypes={productTypes} />
 
-      <section className="mx-auto max-w-[1480px] px-5 pb-8 pt-5 lg:px-10 lg:pt-6">
+      <section className="mx-auto max-w-[1320px] px-5 pb-7 pt-5 lg:px-8 lg:pt-6 2xl:max-w-[1480px] 2xl:px-10">
 
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -427,8 +478,30 @@ export function ShopCatalog({ productTypes, products, initialType = "", category
 
       </section>
 
-      <section className="mx-auto max-w-[1480px] px-5 pb-24 lg:px-10">
+      <section className="mx-auto max-w-[1320px] px-5 pb-20 lg:px-8 2xl:max-w-[1480px] 2xl:px-10 2xl:pb-24">
         <div className="mb-6 flex items-center justify-between"><p className="text-sm font-bold text-[#6e655e]">{filtered.length} {filtered.length === 1 ? "товар" : filtered.length < 5 ? "товара" : "товаров"}</p>{query && <button type="button" onClick={() => setQuery("")} className="flex items-center gap-1.5 text-xs font-bold text-[#91867d] hover:text-[#e6610d]">Сбросить поиск «{query}» <X className="h-3.5 w-3.5" /></button>}</div>
+        {groupedSections.length > 0 && (
+          <nav aria-label={`Быстрый переход по группам раздела «${activeTypeName}»`} className="relative mb-9">
+            <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {groupedSections.map((group) => (
+                <a
+                  key={group.id}
+                  href={`#${group.id}`}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    document.getElementById(group.id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    window.history.replaceState(null, "", `#${group.id}`)
+                  }}
+                  className="flex h-11 shrink-0 snap-start items-center gap-2 rounded-full border border-black/[0.09] bg-white px-4 text-sm font-black text-[#554b43] shadow-sm transition hover:border-[#5b328a]/30 hover:bg-[#f4edfa] hover:text-[#5b328a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b328a]"
+                >
+                  {group.navigationLabel}
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#f1ece7] px-1.5 text-[10px] text-[#8b8077]">{group.products.length}</span>
+                </a>
+              ))}
+            </div>
+            <div className="pointer-events-none absolute right-0 top-0 h-11 w-8 bg-gradient-to-l from-[#f8f5f1] to-transparent sm:hidden" />
+          </nav>
+        )}
         {filtered.length === 0 ? (
           <div className="rounded-[32px] border border-dashed border-black/10 bg-white/60 px-8 py-24 text-center">
             <Coffee className="mx-auto h-12 w-12 text-[#e6610d]/40" />
@@ -437,41 +510,25 @@ export function ShopCatalog({ productTypes, products, initialType = "", category
             <button type="button" onClick={resetFilters} className="mt-6 rounded-full bg-[#5b328a] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#47256e]">Сбросить фильтры</button>
           </div>
         ) : (
-          showCoffeeGroups ? (
-            <div className="space-y-14">
-              {COFFEE_GROUPS.map((group) => {
-                const groupProducts = filtered.filter((product) => getCoffeeGroup(product) === group.id)
-                if (!groupProducts.length) return null
-                return (
-                  <section key={group.id}>
+          groupedSections.length > 0 ? (
+            <div className="space-y-11 2xl:space-y-14">
+              {groupedSections.map((group) => (
+                  <section key={group.id} id={group.id} className="scroll-mt-28">
                     <div className="mb-6 flex items-baseline gap-3 border-b border-black/[0.08] pb-4">
                       <h2 className="text-3xl font-black tracking-[-0.04em]">{group.label}</h2>
-                      <span className="text-sm font-bold text-[#9b9087]">{groupProducts.length}</span>
+                      <span className="text-sm font-bold text-[#9b9087]">{group.products.length}</span>
                     </div>
                     <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {groupProducts.map((product) => <ShopProductCard key={product.id} product={product} />)}
+                      {group.products.map((product) => (
+                        <ShopProductCard
+                          key={product.id}
+                          product={product}
+                          tasteMetric={activeType === "kofe" ? (/эспрессо/i.test(group.label) ? "bitterness" : /фильтр/i.test(group.label) ? "acidity" : null) : "acidity"}
+                        />
+                      ))}
                     </div>
                   </section>
-                )
-              })}
-            </div>
-          ) : showTeaGroups ? (
-            <div className="space-y-14">
-              {teaGroups.map((group) => {
-                const groupProducts = filtered.filter((product) => product.category_ids?.includes(String(group.id)))
-                if (!groupProducts.length) return null
-                return (
-                  <section key={group.id}>
-                    <div className="mb-6 flex items-baseline gap-3 border-b border-black/[0.08] pb-4">
-                      <h2 className="text-3xl font-black tracking-[-0.04em]">{group.name}</h2>
-                      <span className="text-sm font-bold text-[#9b9087]">{groupProducts.length}</span>
-                    </div>
-                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {groupProducts.map((product) => <ShopProductCard key={product.id} product={product} />)}
-                    </div>
-                  </section>
-                )
-              })}
+              ))}
             </div>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filtered.map((product) => <ShopProductCard key={product.id} product={product} />)}</div>

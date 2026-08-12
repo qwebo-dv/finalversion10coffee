@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { ShopCatalog } from "@/components/shop/shop-catalog"
 import { getCategories, getProductTypes, getShopProducts } from "@/lib/actions/products"
+import type { ProductType } from "@/types"
 
 export const dynamic = "force-dynamic"
 
@@ -24,12 +25,13 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { type } = await params
-  const [productTypes, products, categoryGroups] = await Promise.all([
-    getProductTypes(),
-    getShopProducts(),
-    type === "chay" ? getCategories("chay") : Promise.resolve([]),
-  ])
+  const productTypes = await getProductTypes()
   if (!productTypes.some((item) => item.slug === type)) notFound()
+
+  const [products, categoryGroups] = await Promise.all([
+    getShopProducts(),
+    getCategories(type as ProductType),
+  ])
 
   return <ShopCatalog productTypes={productTypes} products={products} initialType={type} categoryGroups={categoryGroups} />
 }

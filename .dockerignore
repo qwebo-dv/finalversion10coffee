@@ -7,5 +7,7 @@ node_modules
 *.log
 coverage
 tsconfig.tsbuildinfo
+specs
+more
 .DS_Store
 Thumbs.db

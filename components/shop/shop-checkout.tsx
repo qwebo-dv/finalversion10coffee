@@ -20,6 +20,7 @@ export function ShopCheckout({
   const { items, clearCart, hydrated } = useGuestCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [redirectingToPayment, setRedirectingToPayment] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ orderNumber: string; warning?: string; paymentPendingSetup?: boolean } | null>(null)
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(
@@ -70,12 +71,14 @@ export function ShopCheckout({
       return
     }
 
-    clearCart()
     if (response.paymentUrl) {
+      setRedirectingToPayment(true)
+      clearCart()
       window.location.assign(response.paymentUrl)
       return
     }
 
+    clearCart()
     setResult({
       orderNumber: response.orderNumber || response.orderId || "",
       warning: response.warning,
@@ -94,6 +97,19 @@ export function ShopCheckout({
           {result.paymentPendingSetup && <div className="mt-6 rounded-2xl bg-[#fff4e8] p-4 text-sm text-[#8a4b1c]">Эквайринг работает в режиме подготовки. Платёжная ссылка появится после подключения реквизитов YooKassa.</div>}
           {result.warning && <div className="mt-4 rounded-2xl bg-[#fff4e8] p-4 text-sm text-[#8a4b1c]">{result.warning}</div>}
           <Link href="/shop" className="mt-8 inline-flex h-12 items-center justify-center rounded-full bg-[#5b328a] px-6 text-sm font-bold text-white">Вернуться в каталог</Link>
+        </div>
+      </main>
+    )
+  }
+
+  if (redirectingToPayment) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f8f5f1] px-5" aria-live="polite">
+        <div className="w-full max-w-xl rounded-[32px] bg-white p-8 text-center shadow-[0_24px_80px_rgba(45,27,17,0.1)] sm:p-12">
+          <Loader2 className="mx-auto h-14 w-14 animate-spin text-[#5b328a]" />
+          <h1 className="mt-6 text-2xl font-black tracking-tight">Переходим к безопасной оплате</h1>
+          <p className="mt-3 text-sm leading-6 text-[#756b63]">Заказ создан. Сейчас откроется защищённая платёжная страница YooKassa.</p>
+          <p className="mt-5 text-xs text-[#9a9088]">Пожалуйста, не закрывайте страницу.</p>
         </div>
       </main>
     )
