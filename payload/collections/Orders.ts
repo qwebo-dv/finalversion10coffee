@@ -1,10 +1,10 @@
-import type { CollectionConfig } from "payload"
+import type { Access, CollectionConfig, Where } from "payload"
 import { calculateOrderLineDiscounts } from "@/lib/order-line-discounts"
 import { dbQuery } from "@/lib/db"
 import { getMoyskladConfig } from "@/lib/moysklad/config"
 import { retryFailedMoyskladOrders } from "@/lib/moysklad/order-retry"
-import { canRunIntegrations, operationsCreateAccess, operationsDeleteAccess, operationsReadAccess, operationsUpdateAccess } from "../access/adminRoles"
-import { workspaceBaseFilter } from "../admin/workspace"
+import { canReadOperations, canRunIntegrations, getAllowedSalesChannels, operationsCreateAccess, operationsDeleteAccess, operationsUpdateAccess } from "../access/adminRoles"
+import { orderWorkspaceBaseFilter } from "../admin/workspace"
 
 async function generateSequentialOrderId() {
   const nextResult = await dbQuery<{ next_number: number }>(
@@ -15,13 +15,30 @@ async function generateSequentialOrderId() {
   return `10C-${String(nextNumber).padStart(5, "0")}`
 }
 
+const ordersReadAccess: Access = ({ req }) => {
+  if (!canReadOperations(req.user)) return false
+  const channels = getAllowedSalesChannels(req.user)
+  const visible: Where[] = []
+  if (channels.includes("wholesale")) visible.push({ salesChannel: { equals: "wholesale" } })
+  if (channels.includes("retail")) {
+    visible.push({
+      and: [
+        { salesChannel: { equals: "retail" } },
+        { paymentStatus: { in: ["paid", "refunded"] } },
+      ],
+    })
+  }
+  if (visible.length === 0) return false
+  return visible.length === 1 ? visible[0] : { or: visible }
+}
+
 export const Orders: CollectionConfig = {
   slug: "orders",
   admin: {
     useAsTitle: "orderId",
     group: "Заказы и продажи",
     description: "Заказы клиентов",
-    baseFilter: workspaceBaseFilter,
+    baseFilter: orderWorkspaceBaseFilter,
     listSearchableFields: ["orderId", "companyName", "companyInn"],
     defaultColumns: [
       "orderId",
@@ -697,7 +714,7 @@ export const Orders: CollectionConfig = {
     },
   ],
   access: {
-    read: operationsReadAccess,
+    read: ordersReadAccess,
     create: operationsCreateAccess,
     update: operationsUpdateAccess,
     delete: operationsDeleteAccess,

@@ -100,10 +100,20 @@ export const businessDashboardHandler: Endpoint["handler"] = async (req) => {
   try {
     const workspace = resolveAdminWorkspace(req)
     const salesChannel = workspaceToSalesChannel(workspace)
-    const orderWhere = salesChannel ? `sales_channel = '${salesChannel}'` : "TRUE"
-    const orderWhereAliased = salesChannel ? `o.sales_channel = '${salesChannel}'` : "TRUE"
-    const orderAnd = salesChannel ? `AND o.sales_channel = '${salesChannel}'` : ""
-    const orderAndUnaliased = salesChannel ? `AND sales_channel = '${salesChannel}'` : ""
+    const visibleRetailOrder = "payment_status IN ('paid', 'refunded')"
+    const visibleRetailOrderAliased = "o.payment_status IN ('paid', 'refunded')"
+    const orderWhere = salesChannel === "retail"
+      ? `sales_channel = 'retail' AND ${visibleRetailOrder}`
+      : salesChannel === "wholesale"
+        ? "sales_channel = 'wholesale'"
+        : `(sales_channel = 'wholesale' OR (sales_channel = 'retail' AND ${visibleRetailOrder}))`
+    const orderWhereAliased = salesChannel === "retail"
+      ? `o.sales_channel = 'retail' AND ${visibleRetailOrderAliased}`
+      : salesChannel === "wholesale"
+        ? "o.sales_channel = 'wholesale'"
+        : `(o.sales_channel = 'wholesale' OR (o.sales_channel = 'retail' AND ${visibleRetailOrderAliased}))`
+    const orderAnd = `AND ${orderWhereAliased}`
+    const orderAndUnaliased = `AND ${orderWhere}`
     const clientWhere = salesChannel ? `sales_channel = '${salesChannel}'` : "TRUE"
     const reviewWhere = salesChannel === "wholesale" ? "FALSE" : "status = 'pending'"
     const priceRequestWhere = salesChannel === "retail" ? "FALSE" : "email_sent = false"

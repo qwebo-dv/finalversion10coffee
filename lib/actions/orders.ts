@@ -451,18 +451,30 @@ export async function getClientOrders(): Promise<Order[]> {
 
   const payload = await getPayloadClient()
 
-  let where: Where
+  let ownerWhere: Where
   if (clientDocId) {
-    where = {
+    ownerWhere = {
       or: [
         { client: { equals: clientDocId } },
         ...(userEmail ? [{ customerEmail: { equals: userEmail } }] : []),
       ],
     }
   } else if (userEmail) {
-    where = { customerEmail: { equals: userEmail } }
+    ownerWhere = { customerEmail: { equals: userEmail } }
   } else {
     return []
+  }
+
+  const where: Where = {
+    and: [
+      ownerWhere,
+      {
+        or: [
+          { salesChannel: { equals: "wholesale" } },
+          { paymentStatus: { in: ["paid", "refunded"] } },
+        ],
+      },
+    ],
   }
 
   const { docs } = await payload.find({
@@ -486,7 +498,9 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
       id: orderId,
       depth: 1,
     })
-    return transformOrder(doc as PayloadOrderDoc)
+    const order = doc as PayloadOrderDoc
+    if (order.salesChannel === "retail" && !["paid", "refunded"].includes(order.paymentStatus || "")) return null
+    return transformOrder(order)
   } catch {
     return null
   }
