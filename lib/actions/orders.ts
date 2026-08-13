@@ -516,7 +516,7 @@ export async function createOrder(params: {
   deliveryCost?: number
 }): Promise<{ error?: string; success?: boolean; orderId?: string; moyskladInvoiceCreated?: boolean }> {
 
-  const supabase = await createClient()
+  const supabase = await createClient("business")
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Не авторизован" }
 
@@ -525,7 +525,7 @@ export async function createOrder(params: {
   const clientDocId = clientDoc.id
   const adminDb = createAdminClient()
 
-  const cartItems = await getCartItems()
+  const cartItems = await getCartItems("business")
   if (!cartItems || cartItems.length === 0) return { error: "Корзина пуста" }
 
   // Calculate totals
@@ -810,7 +810,7 @@ export async function createOrder(params: {
   const hasMoyskladInvoice = "moyskladInvoiceOutId" in moyskladSyncResult && Boolean(moyskladSyncResult.moyskladInvoiceOutId)
 
   // Clear cart (now uses direct Supabase queries, no Payload transaction issues)
-  await clearPayloadCart()
+  await clearPayloadCart("business")
 
   // Send order confirmation email with invoice PDF
   try {
@@ -950,7 +950,7 @@ export async function repeatOrder(orderId: string): Promise<{ success?: boolean;
         variantId: String(variant.id),
         quantity: item.quantity,
         grindOption: item.grindOption,
-      })
+      }, "business")
       if (cartResult.success) addedCount++
     }
 

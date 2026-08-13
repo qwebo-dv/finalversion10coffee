@@ -33,7 +33,7 @@ export default async function DashboardLayout({
     <HtmlWrapper>
       <AuthProvider>
         <GuestCartProvider>
-          <CartProvider>
+          <CartProvider sessionScope="business">
             <NotificationProvider>
               <div className="flex min-h-screen flex-col">
                 <div className="flex-1">

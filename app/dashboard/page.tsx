@@ -175,7 +175,10 @@ export async function DashboardPage({ forceIndividual = false }: { forceIndividu
 
   const [orders, companies, newsResult] = await Promise.all([
     getClientOrders(),
-    getClientCompanies(),
+    isIndividual ? Promise.resolve([]) : getClientCompanies().catch((error) => {
+      console.error("[dashboard] Не удалось загрузить компании", error)
+      return []
+    }),
     getNewsPaginated(0, 3),
   ])
 

@@ -9,24 +9,28 @@ function sanitizeInn(value: string | null | undefined): string {
 }
 
 export async function getClientCompanies() {
-  const supabase = await createClient()
+  const supabase = await createClient("business")
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) return []
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("companies")
     .select("*")
     .eq("client_id", user.id)
     .order("created_at", { ascending: false })
 
+  if (error) {
+    console.error("[companies] Не удалось загрузить компании", { userId: user.id, error: error.message })
+    throw new Error("Не удалось загрузить компании")
+  }
   return (data as Company[]) || []
 }
 
 export async function getCompanyById(companyId: string) {
-  const supabase = await createClient()
+  const supabase = await createClient("business")
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -58,7 +62,7 @@ export async function createCompany(formData: {
   contact_phone?: string
   contact_email?: string
 }) {
-  const supabase = await createClient()
+  const supabase = await createClient("business")
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -89,7 +93,9 @@ export async function updateCompany(
   companyId: string,
   formData: Partial<Company>
 ) {
-  const supabase = await createClient()
+  const supabase = await createClient("business")
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Не авторизован" }
   const fieldsThatChangeCounterparty = [
     "name",
     "inn",
@@ -116,6 +122,7 @@ export async function updateCompany(
     .from("companies")
     .update(updateData)
     .eq("id", companyId)
+    .eq("client_id", user.id)
 
   if (error) return { error: error.message }
 
@@ -124,12 +131,15 @@ export async function updateCompany(
 }
 
 export async function deleteCompany(companyId: string) {
-  const supabase = await createClient()
+  const supabase = await createClient("business")
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Не авторизован" }
 
   const { error } = await supabase
     .from("companies")
     .delete()
     .eq("id", companyId)
+    .eq("client_id", user.id)
 
   if (error) return { error: error.message }
 

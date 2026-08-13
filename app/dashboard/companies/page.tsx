@@ -6,7 +6,13 @@ import { Building2, Pencil, Plus } from "lucide-react"
 import { DeleteCompanyButton } from "./delete-button"
 
 export default async function CompaniesPage() {
-  const companies = await getClientCompanies()
+  let companies: Awaited<ReturnType<typeof getClientCompanies>> = []
+  let loadError = false
+  try {
+    companies = await getClientCompanies()
+  } catch {
+    loadError = true
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -25,7 +31,16 @@ export default async function CompaniesPage() {
         </Button>
       </div>
 
-      {companies.length === 0 ? (
+      {loadError ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Building2 className="mb-4 h-16 w-16 text-red-300" />
+          <h3 className="text-lg font-medium">Не удалось загрузить компании</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Данные не удалены. Повторите загрузку через несколько секунд.</p>
+          <Button className="mt-4" variant="outline" asChild>
+            <Link href="/dashboard/companies">Повторить</Link>
+          </Button>
+        </div>
+      ) : companies.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Building2 className="h-16 w-16 text-muted-foreground/30 mb-4" />
           <h3 className="text-lg font-medium">Нет добавленных компаний</h3>

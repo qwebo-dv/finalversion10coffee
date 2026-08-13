@@ -1,4 +1,4 @@
-import { dbQuery, quoteIdent } from "@/lib/db"
+import { dbQuery, dbReadQuery, quoteIdent } from "@/lib/db"
 import {
   createAuthUser,
   createSession,
@@ -207,13 +207,13 @@ export class LocalQueryBuilder implements PromiseLike<QueryResponse> {
         ? ` limit ${this.rangeTo - this.rangeFrom + 1} offset ${this.rangeFrom}`
         : ""
     const selected = columnList(this.selected)
-    const result = await dbQuery(`select ${selected} from ${tableName(this.table)}${where}${order}${limit}`, values)
+    const result = await dbReadQuery(`select ${selected} from ${tableName(this.table)}${where}${order}${limit}`, values)
 
     let count: number | null = null
     if (this.countMode) {
       const countValues: unknown[] = []
       const countWhere = buildWhere(this.filters, countValues)
-      const countResult = await dbQuery<{ count: string }>(
+      const countResult = await dbReadQuery<{ count: string }>(
         `select count(*)::text as count from ${tableName(this.table)}${countWhere}`,
         countValues
       )

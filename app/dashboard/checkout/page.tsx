@@ -65,7 +65,7 @@ interface CdekOffice {
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, totalPrice, totalWeight, clearCart, appliedPromo } = useCart()
+  const { items, loading: cartLoading, totalPrice, totalWeight, clearCart, appliedPromo } = useCart()
   const [clientDiscount, setClientDiscount] = useState(0)
   const [categoryDiscounts, setCategoryDiscounts] = useState<CategoryDiscountRule[]>([])
   const [productDiscounts, setProductDiscounts] = useState<ProductDiscountRule[]>([])
@@ -99,6 +99,8 @@ export default function CheckoutPage() {
     : ""
   const finalPrice = Math.max(0, totalPrice - currentDiscount)
   const [companies, setCompanies] = useState<Company[]>([])
+  const [companiesLoading, setCompaniesLoading] = useState(true)
+  const [companiesError, setCompaniesError] = useState(false)
   const [loading, setLoading] = useState(false)
   const [privacyAgreed, setPrivacyAgreed] = useState(false)
   const [orderResult, setOrderResult] = useState<{ orderId: string; moyskladInvoiceCreated?: boolean } | null>(null)
@@ -134,23 +136,31 @@ export default function CheckoutPage() {
 
   const deliveryMethod = form.watch("delivery_method")
 
-  useEffect(() => {
-    async function loadData() {
-      const [companiesResult, comments, discountConfig] = await Promise.all([
-        getClientCompanies(),
-        getQuickComments(),
-        getClientDiscountConfig(),
-      ])
-
+  const loadCompanies = useCallback(async () => {
+    setCompaniesLoading(true)
+    setCompaniesError(false)
+    try {
+      const companiesResult = await getClientCompanies()
       setCompanies(companiesResult as Company[])
-      if (comments.length > 0) setQuickComments(comments)
-      setClientDiscount(discountConfig.discountPercent || 0)
-      setCategoryDiscounts(discountConfig.categoryDiscounts)
-      setProductDiscounts(discountConfig.productDiscounts || [])
+    } catch (error) {
+      console.error("[checkout] Не удалось загрузить компании", error)
+      setCompaniesError(true)
+    } finally {
+      setCompaniesLoading(false)
     }
-
-    loadData()
   }, [])
+
+  useEffect(() => {
+    void loadCompanies()
+    void Promise.all([getQuickComments(), getClientDiscountConfig()])
+      .then(([comments, discountConfig]) => {
+        if (comments.length > 0) setQuickComments(comments)
+        setClientDiscount(discountConfig.discountPercent || 0)
+        setCategoryDiscounts(discountConfig.categoryDiscounts)
+        setProductDiscounts(discountConfig.productDiscounts || [])
+      })
+      .catch((error) => console.error("[checkout] Не удалось загрузить настройки клиента", error))
+  }, [loadCompanies])
 
   // Reset CDEK state when delivery method changes
   useEffect(() => {
@@ -322,7 +332,11 @@ export default function CheckoutPage() {
     }
   }
 
-  if (items.length === 0 && !loading && !orderResult) {
+  if (cartLoading) {
+    return <div className="flex min-h-[320px] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+  }
+
+  if (items.length === 0 && !orderResult) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <h2 className="text-xl font-bold">Корзина пуста</h2>
@@ -370,7 +384,16 @@ export default function CheckoutPage() {
               <CardTitle className="text-base">Компания</CardTitle>
             </CardHeader>
             <CardContent>
-              {companies.length === 0 ? (
+              {companiesLoading ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Загружаем компании…
+                </div>
+              ) : companiesError ? (
+                <div className="py-4 text-center">
+                  <p className="mb-3 text-sm text-red-600">Не удалось загрузить компании. Данные не удалены.</p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => void loadCompanies()}>Повторить загрузку</Button>
+                </div>
+              ) : companies.length === 0 ? (
                 <div className="text-center py-4">
                   <p className="text-sm text-muted-foreground mb-3">
                     Для оформления заказа нужно добавить компанию
@@ -813,7 +836,7 @@ export default function CheckoutPage() {
             type="submit"
             size="lg"
             className="w-full"
-            disabled={loading || companies.length === 0 || !privacyAgreed}
+            disabled={loading || companiesLoading || companiesError || companies.length === 0 || !privacyAgreed}
           >
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Оформить заказ

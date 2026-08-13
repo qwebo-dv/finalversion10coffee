@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import { getMediaUrl, type PayloadMediaRef as MediaUrlRef } from "@/lib/media"
 import { normalizeProductDetailsSchema } from "@/lib/product-types"
 import type { CartItem, Product, ProductVariant, ProductTag, ProductDetailsSchema } from "@/types"
+import type { CustomerSessionScope } from "@/lib/auth/constants"
 
 async function getPayloadClient() {
   return getPayload({ config: configPromise })
@@ -75,14 +76,11 @@ async function incrementCartItem(params: {
   throw new Error("Не удалось обновить корзину после нескольких попыток")
 }
 
-async function getCurrentUserId(): Promise<string | null> {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    return user?.id || null
-  } catch {
-    return null
-  }
+async function getCurrentUserId(sessionScope?: CustomerSessionScope): Promise<string | null> {
+  const supabase = await createClient(sessionScope)
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error) throw new Error(error.message)
+  return user?.id || null
 }
 
 // ============================================================
@@ -364,8 +362,8 @@ function transformCartItem(doc: PayloadCartItemDoc): CartItem {
 // Cart CRUD — reads via Payload (needs JOINs), mutations via Supabase
 // ============================================================
 
-export async function getCartItems(): Promise<CartItem[]> {
-  const clientId = await getCurrentUserId()
+export async function getCartItems(sessionScope?: CustomerSessionScope): Promise<CartItem[]> {
+  const clientId = await getCurrentUserId(sessionScope)
   if (!clientId) return []
 
   const payload = await getPayloadClient()
@@ -385,8 +383,8 @@ export async function addToCart(params: {
   variantId: string
   quantity: number
   grindOption?: string
-}): Promise<{ success: boolean }> {
-  const clientId = await getCurrentUserId()
+}, sessionScope?: CustomerSessionScope): Promise<{ success: boolean }> {
+  const clientId = await getCurrentUserId(sessionScope)
   if (!clientId) return { success: false }
 
   const productId = Number(params.productId)
@@ -407,11 +405,12 @@ export async function addToCart(params: {
 
 export async function updateCartQuantity(
   cartItemId: string,
-  quantity: number
+  quantity: number,
+  sessionScope?: CustomerSessionScope,
 ): Promise<{ success: boolean }> {
   if (quantity < 1) return { success: false }
 
-  const clientId = await getCurrentUserId()
+  const clientId = await getCurrentUserId(sessionScope)
   if (!clientId) return { success: false }
   const payload = await getPayloadClient()
   const { docs } = await payload.find({
@@ -426,8 +425,8 @@ export async function updateCartQuantity(
   return { success: true }
 }
 
-export async function removeCartItem(cartItemId: string): Promise<{ success: boolean }> {
-  const clientId = await getCurrentUserId()
+export async function removeCartItem(cartItemId: string, sessionScope?: CustomerSessionScope): Promise<{ success: boolean }> {
+  const clientId = await getCurrentUserId(sessionScope)
   if (!clientId) return { success: false }
   const payload = await getPayloadClient()
   const { docs } = await payload.find({
@@ -442,8 +441,8 @@ export async function removeCartItem(cartItemId: string): Promise<{ success: boo
   return { success: true }
 }
 
-export async function clearCart(): Promise<{ success: boolean }> {
-  const clientId = await getCurrentUserId()
+export async function clearCart(sessionScope?: CustomerSessionScope): Promise<{ success: boolean }> {
+  const clientId = await getCurrentUserId(sessionScope)
   if (!clientId) return { success: false }
 
   const payload = await getPayloadClient()

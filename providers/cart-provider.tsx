@@ -17,6 +17,7 @@ import {
 } from "@/lib/actions/cart"
 import type { CartItem } from "@/types"
 import { toast } from "sonner"
+import type { CustomerSessionScope } from "@/lib/auth/constants"
 
 interface AppliedPromo {
   promoCodeId: string
@@ -49,27 +50,34 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null)
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth()
+export function CartProvider({ children, sessionScope }: { children: React.ReactNode; sessionScope: CustomerSessionScope }) {
+  const { user, loading: authLoading } = useAuth()
   const [items, setItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null)
 
   const loadCart = useCallback(async () => {
+    if (authLoading) return
     if (!user) {
       setItems([])
       setLoading(false)
       return
     }
 
-    try {
-      const cartItems = await fetchCartItems()
-      setItems(cartItems)
-    } catch {
-      // silent fail
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const cartItems = await fetchCartItems(sessionScope)
+        setItems(cartItems)
+        setLoading(false)
+        return
+      } catch (error) {
+        console.error(`[cart] Не удалось загрузить корзину, попытка ${attempt}`, error)
+        if (attempt < 2) await new Promise((resolve) => window.setTimeout(resolve, 300))
+      }
     }
+    toast.error("Не удалось загрузить корзину. Обновите страницу через несколько секунд.")
     setLoading(false)
-  }, [user])
+  }, [authLoading, sessionScope, user])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -89,7 +97,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (!user) return
 
       try {
-        const result = await addToCart(params)
+        const result = await addToCart(params, sessionScope)
         if (result.success) {
           toast.success("Товар добавлен в корзину")
           await loadCart()
@@ -100,7 +108,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         toast.error("Ошибка при добавлении в корзину")
       }
     },
-    [user, loadCart]
+    [user, loadCart, sessionScope]
   )
 
   const updateQuantity = useCallback(
@@ -113,13 +121,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       )
 
       try {
-        await serverUpdateQuantity(itemId, quantity)
+        await serverUpdateQuantity(itemId, quantity, sessionScope)
       } catch {
         toast.error("Ошибка при обновлении количества")
         await loadCart()
       }
     },
-    [loadCart]
+    [loadCart, sessionScope]
   )
 
   const removeItem = useCallback(
@@ -128,13 +136,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setItems((prev) => prev.filter((i) => i.id !== itemId))
 
       try {
-        await serverRemoveItem(itemId)
+        await serverRemoveItem(itemId, sessionScope)
       } catch {
         toast.error("Ошибка при удалении из корзины")
         await loadCart()
       }
     },
-    [loadCart]
+    [loadCart, sessionScope]
   )
 
   const clearCartFn = useCallback(async () => {
@@ -144,12 +152,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setAppliedPromo(null)
 
     try {
-      await serverClearCart()
+      await serverClearCart(sessionScope)
     } catch {
       toast.error("Ошибка при очистке корзины")
       await loadCart()
     }
-  }, [user, loadCart])
+  }, [user, loadCart, sessionScope])
 
   const totalPrice = items.reduce((sum, item) => {
     const price = item.variant?.price ?? 0

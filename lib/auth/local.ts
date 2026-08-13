@@ -1,7 +1,7 @@
 import { cookies, headers } from "next/headers"
 import crypto from "crypto"
 import bcrypt from "bcryptjs"
-import { dbQuery } from "@/lib/db"
+import { dbQuery, dbReadQuery } from "@/lib/db"
 import { SESSION_COOKIE_NAMES, type CustomerSessionScope } from "@/lib/auth/constants"
 import type { AppUser } from "@/lib/auth/types"
 
@@ -83,7 +83,7 @@ export async function getCustomerSessionScope(explicitScope?: CustomerSessionSco
 }
 
 export async function getUserById(id: string): Promise<AppUser | null> {
-  const { rows } = await dbQuery<UserRow>(
+  const { rows } = await dbReadQuery<UserRow>(
     `select id, email, encrypted_password, raw_user_meta_data, raw_app_meta_data
        from auth.users
       where id = $1 and deleted_at is null
@@ -94,7 +94,7 @@ export async function getUserById(id: string): Promise<AppUser | null> {
 }
 
 export async function getUserByEmail(email: string): Promise<(AppUser & { encryptedPassword: string | null }) | null> {
-  const { rows } = await dbQuery<UserRow>(
+  const { rows } = await dbReadQuery<UserRow>(
     `select id, email, encrypted_password, raw_user_meta_data, raw_app_meta_data
        from auth.users
       where lower(email) = lower($1) and deleted_at is null
@@ -236,7 +236,7 @@ export async function getCurrentUser(scope?: CustomerSessionScope): Promise<AppU
   const token = cookieStore.get(SESSION_COOKIE_NAMES[await getCustomerSessionScope(scope)])?.value
   if (!token) return null
 
-  const { rows } = await dbQuery<UserRow>(
+  const { rows } = await dbReadQuery<UserRow>(
     `select u.id, u.email, u.encrypted_password, u.raw_user_meta_data, u.raw_app_meta_data
        from public.auth_sessions s
        join auth.users u on u.id = s.user_id

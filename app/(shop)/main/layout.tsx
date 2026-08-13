@@ -10,7 +10,7 @@ export default async function RetailCabinetLayout({ children }: { children: Reac
   const [productTypes, products] = await Promise.all([getProductTypes(), getShopProducts()])
 
   return (
-    <CartProvider>
+    <CartProvider sessionScope="individual">
       <NotificationProvider>
         <div className="flex min-h-screen flex-col">
           <ShopHeader products={products} productTypes={productTypes} />

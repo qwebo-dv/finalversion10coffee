@@ -22,20 +22,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    // Get initial session
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
+    let cancelled = false
+    async function loadUser() {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const { data } = await supabase.auth.getUser()
+          if (!cancelled) {
+            setUser(data.user)
+            setLoading(false)
+          }
+          return
+        } catch (error) {
+          console.error(`[auth] Не удалось загрузить сессию, попытка ${attempt}`, error)
+          if (attempt < 3) await new Promise((resolve) => window.setTimeout(resolve, attempt * 200))
+        }
+      }
+      if (!cancelled) setLoading(false)
+    }
+    void loadUser()
+    return () => { cancelled = true }
   }, [supabase])
 
   const userType = user?.user_metadata?.user_type as

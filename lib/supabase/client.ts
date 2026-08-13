@@ -14,7 +14,7 @@ function authHeaders() {
 
 async function fetchUser() {
   const res = await fetch("/api/auth/me", { cache: "no-store", headers: authHeaders() })
-  if (!res.ok) return null
+  if (!res.ok) throw new Error(`Auth request failed with HTTP ${res.status}`)
   const json = await res.json()
   return (json.user as AppUser | null) || null
 }
