@@ -77,7 +77,9 @@ export async function getCustomerSessionScope(explicitScope?: CustomerSessionSco
     requestHeaders.get("x-invoke-path"),
   ].filter(Boolean).join(" ")
 
-  return /\/(shop|main|checkout|order)(?:\/|\?|\s|$)/.test(requestContext)
+  if (/\/dashboard(?:\/|\?|\s|$)/.test(requestContext)) return "business"
+
+  return /\/(?:shop|main|checkout|order)(?:\/|\?|\s|$)/.test(requestContext)
     ? "individual"
     : "business"
 }

@@ -3,7 +3,15 @@ import type { AppUser } from "@/lib/auth/types"
 type AuthCallback = (_event: "INITIAL_SESSION", session: { user: AppUser | null } | null) => void
 
 function getSessionScope() {
-  return /\/(shop|main|checkout|order)(?:\/|$)/.test(window.location.pathname)
+  const pathname = window.location.pathname
+  if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) return "business"
+  return pathname === "/shop"
+    || pathname.startsWith("/shop/")
+    || pathname === "/main"
+    || pathname.startsWith("/main/")
+    || pathname === "/checkout"
+    || pathname === "/order"
+    || pathname.startsWith("/order/")
     ? "individual"
     : "business"
 }

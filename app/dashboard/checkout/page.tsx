@@ -141,14 +141,31 @@ export default function CheckoutPage() {
     setCompaniesError(false)
     try {
       const companiesResult = await getClientCompanies()
-      setCompanies(companiesResult as Company[])
+      const loadedCompanies = companiesResult as Company[]
+      setCompanies(loadedCompanies)
+      if (loadedCompanies.length === 1) {
+        form.setValue("company_id", loadedCompanies[0].id, {
+          shouldDirty: false,
+          shouldTouch: false,
+          shouldValidate: true,
+        })
+      } else if (
+        loadedCompanies.length > 1
+        && !loadedCompanies.some((company) => company.id === form.getValues("company_id"))
+      ) {
+        form.setValue("company_id", "", {
+          shouldDirty: false,
+          shouldTouch: false,
+          shouldValidate: true,
+        })
+      }
     } catch (error) {
       console.error("[checkout] Не удалось загрузить компании", error)
       setCompaniesError(true)
     } finally {
       setCompaniesLoading(false)
     }
-  }, [])
+  }, [form])
 
   useEffect(() => {
     void loadCompanies()
@@ -417,7 +434,7 @@ export default function CheckoutPage() {
                       <FormLabel>Выберите компанию</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
