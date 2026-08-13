@@ -304,6 +304,7 @@ export default function CheckoutPage() {
     }
 
     setLoading(true)
+    let orderCreated = false
     try {
       const result = await createOrder({
         companyId: data.company_id,
@@ -318,17 +319,20 @@ export default function CheckoutPage() {
       if (result.error) {
         toast.error(result.error)
       } else {
-        await clearCart()
         setOrderResult({
           orderId: result.orderId!,
           moyskladInvoiceCreated: result.moyskladInvoiceCreated,
+        })
+        orderCreated = true
+        void clearCart().catch((error) => {
+          console.error("[checkout] Не удалось очистить корзину после оформления заказа", error)
         })
       }
     } catch (error) {
       console.error("Order creation failed:", error)
       toast.error("Не удалось оформить заказ. Попробуйте ещё раз.")
     } finally {
-      setLoading(false)
+      if (!orderCreated) setLoading(false)
     }
   }
 
