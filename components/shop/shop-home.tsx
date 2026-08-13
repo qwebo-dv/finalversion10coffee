@@ -3,8 +3,10 @@
 import Link from "next/link"
 import { ArrowRight, Coffee, FlaskConical, Leaf, PackageCheck, Quote, ShieldCheck, Sparkles, Truck } from "lucide-react"
 import { ShopHeader } from "./shop-header"
-import { ShopProductCard } from "./shop-catalog"
+import { getShopProductCardTasteMetric, ShopProductCard } from "./shop-catalog"
+import { FaqQuestionForm } from "./faq-question-form"
 import { formatProductCount } from "@/lib/utils/plural"
+import type { PublishedFaq } from "@/lib/actions/faqs"
 import type { Product, ProductTypeOption } from "@/types"
 
 const CATEGORY_STYLES = [
@@ -16,30 +18,7 @@ const CATEGORY_STYLES = [
 
 const CATEGORY_ICONS = [Coffee, Leaf, Sparkles, FlaskConical]
 
-const FAQ = [
-  {
-    question: "Когда обжаривается кофе?",
-    answer: "Мы обжариваем кофе небольшими партиями и отправляем максимально свежим. Дата обжарки указывается на упаковке.",
-  },
-  {
-    question: "Можно заказать кофе уже молотым?",
-    answer: "Да. Если у товара доступен помол, выберите подходящий вариант прямо в карточке перед добавлением в корзину.",
-  },
-  {
-    question: "Как доставляются заказы?",
-    answer: "По России отправляем СДЭК, по Сочи доступна городская доставка, также заказ можно бесплатно забрать самостоятельно.",
-  },
-  {
-    question: "Можно оформить заказ без регистрации?",
-    answer: "Да, регистрация необязательна. Она нужна только для истории заказов, избранного и более быстрого оформления следующих покупок.",
-  },
-  {
-    question: "Что делать, если товар не подошёл?",
-    answer: "Напишите нам на 10coffee@mail.ru и укажите номер заказа. Мы разберём обращение и подскажем порядок возврата.",
-  },
-]
-
-export function ShopHome({ products, productTypes }: { products: Product[]; productTypes: ProductTypeOption[] }) {
+export function ShopHome({ products, productTypes, faqs }: { products: Product[]; productTypes: ProductTypeOption[]; faqs: PublishedFaq[] }) {
   const visibleTypes = productTypes
     .filter((type) => !["sluzhebnoe", "oprihodovanie-i-to"].includes(type.slug))
     .slice(0, 4)
@@ -95,7 +74,7 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
                 <Link href={`/shop/${featuredProduct.slug}`} className="hidden items-center gap-2 text-sm font-black text-[#5b328a] sm:flex">Подробнее <ArrowRight className="h-4 w-4" /></Link>
               </div>
               <div className="min-w-0 lg:col-span-4 lg:col-start-9 lg:row-start-2 lg:mt-8 [&>article]:h-full">
-                <ShopProductCard product={featuredProduct} />
+                <ShopProductCard product={featuredProduct} tasteMetric={getShopProductCardTasteMetric(featuredProduct)} />
               </div>
             </>
           )}
@@ -105,7 +84,7 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
       {popular.length > 0 && (
         <section className="mx-auto max-w-[1480px] px-5 pb-24 lg:px-10">
           <SectionHeading eyebrow="Выбор покупателей" title="Популярные товары" href="/shop?coll=popular" linkLabel="Смотреть все" />
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{popular.map((product) => <ShopProductCard key={product.id} product={product} />)}</div>
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{popular.map((product) => <ShopProductCard key={product.id} product={product} tasteMetric={getShopProductCardTasteMetric(product)} />)}</div>
         </section>
       )}
 
@@ -113,7 +92,7 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
         <section className="bg-[#eee7df] py-24">
           <div className="mx-auto max-w-[1480px] px-5 lg:px-10">
             <SectionHeading eyebrow="Недавно в каталоге" title="Новинки" href="/kofe?coll=new" linkLabel="Все новинки" />
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{newest.map((product) => <ShopProductCard key={product.id} product={product} />)}</div>
+            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{newest.map((product) => <ShopProductCard key={product.id} product={product} tasteMetric={getShopProductCardTasteMetric(product)} />)}</div>
           </div>
         </section>
       )}
@@ -123,9 +102,9 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
         <div className="mt-9 grid gap-px overflow-hidden rounded-[30px] bg-black/[0.08] md:grid-cols-4">
           {[
             { icon: Coffee, number: "01", title: "Вы выбираете", text: "Сорт, фасовку и нужный помол прямо в карточке товара." },
-            { icon: PackageCheck, number: "02", title: "Мы готовим", text: "Комплектуем заказ и бережно упаковываем каждую позицию." },
-            { icon: Truck, number: "03", title: "Отправляем", text: "Передаём заказ в доставку по России или готовим к самовывозу." },
-            { icon: ShieldCheck, number: "04", title: "Всегда на связи", text: "Помогаем с выбором и решаем вопросы после получения заказа." },
+            { icon: PackageCheck, number: "02", title: "Мы обжариваем", text: "Комплектуем заказ и бережно упаковываем каждую позицию." },
+            { icon: Truck, number: "03", title: "Отправляем", text: "Передаём заказ в доставку или готовим к самовывозу." },
+            { icon: ShieldCheck, number: "04", title: "Всегда на связи", text: "Помогаем с выбором и решаем вопросы до получения заказа." },
           ].map((step) => (
             <div key={step.number} className="bg-white p-8 lg:p-10">
               <div className="flex items-center justify-between"><step.icon className="h-7 w-7 text-[#e6610d]" /><span className="text-xs font-black text-[#b7ada5]">{step.number}</span></div>
@@ -157,9 +136,10 @@ export function ShopHome({ products, productTypes }: { products: Product[]; prod
       )}
 
       <section id="faq" className="mx-auto grid max-w-[1480px] gap-10 px-5 py-24 lg:grid-cols-[0.65fr_1.35fr] lg:px-10">
-        <div><p className="text-xs font-black uppercase tracking-[0.22em] text-[#e6610d]">Помощь покупателю</p><h2 className="mt-3 text-4xl font-black tracking-[-0.05em] sm:text-6xl">Частые вопросы</h2><p className="mt-5 max-w-sm text-base leading-7 text-[#6e655e]">Не нашли ответ? Напишите нам — поможем выбрать товар и уточнить детали заказа.</p><a href="mailto:10coffee@mail.ru" className="mt-7 inline-flex items-center gap-2 text-sm font-black text-[#5b328a]">Задать вопрос <ArrowRight className="h-4 w-4" /></a></div>
+        <div><p className="text-xs font-black uppercase tracking-[0.22em] text-[#e6610d]">Помощь покупателю</p><h2 className="mt-3 text-4xl font-black tracking-[-0.05em] sm:text-6xl">Частые вопросы</h2><p className="mt-5 max-w-sm text-base leading-7 text-[#6e655e]">Не нашли ответ? Напишите нам — поможем выбрать товар и уточнить детали заказа.</p><FaqQuestionForm /></div>
         <div className="divide-y divide-black/[0.09] border-y border-black/[0.09]">
-          {FAQ.map((item) => <details key={item.question} className="group py-1"><summary className="flex cursor-pointer list-none items-center justify-between gap-5 py-6 text-lg font-black"><span>{item.question}</span><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xl transition group-open:rotate-45">+</span></summary><p className="max-w-3xl pb-7 pr-12 text-sm leading-7 text-[#6e655e]">{item.answer}</p></details>)}
+          {faqs.map((item) => <details key={item.id} className="group py-1"><summary className="flex cursor-pointer list-none items-center justify-between gap-5 py-6 text-lg font-black"><span>{item.question}</span><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xl transition group-open:rotate-45">+</span></summary><p className="max-w-3xl pb-7 pr-12 text-sm leading-7 text-[#6e655e]">{item.answer}</p></details>)}
+          {faqs.length === 0 && <p className="py-7 text-sm leading-7 text-[#6e655e]">Скоро здесь появятся ответы на частые вопросы.</p>}
         </div>
       </section>
     </main>

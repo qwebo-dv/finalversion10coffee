@@ -1,0 +1,62 @@
+"use client"
+
+import { FormEvent, useState } from "react"
+import { ArrowRight, LoaderCircle } from "lucide-react"
+
+export function FaqQuestionForm() {
+  const [isOpen, setIsOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setIsSubmitting(true)
+    setError(null)
+    setMessage(null)
+
+    const form = new FormData(event.currentTarget)
+    const response = await fetch("/api/faq", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question: form.get("question"),
+        name: form.get("name"),
+        email: form.get("email"),
+      }),
+    }).catch(() => null)
+
+    const result = response ? await response.json().catch(() => ({})) : {}
+    setIsSubmitting(false)
+    if (!response?.ok) {
+      setError(typeof result.error === "string" ? result.error : "Не удалось отправить вопрос. Попробуйте ещё раз.")
+      return
+    }
+
+    event.currentTarget.reset()
+    setMessage("Вопрос отправлен. После модерации мы добавим ответ в FAQ.")
+  }
+
+  return (
+    <div className="mt-7">
+      <button type="button" onClick={() => { setIsOpen((value) => !value); setError(null); setMessage(null) }} className="inline-flex items-center gap-2 text-sm font-black text-[#5b328a]">
+        Задать вопрос <ArrowRight className={`h-4 w-4 transition ${isOpen ? "rotate-90" : ""}`} />
+      </button>
+      {isOpen && (
+        <form onSubmit={onSubmit} className="mt-5 grid gap-3 rounded-2xl border border-black/[0.09] bg-white p-4 shadow-sm">
+          <textarea name="question" required minLength={10} maxLength={1000} rows={4} placeholder="Напишите ваш вопрос" className="w-full resize-y rounded-xl border border-black/[0.12] bg-[#f8f5f1] px-3 py-2.5 text-sm outline-none transition focus:border-[#5b328a]" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input name="name" maxLength={120} placeholder="Имя (необязательно)" className="min-w-0 rounded-xl border border-black/[0.12] bg-[#f8f5f1] px-3 py-2.5 text-sm outline-none transition focus:border-[#5b328a]" />
+            <input name="email" type="email" maxLength={254} placeholder="Email для ответа (необязательно)" className="min-w-0 rounded-xl border border-black/[0.12] bg-[#f8f5f1] px-3 py-2.5 text-sm outline-none transition focus:border-[#5b328a]" />
+          </div>
+          <button disabled={isSubmitting} className="inline-flex w-fit items-center gap-2 rounded-xl bg-[#5b328a] px-4 py-2.5 text-sm font-black text-white disabled:cursor-wait disabled:opacity-60">
+            {isSubmitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
+            Отправить вопрос
+          </button>
+          {error && <p role="alert" className="text-sm font-medium text-red-700">{error}</p>}
+          {message && <p role="status" className="text-sm font-medium text-emerald-700">{message}</p>}
+        </form>
+      )}
+    </div>
+  )
+}

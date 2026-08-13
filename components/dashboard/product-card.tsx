@@ -26,6 +26,10 @@ interface ProductCardProps {
   index?: number
 }
 
+function isSinglePieceVariantName(name: string | undefined) {
+  return /^1\s*шт\.?$/i.test((name || "").trim())
+}
+
 export function ProductCard({ product, isFavorite: initialFav, index = 0 }: ProductCardProps) {
   const { items, addItem, updateQuantity, removeItem } = useCart()
   const variants = (product.variants || []).filter((variant) => variant.is_available !== false)
@@ -39,6 +43,7 @@ export function ProductCard({ product, isFavorite: initialFav, index = 0 }: Prod
     selectedVariant?.grind_options?.[0] || ""
   )
   const [addedToCart, setAddedToCart] = useState(false)
+  const showVariantSelector = variants.length > 1 || !isSinglePieceVariantName(variants[0]?.name)
 
   // Find matching cart item for current variant+grind
   const cartItem = items.find(
@@ -185,26 +190,28 @@ export function ProductCard({ product, isFavorite: initialFav, index = 0 }: Prod
         {variants.length > 0 && (
           <div className="mt-3 space-y-2.5">
             {/* Variant pills - sleek */}
-            <div className="flex flex-wrap gap-1.5">
-              {variants.map((v) => (
-                <button
-                  key={v.id}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setSelectedVariant(v)
-                    setGrind(v.grind_options?.[0] || "")
-                  }}
-                  className={cn(
-                    "text-[11px] px-3 py-1.5 rounded-full font-semibold transition-all duration-200",
-                    selectedVariant?.id === v.id
-                      ? "bg-[#5b328a] text-white shadow-md shadow-[#5b328a]/20"
-                      : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700"
-                  )}
-                >
-                  {v.name}
-                </button>
-              ))}
-            </div>
+            {showVariantSelector && (
+              <div className="flex flex-wrap gap-1.5">
+                {variants.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setSelectedVariant(v)
+                      setGrind(v.grind_options?.[0] || "")
+                    }}
+                    className={cn(
+                      "text-[11px] px-3 py-1.5 rounded-full font-semibold transition-all duration-200",
+                      selectedVariant?.id === v.id
+                        ? "bg-[#5b328a] text-white shadow-md shadow-[#5b328a]/20"
+                        : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700"
+                    )}
+                  >
+                    {v.name}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Grind selector - minimal */}
             {selectedVariant?.grind_options && selectedVariant.grind_options.length > 0 && (

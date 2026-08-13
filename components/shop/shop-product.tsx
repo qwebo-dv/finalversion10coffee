@@ -39,6 +39,10 @@ interface SpecRow {
   value: string
 }
 
+function isSinglePieceVariantName(name: string | undefined) {
+  return /^1\s*шт\.?$/i.test((name || "").trim())
+}
+
 function formatReviewDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ""
@@ -74,6 +78,7 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
   const selectedGrind = getVariantGrindOption(variant)
   const grindOptions = getGrindOptions(variants, selectedWeight)
   const hasStructuredCoffeeOptions = product.product_type_schema === "coffee" && weights.length > 0 && grindOptions.length > 0
+  const showSimpleVariantSelector = variants.length > 1 || !isSinglePieceVariantName(variants[0]?.name)
 
   const specs: SpecRow[] = [
     typeof product.q_grader_rating === "number" ? { label: "Оценка Q-грейдера", value: String(product.q_grader_rating) } : null,
@@ -226,7 +231,7 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
                   </div>
                   <p className="text-xs text-[#9b9087] sm:col-span-2">Помол бесплатный. Цена выбранного SKU обновляется автоматически.</p>
                 </div>
-              ) : (
+              ) : showSimpleVariantSelector ? (
                 <>
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8d827a]">Вариант</p>
                   <div className="mt-4 flex flex-wrap gap-3">
@@ -237,7 +242,7 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
                     ))}
                   </div>
                 </>
-              )}
+              ) : null}
             </div>
 
             {/* Price + quantity + CTA */}

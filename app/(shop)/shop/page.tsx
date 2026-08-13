@@ -2,6 +2,7 @@ import { permanentRedirect } from "next/navigation"
 import { getProductTypes, getShopProducts } from "@/lib/actions/products"
 import { ShopHome } from "@/components/shop/shop-home"
 import { ShopCatalog } from "@/components/shop/shop-catalog"
+import { getPublishedFaqs } from "@/lib/actions/faqs"
 
 export const dynamic = "force-dynamic"
 
@@ -22,10 +23,10 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     permanentRedirect(`/${legacyType}${suffix}`)
   }
 
-  const [productTypes, products] = await Promise.all([getProductTypes(), getShopProducts()])
+  const [productTypes, products, faqs] = await Promise.all([getProductTypes(), getShopProducts(), getPublishedFaqs(5)])
   const searchQuery = Array.isArray(query.q) ? query.q[0] : query.q
   if (searchQuery?.trim()) {
     return <ShopCatalog productTypes={productTypes} products={products} />
   }
-  return <ShopHome productTypes={productTypes} products={products} />
+  return <ShopHome productTypes={productTypes} products={products} faqs={faqs} />
 }

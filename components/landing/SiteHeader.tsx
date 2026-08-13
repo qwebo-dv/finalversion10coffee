@@ -20,6 +20,7 @@ export default function SiteHeader() {
   const { user } = useAuth();
   const businessUser = user?.user_metadata?.customer_type === "business";
   const avatarUrl: string | null = user?.user_metadata?.avatar_url || null;
+  const accountLabel = user?.user_metadata?.full_name?.trim() || user?.email || "Личный кабинет";
   const [hidden, setHidden] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
@@ -57,8 +58,9 @@ export default function SiteHeader() {
 
         <div className={styles.navActions}>
           {businessUser ? (
-            <Link href="/dashboard" className={styles.navAvatar}>
-              {avatarUrl ? (
+            <Link href="/dashboard" className={styles.navAccount} aria-label={`Открыть личный кабинет: ${accountLabel}`}>
+              <span className={styles.navAccountName}>{accountLabel}</span>
+              <span className={styles.navAvatar}>{avatarUrl ? (
                 <img
                   src={avatarUrl}
                   alt=""
@@ -68,7 +70,7 @@ export default function SiteHeader() {
                 user.user_metadata?.full_name?.[0]?.toUpperCase() ||
                 user.email?.[0]?.toUpperCase() ||
                 "U"
-              )}
+              )}</span>
             </Link>
           ) : (
             <button

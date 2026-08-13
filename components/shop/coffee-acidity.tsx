@@ -17,7 +17,7 @@ export function CoffeeTasteScale({ value, label, compact = false, tone = "defaul
   const normalizedValue = Math.max(1, Math.min(TASTE_SCALE_MAX, Math.round(value)))
 
   return (
-    <div className={`flex items-center justify-between ${compact ? "gap-2" : "gap-4"}`} aria-label={`${label}: ${normalizedValue} из ${TASTE_SCALE_MAX}`}>
+    <div className={`flex items-center ${compact ? "gap-2" : "gap-3"}`} aria-label={`${label}: ${normalizedValue} из ${TASTE_SCALE_MAX}`}>
       <span className={`${compact ? "text-xs" : "text-sm"} font-semibold ${tone === "inverse" ? "text-white/65" : "text-[#766d66]"}`}>{label}</span>
       <span className="flex items-center gap-1" aria-hidden="true">
         {Array.from({ length: TASTE_SCALE_MAX }, (_, index) => (

@@ -8,6 +8,7 @@ import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad
 import { createYooKassaPayment } from "@/lib/payments/yookassa"
 import { createOrderPaymentToken } from "@/lib/payments/order-payment-token"
 import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
+import { calculateTariff } from "@/lib/cdek"
 import type { CartItem, DeliveryMethod, Product } from "@/types"
 
 export interface ShopOrderInput {
@@ -25,6 +26,9 @@ export interface ShopOrderInput {
   deliveryMethod: DeliveryMethod
   comment?: string
   promoCode?: string
+  deliveryCost?: number
+  cdekCityCode?: number
+  cdekDeliveryType?: "pickup" | "courier"
   createAccount?: boolean
   acceptTerms?: boolean
 }
@@ -199,7 +203,27 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     }
   }
 
-  const total = Math.max(0, subtotal - promoResult.discountAmount)
+  let deliveryCost = 0
+  if (input.deliveryMethod === "cdek") {
+    const cityCode = Number(input.cdekCityCode)
+    if (!Number.isInteger(cityCode) || cityCode <= 0 || !input.cdekDeliveryType) {
+      return { error: "Выберите город и способ доставки СДЭК" }
+    }
+    try {
+      const tariffs = await calculateTariff(cityCode, totalWeight)
+      const allowedModes = input.cdekDeliveryType === "courier" ? [1, 3] : [2, 4]
+      const matchingTariffs = tariffs
+        .filter((tariff) => allowedModes.includes(tariff.delivery_mode))
+        .sort((left, right) => left.delivery_sum - right.delivery_sum)
+      const tariff = matchingTariffs[0]
+      if (!tariff) return { error: "Для выбранного способа доставки нет тарифа СДЭК" }
+      deliveryCost = Math.round(tariff.delivery_sum)
+    } catch (error) {
+      console.error("[shop-orders] Не удалось проверить тариф СДЭК", error)
+      return { error: "Не удалось подтвердить стоимость доставки СДЭК. Попробуйте ещё раз." }
+    }
+  }
+  const total = Math.max(0, subtotal - promoResult.discountAmount) + deliveryCost
   const items = cartItems.map((item) => {
     const stockLossLine = buildMoyskladStockLossLines([item])[0]
     const lineSubtotal = (item.variant?.price || 0) * item.quantity
@@ -230,7 +254,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     deliveryAddress: address,
     subtotal,
     discountAmount: promoResult.discountAmount,
-    deliveryCost: 0,
+    deliveryCost,
     total,
     totalWeightGrams: totalWeight,
     comment: input.comment?.trim() || "",
@@ -251,7 +275,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
       createdAt: order.createdAt,
       subtotal,
       discountAmount: promoResult.discountAmount,
-      deliveryCost: 0,
+      deliveryCost,
       total,
       deliveryMethod: input.deliveryMethod,
       deliveryAddress: address,

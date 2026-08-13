@@ -4,7 +4,7 @@ import { useState } from "react"
 import type { ReactNode } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Trash2, Send, Minus, Plus, FileText, ShoppingBag, X, Coffee, Loader2 } from "lucide-react"
+import { Trash2, Send, Minus, Plus, FileText, ShoppingBag, X, Coffee, Loader2, ChevronUp, MessageCircle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
 import { useCart } from "@/providers/cart-provider"
@@ -85,6 +85,7 @@ export function CartSidebar({
   productDiscounts = [],
   headerActions,
 }: CartSidebarProps) {
+  const [managerMenuOpen, setManagerMenuOpen] = useState(false)
   const { appliedPromo, setAppliedPromo } = useCart()
   const [promoInput, setPromoInput] = useState("")
   const [promoExpanded, setPromoExpanded] = useState(false)
@@ -351,17 +352,16 @@ export function CartSidebar({
             <p className="text-[11px] font-bold text-[#1d1d1b] leading-tight">Прайс-лист</p>
           </a>
 
-          <a
-            href="tg://resolve?domain=Tencoffeesochi"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 h-10 flex items-center justify-center gap-2 px-2.5 rounded-xl bg-[#e8f4fd]/80 hover:bg-[#d4ecfa] transition-colors text-center"
-          >
-            <div className="h-7 w-7 rounded-full bg-[#2AABEE] flex items-center justify-center shrink-0 shadow-sm">
-              <Send className="h-3 w-3 text-white" />
-            </div>
-            <p className="text-[11px] font-bold text-neutral-900 leading-tight">Менеджер</p>
-          </a>
+          <div className="relative flex-1">
+            {managerMenuOpen && <div className="absolute bottom-[calc(100%+0.5rem)] right-0 z-30 w-full min-w-48 overflow-hidden rounded-xl border border-black/[0.08] bg-white p-1.5 shadow-xl">
+              <a href="tg://resolve?domain=Tencoffeesochi" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-bold text-neutral-900 transition hover:bg-[#e8f4fd]" onClick={() => setManagerMenuOpen(false)}><span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2AABEE]"><Send className="h-3 w-3 text-white" /></span>Telegram</a>
+              <a href="https://max.ru/u/f9LHodD0cOKa1C5S0VRomlqqlvMnh7CX7AaTfiG3sTv28xhc-4miAZFMuj4" target="_blank" rel="noopener noreferrer" className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-bold text-neutral-900 transition hover:bg-[#f3edfb]" onClick={() => setManagerMenuOpen(false)}><span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#5b328a]"><MessageCircle className="h-3 w-3 text-white" /></span>MAX</a>
+            </div>}
+            <button type="button" onClick={() => setManagerMenuOpen((open) => !open)} aria-expanded={managerMenuOpen} className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#e8f4fd]/80 px-2.5 text-center transition-colors hover:bg-[#d4ecfa]">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2AABEE] shadow-sm"><Send className="h-3 w-3 text-white" /></span>
+              <span className="text-[11px] font-bold leading-tight text-neutral-900">Менеджер</span><ChevronUp className={`h-3 w-3 text-neutral-500 transition ${managerMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+          </div>
         </div>
       </div>
     </>

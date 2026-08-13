@@ -24,7 +24,7 @@ const NAV_LINKS = [
   { label: "Сервис", href: "/b2b-servis" },
   { label: "Контакты", href: "/kontakty" },
   { label: "Где попробовать", href: "#map", isMap: true },
-  { label: "Опт", href: "/?auth=login", isAuth: true },
+  { label: "Вход для опта", href: "/?auth=login", isAuth: true },
 ];
 
 const SOCIAL_LINKS = [

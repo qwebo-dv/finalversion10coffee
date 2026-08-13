@@ -19,6 +19,7 @@ const COMPANY_LINKS = [
 ]
 
 const CUSTOMER_LINKS = [
+  { label: "Контакты", href: "/contacts" },
   { label: "Оформить заказ", href: "/checkout" },
   { label: "Доставка и оплата", href: "/delivery" },
   { label: "Возврат", href: "/return" },

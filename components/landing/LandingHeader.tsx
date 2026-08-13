@@ -23,6 +23,7 @@ export default function LandingHeader({
   const businessUser = user?.user_metadata?.customer_type === "business";
   const [hidden, setHidden] = useState(false);
   const avatarUrl: string | null = user?.user_metadata?.avatar_url || null;
+  const accountLabel = user?.user_metadata?.full_name?.trim() || user?.email || "Личный кабинет";
   const lastScrollY = useRef(0);
 
   useEffect(() => {
@@ -54,14 +55,15 @@ export default function LandingHeader({
 
       <div className={styles.navActions}>
           {businessUser ? (
-          <Link href="/dashboard" className={styles.navAvatar}>
-            {avatarUrl ? (
+          <Link href="/dashboard" className={styles.navAccount} aria-label={`Открыть личный кабинет: ${accountLabel}`}>
+            <span className={styles.navAccountName}>{accountLabel}</span>
+            <span className={styles.navAvatar}>{avatarUrl ? (
               <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
             ) : (
               user.user_metadata?.full_name?.[0]?.toUpperCase() ||
               user.email?.[0]?.toUpperCase() ||
               "U"
-            )}
+            )}</span>
           </Link>
         ) : (
           <button

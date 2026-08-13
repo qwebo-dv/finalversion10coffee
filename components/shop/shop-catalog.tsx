@@ -51,6 +51,10 @@ interface CollectionPreset {
   reset?: boolean
 }
 
+function isSinglePieceVariantName(name: string | undefined) {
+  return /^1\s*шт\.?$/i.test((name || "").trim())
+}
+
 const COLLECTIONS: CollectionPreset[] = [
   { id: "all", label: "Все товары", icon: LayoutGrid, reset: true },
   { id: "popular", label: "Популярное", icon: TrendingUp, popular: true },
@@ -114,7 +118,7 @@ function FilterDropdown({ label, options, selected, onToggle, onClear }: {
   )
 }
 
-export function ShopProductCard({ product, tasteMetric = "acidity" }: { product: Product; tasteMetric?: "acidity" | "bitterness" | null }) {
+export function ShopProductCard({ product, tasteMetric }: { product: Product; tasteMetric?: "acidity" | "bitterness" | null }) {
   const variants = (product.variants || []).filter((item) => item.is_available)
   const [variant, setVariant] = useState<ProductVariant | null>(variants[0] || null)
   const { items, addItem } = useGuestCart()
@@ -124,6 +128,8 @@ export function ShopProductCard({ product, tasteMetric = "acidity" }: { product:
   const selectedGrind = getVariantGrindOption(variant)
   const grindOptions = getGrindOptions(variants, selectedWeight)
   const hasStructuredCoffeeOptions = product.product_type_schema === "coffee" && weights.length > 0 && grindOptions.length > 0
+  const showSimpleVariantSelector = variants.length > 1 || !isSinglePieceVariantName(variants[0]?.name)
+  const resolvedTasteMetric = tasteMetric === undefined ? getShopProductCardTasteMetric(product) : tasteMetric
 
   function addToCart() {
     if (!variant) return
@@ -162,9 +168,9 @@ export function ShopProductCard({ product, tasteMetric = "acidity" }: { product:
         {product.product_type_schema === "coffee" && product.taste_description && (
           <p className="mt-3 line-clamp-2 text-sm leading-5 text-[#554b43]">{product.taste_description}</p>
         )}
-        {product.product_type_schema === "coffee" && tasteMetric && (
+        {product.product_type_schema === "coffee" && resolvedTasteMetric && (
           <div className="mt-3">
-            {tasteMetric === "bitterness"
+            {resolvedTasteMetric === "bitterness"
               ? <CoffeeTasteScale label="Горечь" value={product.bitterness} compact />
               : <CoffeeAcidity value={product.acidity} compact />}
           </div>
@@ -203,7 +209,7 @@ export function ShopProductCard({ product, tasteMetric = "acidity" }: { product:
               </div>
             </div>
           </div>
-        ) : variants.length > 0 ? (
+        ) : variants.length > 0 && showSimpleVariantSelector ? (
           <div className="mt-5">
             <p className="mb-2 text-[10px] font-black uppercase tracking-[0.12em] text-[#9b9087]">Вариант</p>
             <div className="flex flex-wrap gap-2">
@@ -246,6 +252,14 @@ function normalizeSearchText(value: string) {
     .replace(/ё/g, "е")
     .replace(/[^a-zа-я0-9]+/gi, " ")
     .trim()
+}
+
+export function getShopProductCardTasteMetric(product: Product): "acidity" | "bitterness" | null {
+  if (product.product_type_schema !== "coffee") return "acidity"
+  const group = getCoffeeGroup(product)
+  if (group === "espresso") return "bitterness"
+  if (group === "filter") return "acidity"
+  return null
 }
 
 function flattenCatalogGroups(groups: CatalogGroup[]): CatalogGroup[] {
@@ -525,7 +539,7 @@ export function ShopCatalog({ productTypes, products, initialType = "", category
                         <ShopProductCard
                           key={product.id}
                           product={product}
-                          tasteMetric={activeType === "kofe" ? (/эспрессо/i.test(group.label) ? "bitterness" : /фильтр/i.test(group.label) ? "acidity" : null) : "acidity"}
+                          tasteMetric={getShopProductCardTasteMetric(product)}
                         />
                       ))}
                     </div>

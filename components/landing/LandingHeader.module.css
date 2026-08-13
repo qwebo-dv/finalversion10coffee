@@ -110,6 +110,24 @@
   box-shadow: 0 4px 20px rgba(91, 50, 138, 0.3);
 }
 
+.navAccount {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.navAccountName {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .navAvatar {
   display: flex;
   align-items: center;
@@ -212,8 +230,10 @@
   }
 
   .navPillBtn {
-    padding: 0.45rem 0.85rem;
-    font-size: 0.75rem;
-    border-radius: 10px;
+    display: none;
+  }
+
+  .navAccountName {
+    display: none;
   }
 }

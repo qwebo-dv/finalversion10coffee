@@ -78,6 +78,10 @@ function inferGrindOptionFromName(name: string) {
   return ""
 }
 
+function isSinglePieceVariantName(name: string | undefined) {
+  return /^1\s*шт\.?$/i.test((name || "").trim())
+}
+
 function compareGrindOptions(a?: string, b?: string) {
   const aKey = normalizeGrindOption(a || "")
   const bKey = normalizeGrindOption(b || "")
@@ -107,6 +111,7 @@ function cleanVariantPackageName(name: string) {
 }
 
 function getVariantPackageName(variant: ProductVariant) {
+  if (isSinglePieceVariantName(variant.name)) return ""
   return getVariantGrindOptions(variant).length > 0
     ? cleanVariantPackageName(variant.name)
     : variant.name
@@ -190,6 +195,7 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
     : variants
   const visibleVariants = [...(variantsForSelectedGrind.length > 0 ? variantsForSelectedGrind : variants)]
     .sort(compareVariantsByPackage)
+  const showVariantSelector = visibleVariants.length > 1 || !isSinglePieceVariantName(visibleVariants[0]?.name)
 
   function handleFavorite() {
     setIsFavorite(!isFavorite)
@@ -374,7 +380,7 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
           )}
 
           {/* Variant selector */}
-          {product.variants && product.variants.length > 0 && (
+          {product.variants && product.variants.length > 0 && showVariantSelector && (
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Фасовка</h3>
               <div className="flex gap-2">
@@ -398,7 +404,7 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
                         : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
                     )}
                   >
-                    <span className="block">{getVariantPackageName(v)}</span>
+                    {getVariantPackageName(v) && <span className="block">{getVariantPackageName(v)}</span>}
                     <span className={cn(
                       "block text-[13px] mt-0.5",
                       selectedVariant?.id === v.id ? "text-white/70" : "text-neutral-400"

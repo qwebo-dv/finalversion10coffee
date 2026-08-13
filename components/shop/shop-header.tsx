@@ -19,6 +19,7 @@ const FALLBACK_TYPES = [
 ]
 
 const NAV_LINKS = [
+  { label: "Контакты", href: "/contacts" },
   { label: "Доставка и оплата", href: "/delivery" },
   { label: "Возврат", href: "/return" },
   { label: "Вопросы и ответы", href: "/faq" },

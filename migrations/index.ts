@@ -13,6 +13,8 @@ import * as migration_20260811_200000_yookassa_settings from './20260811_200000_
 import * as migration_20260812_120000_sales_channels_and_admin_workspaces from './20260812_120000_sales_channels_and_admin_workspaces.ts';
 import * as migration_20260812_210000_paid_order_confirmation_email from './20260812_210000_paid_order_confirmation_email.ts';
 import * as migration_20260812_220000_product_review_authors from './20260812_220000_product_review_authors.ts';
+import * as migration_20260813_090000_faqs from './20260813_090000_faqs.ts';
+import * as migration_20260813_100000_repair_faqs_locked_documents from './20260813_100000_repair_faqs_locked_documents.ts';
 
 export const migrations = [
   {
@@ -89,5 +91,15 @@ export const migrations = [
     up: migration_20260812_220000_product_review_authors.up,
     down: migration_20260812_220000_product_review_authors.down,
     name: '20260812_220000_product_review_authors'
+  },
+  {
+    up: migration_20260813_090000_faqs.up,
+    down: migration_20260813_090000_faqs.down,
+    name: '20260813_090000_faqs'
+  },
+  {
+    up: migration_20260813_100000_repair_faqs_locked_documents.up,
+    down: migration_20260813_100000_repair_faqs_locked_documents.down,
+    name: '20260813_100000_repair_faqs_locked_documents'
   },
 ];

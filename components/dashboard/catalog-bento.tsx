@@ -82,6 +82,10 @@ const cardColors = [
   "bg-[#faead5]/60",
 ]
 
+function isSinglePieceVariantName(name: string | undefined) {
+  return /^1\s*шт\.?$/i.test((name || "").trim())
+}
+
 async function fetchCategoryProducts(categoryId: number | string, signal?: AbortSignal): Promise<Product[]> {
   const response = await fetch(`/api/catalog/products?categoryId=${encodeURIComponent(categoryId)}`, {
     signal,
@@ -499,6 +503,7 @@ function ProdCard({ product, idx }: { product: Product; idx: number }) {
 
   const selectedVariant = variants[selectedIdx]
   const grindOption = selectedVariant?.grind_options?.[0] || ""
+  const showSingleVariantName = variants.length === 1 && !isSinglePieceVariantName(selectedVariant?.name)
 
   // Find matching cart item
   const cartItem = items.find(
@@ -626,7 +631,7 @@ function ProdCard({ product, idx }: { product: Product; idx: number }) {
                   <span className="text-[15px] font-black text-neutral-900">
                     {formatPrice(selectedVariant.price)}
                   </span>
-                  {variants.length === 1 && (
+                  {showSingleVariantName && (
                     <span className="text-[10px] text-neutral-400 ml-1">
                       {selectedVariant.name}
                     </span>

@@ -24,6 +24,7 @@ import { MapLocations } from "./payload/collections/MapLocations"
 import { BlogPosts } from "./payload/collections/BlogPosts"
 import { Tags } from "./payload/collections/Tags"
 import { PriceListRequests } from "./payload/collections/PriceListRequests"
+import { Faqs } from "./payload/collections/Faqs"
 import { SiteSettings } from "./payload/globals/SiteSettings"
 import { PaymentSettings } from "./payload/globals/PaymentSettings"
 import { businessDashboardHandler } from "./payload/endpoints/businessDashboard"
@@ -78,6 +79,7 @@ export default buildConfig({
   collections: [
     Orders,
     PriceListRequests,
+    Faqs,
     PromoCodes,
     Clients,
     CartItems,

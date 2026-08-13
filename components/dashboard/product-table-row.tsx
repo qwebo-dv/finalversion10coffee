@@ -23,6 +23,10 @@ function inferGrindOptionFromName(name: string) {
   return ""
 }
 
+function isSinglePieceVariantName(name: string | undefined) {
+  return /^1\s*шт\.?$/i.test((name || "").trim())
+}
+
 function compareGrindOptions(a?: string, b?: string) {
   const order = { beans: 0, ground: 1 } as Record<string, number>
   const aKey = normalizeGrindOption(a)
@@ -52,6 +56,7 @@ function cleanVariantPackageName(name: string) {
 }
 
 function getVariantPackageName(variant: ProductVariant) {
+  if (isSinglePieceVariantName(variant.name)) return ""
   return getVariantGrindOptions(variant).length > 0
     ? cleanVariantPackageName(variant.name)
     : variant.name
@@ -313,10 +318,11 @@ function MobileVariantRow({
   }
 
   if (variant.price <= 0) return null
+  const showVariantName = !isSinglePieceVariantName(variant.name)
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[12px] text-neutral-500 w-12 shrink-0">{variant.name}</span>
+      {showVariantName && <span className="text-[12px] text-neutral-500 w-12 shrink-0">{variant.name}</span>}
       <span className="text-[12px] text-neutral-400 flex-1">{grind ?? ""}</span>
       <span className="text-[13px] font-bold text-neutral-800 w-16 text-right shrink-0">
         {Math.round(variant.price).toLocaleString("ru-RU")} ₽
@@ -372,7 +378,7 @@ function VariantCell({
   return (
     <div className="flex items-center gap-2 bg-neutral-50 rounded-xl px-3 py-2 border border-neutral-100">
       <div className="text-center min-w-[50px]">
-        <div className="text-[10px] font-medium text-neutral-400 leading-none">{packageName}</div>
+        {packageName && <div className="text-[10px] font-medium text-neutral-400 leading-none">{packageName}</div>}
         <div className="text-[13px] font-bold text-neutral-900 tabular-nums mt-0.5">
           {firstVariant?.price > 0 ? `${Math.round(firstVariant.price)}₽` : "—"}
         </div>

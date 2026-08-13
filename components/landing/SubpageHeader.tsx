@@ -23,6 +23,7 @@ export default function SubpageHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const avatarUrl: string | null = user?.user_metadata?.avatar_url || null;
+  const accountLabel = user?.user_metadata?.full_name?.trim() || user?.email || "Личный кабинет";
 
   return (
     <>
@@ -45,14 +46,15 @@ export default function SubpageHeader() {
 
         <div className={styles.actions}>
           {businessUser ? (
-            <Link href="/dashboard" className={styles.avatar}>
-              {avatarUrl ? (
+            <Link href="/dashboard" className={styles.account} aria-label={`Открыть личный кабинет: ${accountLabel}`}>
+              <span className={styles.accountName}>{accountLabel}</span>
+              <span className={styles.avatar}>{avatarUrl ? (
                 <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
               ) : (
                 user.user_metadata?.full_name?.[0]?.toUpperCase() ||
                 user.email?.[0]?.toUpperCase() ||
                 "U"
-              )}
+              )}</span>
             </Link>
           ) : (
             <button
