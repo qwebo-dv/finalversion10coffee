@@ -18,7 +18,7 @@ export function ContactWidget() {
   }
 
   return (
-    <div className="fixed bottom-5 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-7 sm:right-6">
+    <div className="fixed bottom-5 right-4 z-40 flex flex-col items-end gap-3 sm:bottom-7 sm:right-6">
       {isOpen && (
         <div className="w-56 overflow-hidden rounded-2xl border border-black/[0.08] bg-white p-2 shadow-[0_18px_55px_rgba(29,29,27,0.18)]">
           <a
