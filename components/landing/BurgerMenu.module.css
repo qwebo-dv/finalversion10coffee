@@ -97,7 +97,7 @@
 
 .menuLink a {
   font-family: var(--font-google-sans), sans-serif;
-  font-size: clamp(1.4rem, min(4vw, 3.5vh), 3.5rem);
+  font-size: 3.5rem;
   font-weight: 500;
   line-height: 1;
 }
@@ -167,6 +167,14 @@
   height: 100%;
 }
 
+@media (max-width: 1440px) {
+  .menuLink a { font-size: 2.5rem; }
+}
+
+@media (max-width: 1366px) {
+  .menuLink a { font-size: 2.25rem; }
+}
+
 @media (max-width: 900px) {
   .menuItems .colLg {
     display: none;
@@ -178,7 +186,7 @@
   }
 
   .menuLink a {
-    font-size: clamp(2rem, 8vw, 4rem);
+    font-size: 2.5rem;
   }
 
   .menuLink a::after,

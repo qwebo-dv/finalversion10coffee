@@ -158,6 +158,50 @@ a {
   }
 }
 
+/*
+ * Desktop type scale. The site uses Tailwind text utilities throughout, so
+ * these two discrete breakpoints keep compact screens readable without
+ * viewport-unit font scaling. Body text at 14px and smaller is intentionally
+ * unchanged.
+ */
+@media (max-width: 1440px) {
+  .text-6xl { font-size: 3rem; line-height: 1; }
+  .text-5xl { font-size: 2.5rem; line-height: 1; }
+  .text-4xl { font-size: 2rem; line-height: 2.25rem; }
+  .text-3xl { font-size: 1.75rem; line-height: 2.25rem; }
+  .text-2xl { font-size: 1.375rem; line-height: 1.875rem; }
+  .text-xl { font-size: 1.125rem; line-height: 1.75rem; }
+  .text-lg { font-size: 1rem; line-height: 1.5rem; }
+}
+
+@media (max-width: 1366px) {
+  .text-6xl { font-size: 2.5rem; line-height: 1; }
+  .text-5xl { font-size: 2.25rem; line-height: 2.5rem; }
+  .text-4xl { font-size: 1.875rem; line-height: 2.25rem; }
+  .text-3xl { font-size: 1.625rem; line-height: 2rem; }
+  .text-2xl { font-size: 1.25rem; line-height: 1.75rem; }
+  .text-xl { font-size: 1.125rem; line-height: 1.625rem; }
+  .text-lg { font-size: 1rem; line-height: 1.5rem; }
+}
+
+/* Product-page title has a responsive Tailwind utility at the sm breakpoint,
+ * so it needs its own explicit desktop scale. */
+.shop-product-title {
+  font-size: 2.25rem;
+}
+
+@media (min-width: 1920px) {
+  .shop-product-title {
+    font-size: 2.5rem;
+  }
+}
+
+@media (min-width: 2560px) {
+  .shop-product-title {
+    font-size: 3rem;
+  }
+}
+
 /* Premium scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

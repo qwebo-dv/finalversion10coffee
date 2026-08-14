@@ -222,7 +222,7 @@ export function ShopProduct({
               </div>
             )}
             <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#e6610d]">{product.product_type_name}</p>
-            <h1 className="mt-3 text-4xl font-black leading-[0.98] tracking-[-0.05em] sm:text-5xl 2xl:text-6xl">{product.name}</h1>
+            <h1 className="shop-product-title mt-3 font-black leading-[0.98] tracking-[-0.05em]">{product.name}</h1>
             <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
               <StarRating value={product.rating} count={product.reviews_count} size="lg" />
               {!product.reviews_count && (
@@ -290,7 +290,7 @@ export function ShopProduct({
             <div className="mt-8 flex items-end justify-between gap-6 2xl:mt-10">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8d827a]">Цена</p>
-                <p className="mt-2 text-4xl font-black tracking-tight 2xl:text-5xl">{variant ? formatPrice(variant.price) : "—"}</p>
+                <p className="mt-2 text-4xl font-black tracking-tight">{variant ? formatPrice(variant.price) : "—"}</p>
               </div>
               <div className="flex items-center rounded-full bg-white p-1 shadow-sm">
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="h-11 w-11 rounded-full text-[#6f655e] transition hover:bg-[#f5f1ed]"><Minus className="mx-auto h-4 w-4" /></button>
@@ -331,11 +331,11 @@ export function ShopProduct({
         <div className="mt-16 grid gap-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16">
           <section>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-[#e6610d]">Описание</p>
-            <h2 className="mt-3 text-3xl font-black tracking-[-0.03em]">{product.name}</h2>
+            <h2 className="mt-3 mb-3 text-3xl font-black tracking-[-0.03em]">{product.name}</h2>
             {product.description ? (
               <div className={DESCRIPTION_HTML_CLASSNAME} dangerouslySetInnerHTML={{ __html: product.description }} />
             ) : (
-              <p className="mt-6 text-[15px] leading-7 text-[#6e655e]">Описание скоро появится. Свежая обжарка, отличное качество — проверьте другие характеристики товара.</p>
+              <p className="mt-6 text-[14px] leading-7 text-[#6e655e]">Описание скоро появится. Свежая обжарка, отличное качество — проверьте другие характеристики товара.</p>
             )}
           </section>
 

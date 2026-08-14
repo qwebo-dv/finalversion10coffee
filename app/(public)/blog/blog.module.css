@@ -23,7 +23,7 @@
 }
 
 .heroTitle {
-  font-size: clamp(3rem, 8vw, 10rem);
+  font-size: 10rem;
   font-weight: 500;
   color: #ffffff;
   line-height: 1;
@@ -31,9 +31,19 @@
 }
 
 .heroSubtitle {
-  font-size: clamp(1rem, 2vw, 1.5rem);
+  font-size: 1.5rem;
   color: rgba(255, 255, 255, 0.5);
   font-weight: 400;
+}
+
+@media (max-width: 1440px) {
+  .heroTitle { font-size: 6rem; }
+  .heroSubtitle { font-size: 1.25rem; }
+}
+
+@media (max-width: 1366px) {
+  .heroTitle { font-size: 5rem; }
+  .heroSubtitle { font-size: 1.125rem; }
 }
 
 /* ===== Posts Grid ===== */
@@ -203,6 +213,9 @@
     padding: 6rem 1.5rem 3rem;
   }
 
+  .heroTitle { font-size: 4rem; }
+  .heroSubtitle { font-size: 1rem; }
+
   .posts {
     padding: 3rem 1.5rem 4rem;
   }
@@ -218,6 +231,8 @@
     min-height: 35vh;
     padding: 5rem 1rem 2.5rem;
   }
+
+  .heroTitle { font-size: 3rem; }
 
   .posts {
     padding: 2rem 1rem 3rem;

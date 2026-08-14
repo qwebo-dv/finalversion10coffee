@@ -52,27 +52,51 @@
 }
 
 :where(.landing-scope) :where(h1) {
-  font-size: clamp(4rem, calc(2rem + 5vw), 10rem);
+  font-size: 10rem;
 }
 
 :where(.landing-scope) :where(h2) {
-  font-size: clamp(3rem, calc(1.5rem + 4vw), 7rem);
+  font-size: 7rem;
 }
 
 :where(.landing-scope) :where(h3) {
-  font-size: clamp(2rem, calc(1rem + 3vw), 5rem);
+  font-size: 5rem;
 }
 
 :where(.landing-scope) :where(h4) {
-  font-size: clamp(1.75rem, calc(1rem + 2vw), 3.5rem);
+  font-size: 3.5rem;
 }
 
 :where(.landing-scope) :where(h5) {
-  font-size: clamp(1.5rem, calc(0.8rem + 1.5vw), 2.75rem);
+  font-size: 2.75rem;
 }
 
 :where(.landing-scope) :where(h6) {
-  font-size: clamp(1.25rem, calc(0.7rem + 1vw), 2.25rem);
+  font-size: 2.25rem;
+}
+
+@media (max-width: 1440px) {
+  :where(.landing-scope) :where(h1) { font-size: 6rem; }
+  :where(.landing-scope) :where(h2) { font-size: 5rem; }
+  :where(.landing-scope) :where(h3) { font-size: 4rem; }
+  :where(.landing-scope) :where(h4) { font-size: 3rem; }
+  :where(.landing-scope) :where(h5) { font-size: 2.5rem; }
+  :where(.landing-scope) :where(h6) { font-size: 2rem; }
+  :where(.landing-scope) :where(p) { font-size: 1rem; }
+  :where(.landing-scope) :where(p.md) { font-size: 1.25rem; }
+  :where(.landing-scope) :where(p.lg) { font-size: 1.5rem; }
+}
+
+@media (max-width: 1366px) {
+  :where(.landing-scope) :where(h1) { font-size: 5rem; }
+  :where(.landing-scope) :where(h2) { font-size: 4rem; }
+  :where(.landing-scope) :where(h3) { font-size: 3.5rem; }
+  :where(.landing-scope) :where(h4) { font-size: 2.75rem; }
+  :where(.landing-scope) :where(h5) { font-size: 2.25rem; }
+  :where(.landing-scope) :where(h6) { font-size: 1.75rem; }
+  :where(.landing-scope) :where(p) { font-size: 1rem; }
+  :where(.landing-scope) :where(p.md) { font-size: 1.125rem; }
+  :where(.landing-scope) :where(p.lg) { font-size: 1.375rem; }
 }
 
 :where(.landing-scope) :where(p) {
@@ -199,6 +223,13 @@ html.lenis::-webkit-scrollbar {
     font-size: 1.5rem;
     letter-spacing: -0.045rem;
   }
+
+  :where(.landing-scope) :where(h1) { font-size: 4rem; }
+  :where(.landing-scope) :where(h2) { font-size: 3rem; }
+  :where(.landing-scope) :where(h3) { font-size: 2.5rem; }
+  :where(.landing-scope) :where(h4) { font-size: 2.25rem; }
+  :where(.landing-scope) :where(h5) { font-size: 2rem; }
+  :where(.landing-scope) :where(h6) { font-size: 1.5rem; }
 }
 
 @media (max-width: 480px) {
@@ -206,4 +237,11 @@ html.lenis::-webkit-scrollbar {
   :where(.landing-scope) :where(.section-footer) {
     padding: 1rem;
   }
+
+  :where(.landing-scope) :where(h1) { font-size: 3rem; }
+  :where(.landing-scope) :where(h2) { font-size: 2.5rem; }
+  :where(.landing-scope) :where(h3) { font-size: 2.25rem; }
+  :where(.landing-scope) :where(h4) { font-size: 2rem; }
+  :where(.landing-scope) :where(h5) { font-size: 1.75rem; }
+  :where(.landing-scope) :where(h6) { font-size: 1.375rem; }
 }

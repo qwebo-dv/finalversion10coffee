@@ -52,15 +52,25 @@
 
 .heroContainer h2 {
   color: #ffffff;
-  font-size: clamp(2.5rem, 6vw, 8rem);
+  font-size: 8rem;
   max-width: 90%;
 }
 
 .heroSub {
   color: rgba(255, 255, 255, 0.7) !important;
-  font-size: clamp(1.1rem, 2vw, 2rem) !important;
+  font-size: 2rem !important;
   font-weight: 400 !important;
   letter-spacing: 0.05em;
+}
+
+@media (max-width: 1440px) {
+  .heroContainer h2 { font-size: 6rem; }
+  .heroSub { font-size: 1.5rem !important; }
+}
+
+@media (max-width: 1366px) {
+  .heroContainer h2 { font-size: 5rem; }
+  .heroSub { font-size: 1.25rem !important; }
 }
 
 @media (max-width: 1000px) {
@@ -71,5 +81,13 @@
 
   .heroContainer h2 {
     max-width: 100%;
+    font-size: 4rem;
   }
+
+  .heroSub { font-size: 1.125rem !important; }
+}
+
+@media (max-width: 600px) {
+  .heroContainer h2 { font-size: 3rem; }
+  .heroSub { font-size: 1rem !important; }
 }
