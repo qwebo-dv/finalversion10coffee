@@ -2,8 +2,8 @@
 
 import Image from "next/image"
 import { useState } from "react"
-import { ArrowRight, Coffee } from "lucide-react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ArrowRight, Coffee, X } from "lucide-react"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import type { CoffeeBrewingGuide } from "@/types"
 
 const ARTICLE_HTML_CLASSNAME = [
@@ -64,7 +64,17 @@ export function CoffeeBrewingGuides({ guides }: CoffeeBrewingGuidesProps) {
 
       <Dialog open={Boolean(selectedGuide)} onOpenChange={(open) => !open && setSelectedGuide(null)}>
         {selectedGuide && (
-          <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-[#f8f5f1] p-0 sm:max-w-3xl">
+          <DialogContent showCloseButton={false} className="relative flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-[#f8f5f1] p-0 sm:max-w-3xl">
+            <DialogClose asChild>
+              <button
+                type="button"
+                aria-label="Закрыть статью"
+                title="Закрыть"
+                className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white shadow-sm backdrop-blur-sm transition hover:bg-black/65 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40 focus-visible:outline-none"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </DialogClose>
             {selectedGuide.image_url && (
               <div className="relative aspect-[16/7] shrink-0 overflow-hidden bg-[#faead5]">
                 <Image src={selectedGuide.image_url} alt="" fill className="object-cover" sizes="(min-width: 640px) 768px, 100vw" />
