@@ -136,6 +136,14 @@ export interface BrewingMethod {
   image_url?: string
 }
 
+export interface CoffeeBrewingGuide {
+  id: string
+  title: string
+  description: string
+  content: string
+  image_url?: string
+}
+
 export interface BrewingInstruction {
   title: string
   text: string

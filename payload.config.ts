@@ -22,6 +22,7 @@ import { CartItems } from "./payload/collections/CartItems"
 import { Favorites } from "./payload/collections/Favorites"
 import { MapLocations } from "./payload/collections/MapLocations"
 import { BlogPosts } from "./payload/collections/BlogPosts"
+import { CoffeeBrewingGuides } from "./payload/collections/CoffeeBrewingGuides"
 import { Tags } from "./payload/collections/Tags"
 import { PriceListRequests } from "./payload/collections/PriceListRequests"
 import { Faqs } from "./payload/collections/Faqs"
@@ -93,6 +94,7 @@ export default buildConfig({
     News,
     MapLocations,
     BlogPosts,
+    CoffeeBrewingGuides,
     Media,
     Admins,
   ],

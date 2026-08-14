@@ -21,7 +21,6 @@ import {
   Coffee,
   Leaf,
   ThermometerSun,
-  Droplets,
   ShoppingBag,
 } from "lucide-react"
 import { useCart } from "@/providers/cart-provider"
@@ -31,11 +30,13 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { getTagBgClass, getTagStyle } from "@/lib/utils/constants"
 import { CoffeeTasteScale } from "@/components/shop/coffee-acidity"
-import type { Product, ProductVariant } from "@/types"
+import { CoffeeBrewingGuides } from "@/components/shop/coffee-brewing-guides"
+import type { CoffeeBrewingGuide, Product, ProductVariant } from "@/types"
 
 interface ProductDetailProps {
   product: Product
   isFavorite: boolean
+  coffeeBrewingGuides: CoffeeBrewingGuide[]
 }
 
 const GRIND_ORDER: Record<string, number> = {
@@ -177,7 +178,7 @@ function pickVariantForGrind(
   )
 }
 
-export function ProductDetail({ product, isFavorite: initialFav }: ProductDetailProps) {
+export function ProductDetail({ product, isFavorite: initialFav, coffeeBrewingGuides }: ProductDetailProps) {
   const { addItem } = useCart()
   const variants = (product.variants || []).filter((variant) => variant.is_available !== false)
   const sortedVariants = [...variants].sort(compareVariantsByPackage)
@@ -511,45 +512,7 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
 
       {/* ── BOTTOM SECTIONS ── */}
       <div className="mt-10 space-y-10">
-        {/* Brewing methods (coffee) */}
-        {isCoffee && product.brewing_methods && product.brewing_methods.length > 0 && (
-          <section>
-            <div className="flex items-center gap-3 mb-5">
-              <div className="h-10 w-10 rounded-xl bg-[#faead5] flex items-center justify-center">
-                <Coffee className="h-5 w-5 text-[#5b328a]" />
-              </div>
-              <h2 className="text-lg font-black text-neutral-900">Способы приготовления</h2>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {product.brewing_methods.map((method, i) => (
-                <div
-                  key={i}
-                  className="bg-white border border-neutral-100 rounded-2xl p-5 hover:shadow-lg hover:shadow-[#faead5]/50 transition-all duration-300 group"
-                >
-                  {method.image_url && (
-                    <div className="relative aspect-video rounded-xl overflow-hidden mb-4 bg-neutral-50">
-                      <Image
-                        src={method.image_url}
-                        alt={method.method}
-                        fill
-                        sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-7 w-7 rounded-lg bg-[#faead5]/50 flex items-center justify-center">
-                      <Droplets className="h-3.5 w-3.5 text-[#5b328a]" />
-                    </div>
-                    <h4 className="font-bold text-neutral-900 text-sm">{method.method}</h4>
-                  </div>
-                  <p className="text-sm text-neutral-500 leading-relaxed">{method.description}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+        {isCoffee && <CoffeeBrewingGuides guides={coffeeBrewingGuides} />}
 
         {/* Brewing instructions (tea) */}
         {isTea && product.brewing_instructions && product.brewing_instructions.length > 0 && (

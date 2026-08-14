@@ -1,6 +1,7 @@
 import crypto from "crypto"
+import { createRemoteJWKSet, jwtVerify } from "jose"
 
-export type SocialProviderName = "yandex" | "vk" | "sberid"
+export type SocialProviderName = "yandex" | "vk" | "telegram"
 
 export interface SocialProfile {
   provider: SocialProviderName
@@ -19,6 +20,7 @@ interface ProviderConfig {
   clientSecretEnv: string
   requiresPkce: boolean
   scope: string
+  usesBasicTokenAuth?: boolean
 }
 
 const PROVIDERS: Record<SocialProviderName, ProviderConfig> = {
@@ -40,21 +42,23 @@ const PROVIDERS: Record<SocialProviderName, ProviderConfig> = {
     requiresPkce: true,
     scope: "email",
   },
-  sberid: {
-    authorizeUrl:
-      process.env.SBER_AUTH_URL || "https://id.sber.ru/CSAFront/oidc/authorize.do",
-    tokenUrl: process.env.SBER_TOKEN_URL || "https://oauth.sber.ru/ru/prod/tokens/v2/oidc",
-    userInfoUrl:
-      process.env.SBER_USERINFO_URL || "https://oauth.sber.ru/ru/prod/sberbankid/v2.1/userinfo",
-    clientIdEnv: "SBER_CLIENT_ID",
-    clientSecretEnv: "SBER_CLIENT_SECRET",
-    requiresPkce: false,
-    scope: "openid email mobile name",
+  telegram: {
+    authorizeUrl: "https://oauth.telegram.org/auth",
+    tokenUrl: "https://oauth.telegram.org/token",
+    userInfoUrl: "",
+    clientIdEnv: "TELEGRAM_CLIENT_ID",
+    clientSecretEnv: "TELEGRAM_CLIENT_SECRET",
+    requiresPkce: true,
+    scope: "openid profile phone",
+    usesBasicTokenAuth: true,
   },
 }
 
+const TELEGRAM_ISSUER = "https://oauth.telegram.org"
+const telegramJwks = createRemoteJWKSet(new URL(`${TELEGRAM_ISSUER}/.well-known/jwks.json`))
+
 export function getSocialProvider(name: string): SocialProviderName | null {
-  return name === "yandex" || name === "vk" || name === "sberid" ? name : null
+  return name === "yandex" || name === "vk" || name === "telegram" ? name : null
 }
 
 export function getSocialProviderConfig(name: SocialProviderName) {
@@ -120,12 +124,6 @@ export function buildAuthorizeUrl(params: {
     query.code_challenge = codeChallenge
     query.code_challenge_method = "S256"
     query.prompt = "login"
-  }
-
-  if (provider === "sberid") {
-    query.nonce = randomOAuthState(32)
-    query.channel = "browser"
-    query.isCloud = "true"
   }
 
   Object.entries(query).forEach(([key, value]) => {
@@ -207,16 +205,31 @@ export async function exchangeCodeForToken(params: {
       )
     }
     result = json
-  } else if (provider === "sberid") {
-    const body: Record<string, string> = {
-      grant_type: "authorization_code",
-      code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: redirectUri,
+  } else if (config.usesBasicTokenAuth) {
+    const response = await fetch(config.tokenUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        code_verifier: params.codeVerifier || "",
+      }),
+    })
+    const text = await response.text()
+    try {
+      result = JSON.parse(text) as Record<string, unknown>
+    } catch {
+      throw new Error(`OAuth Telegram: неожиданный ответ (${response.status}): ${text.slice(0, 300)}`)
     }
-    if (params.state) body.state = params.state
-    result = await postForm(config.tokenUrl, body)
+    if (!response.ok || result.error) {
+      throw new Error(`OAuth Telegram: ${String(result.error_description || result.error || "unknown")}`)
+    }
   } else {
     result = await postForm(config.tokenUrl, {
       grant_type: "authorization_code",
@@ -305,45 +318,45 @@ async function fetchVkProfile(accessToken: string): Promise<SocialProfile> {
   }
 }
 
-async function fetchSberIdProfile(accessToken: string): Promise<SocialProfile> {
-  const requestId = crypto.randomUUID().replace(/-/g, "")
-  const response = await fetch(PROVIDERS.sberid.userInfoUrl, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "x-introspect-rquid": requestId,
-      Accept: "application/json",
-    },
-  })
-  if (!response.ok) throw new Error(`OAuth Sber ID: userinfo ${response.status}`)
-  const data = (await response.json()) as {
-    sub?: string
-    email?: string
-    family_name?: string
-    given_name?: string
-    middle_name?: string
-    phone_number?: string
-  }
+async function fetchTelegramProfile(idToken: string): Promise<SocialProfile> {
+  const clientId = process.env[PROVIDERS.telegram.clientIdEnv] || ""
+  if (!clientId) throw new Error("OAuth Telegram: client ID не настроен")
 
-  const email = data.email || ""
-  if (!email) throw new Error("OAuth Sber ID: email не получен")
+  const { payload } = await jwtVerify(idToken, telegramJwks, {
+    issuer: TELEGRAM_ISSUER,
+    audience: clientId,
+    algorithms: ["RS256"],
+  })
+  const providerId = typeof payload.sub === "string" ? payload.sub : ""
+  if (!providerId) throw new Error("OAuth Telegram: идентификатор пользователя не получен")
+
+  const name = typeof payload.name === "string"
+    ? payload.name
+    : typeof payload.preferred_username === "string"
+      ? payload.preferred_username
+      : "Покупатель"
+  const rawPhone = payload.phone_number_verified === true && typeof payload.phone_number === "string"
+    ? payload.phone_number
+    : ""
 
   return {
-    provider: "sberid",
-    providerId: String(data.sub || ""),
-    email,
-    name: [data.family_name, data.given_name, data.middle_name]
-      .filter(Boolean)
-      .join(" ") || "",
-    avatarUrl: "",
-    phone: data.phone_number || "",
+    provider: "telegram",
+    providerId,
+    // Telegram OIDC does not return email. The value is an internal account
+    // identifier, not a customer contact address, and is never prefilled at checkout.
+    email: `telegram-${providerId}@auth.10coffee.local`,
+    name,
+    avatarUrl: typeof payload.picture === "string" ? payload.picture : "",
+    phone: rawPhone ? (rawPhone.startsWith("+") ? rawPhone : `+${rawPhone}`) : "",
   }
 }
 
 export async function fetchSocialProfile(
   provider: SocialProviderName,
-  accessToken: string
+  tokens: { accessToken: string; idToken?: string }
 ): Promise<SocialProfile> {
-  if (provider === "yandex") return fetchYandexProfile(accessToken)
-  if (provider === "vk") return fetchVkProfile(accessToken)
-  return fetchSberIdProfile(accessToken)
+  if (provider === "yandex") return fetchYandexProfile(tokens.accessToken)
+  if (provider === "vk") return fetchVkProfile(tokens.accessToken)
+  if (!tokens.idToken) throw new Error("OAuth Telegram: id_token не получен")
+  return fetchTelegramProfile(tokens.idToken)
 }

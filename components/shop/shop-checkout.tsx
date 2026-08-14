@@ -35,6 +35,7 @@ export function ShopCheckout({
 
   const defaultAddress = (user?.user_metadata?.address as string) || ""
   const isRetailAccountCheckout = user?.user_metadata?.customer_type === "individual"
+  const hasPlaceholderEmail = user?.user_metadata?.email_is_placeholder === true
 
   useEffect(() => {
     const saved = user?.user_metadata?.delivery_method as DeliveryMethod | undefined
@@ -48,8 +49,8 @@ export function ShopCheckout({
     const profilePhone = typeof user.user_metadata?.phone === "string" ? user.user_metadata.phone : ""
     if (!fullName) setFullName(profileName)
     if (!phone) setPhone(profilePhone)
-    if (!email) setEmail(user.email || "")
-  }, [email, fullName, phone, user])
+    if (!email && !hasPlaceholderEmail) setEmail(user.email || "")
+  }, [email, fullName, hasPlaceholderEmail, phone, user])
 
   const lines = useMemo(() => items.map((item) => {
     const product = products.find((entry) => entry.id === item.productId)

@@ -484,11 +484,11 @@ function transformProduct(doc: PayloadProductDoc, reviews: ProductReview[] = [])
     growing_height: coffee.growingHeight || null,
     q_grader_rating: coffee.qGraderRating || null,
 
-    // Coffee brewing methods
-    brewing_methods: (coffee.brewingMethods || []).map((m) => ({
-      method: m.method || "",
-      description: m.description || "",
-      image_url: extractMediaUrl(m.image) || undefined,
+    // Legacy per-product methods remain in existing data but are no longer shown on product pages.
+    brewing_methods: (coffee.brewingMethods || []).map((method) => ({
+      method: method.method || "",
+      description: method.description || "",
+      image_url: extractMediaUrl(method.image) || undefined,
     })),
 
     // Tea brewing instructions

@@ -4,10 +4,12 @@ import {
   getSocialProvider,
   getSocialProviderConfig,
   isSocialProviderConfigured,
+  codeChallengeFromVerifier,
   randomCodeVerifier,
   randomOAuthState,
 } from "@/lib/auth/social"
 import { OAUTH_STATE_COOKIE_NAME } from "@/lib/auth/social-constants"
+import { shouldUseSecureCookies } from "@/lib/auth/local"
 
 export async function GET(
   request: NextRequest,
@@ -33,7 +35,8 @@ export async function GET(
 
   const config = getSocialProviderConfig(providerName)
   const state = randomOAuthState()
-  const codeChallenge = config.requiresPkce ? randomCodeVerifier() : undefined
+  const codeVerifier = config.requiresPkce ? randomCodeVerifier() : undefined
+  const codeChallenge = codeVerifier ? codeChallengeFromVerifier(codeVerifier) : undefined
 
   const authorizeUrl = buildAuthorizeUrl({
     provider: providerName,
@@ -46,7 +49,7 @@ export async function GET(
     OAUTH_STATE_COOKIE_NAME,
     JSON.stringify({
       state,
-      codeVerifier: codeChallenge || null,
+      codeVerifier: codeVerifier || null,
       provider: providerName,
       customerType,
       expiresAt: Date.now() + 10 * 60 * 1000,
@@ -54,7 +57,7 @@ export async function GET(
     {
       httpOnly: true,
       sameSite: "lax",
-      secure: false,
+      secure: shouldUseSecureCookies(),
       path: "/",
       maxAge: 600,
     }

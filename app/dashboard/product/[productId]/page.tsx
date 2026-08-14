@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import { getProductById, getFavoriteProductIds } from "@/lib/actions/products"
+import { getCoffeeBrewingGuides } from "@/lib/actions/coffee-brewing-guides"
 import { ProductDetail } from "@/components/dashboard/product-detail"
 
 interface ProductPageProps {
@@ -8,9 +9,10 @@ interface ProductPageProps {
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { productId } = await params
-  const [product, favoriteIds] = await Promise.all([
+  const [product, favoriteIds, coffeeBrewingGuides] = await Promise.all([
     getProductById(productId),
     getFavoriteProductIds(),
+    getCoffeeBrewingGuides(),
   ])
 
   if (!product) {
@@ -21,6 +23,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     <ProductDetail
       product={product}
       isFavorite={favoriteIds.includes(product.id)}
+      coffeeBrewingGuides={coffeeBrewingGuides}
     />
   )
 }

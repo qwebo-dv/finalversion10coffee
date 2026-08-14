@@ -1,17 +1,17 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { Loader2, Send } from "lucide-react"
 import { useState } from "react"
 
-type SocialProvider = "yandex" | "vk" | "sberid"
+type SocialProvider = "yandex" | "vk" | "telegram"
 
 const PROVIDERS: {
   id: SocialProvider
   label: string
   accent: string
   hover: string
-  mark: string
+  mark?: string
 }[] = [
   {
     id: "yandex",
@@ -28,11 +28,10 @@ const PROVIDERS: {
     mark: "VK",
   },
   {
-    id: "sberid",
-    label: "Сбер ID",
-    accent: "#21A038",
-    hover: "hover:border-[#21A038]/30",
-    mark: "С",
+    id: "telegram",
+    label: "Telegram",
+    accent: "#2AABEE",
+    hover: "hover:border-[#2AABEE]/30",
   },
 ]
 
@@ -87,11 +86,8 @@ export function SocialAuthButtons({ customerType }: { customerType?: "individual
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" style={{ color: provider.accent }} />
               ) : (
-                <span
-                  className="flex h-5 items-center justify-center rounded-md px-1 text-[11px] font-black text-white"
-                  style={{ backgroundColor: provider.accent }}
-                >
-                  {provider.mark}
+                <span className="flex h-5 w-5 items-center justify-center rounded-md text-white" style={{ backgroundColor: provider.accent }}>
+                  {provider.id === "telegram" ? <Send className="h-3 w-3" fill="currentColor" /> : provider.mark}
                 </span>
               )}
               <span className="hidden sm:inline">{provider.label}</span>

@@ -13,11 +13,12 @@ import { AdminEditProductLink } from "@/components/shop/admin-edit-product-link"
 import { ShopFavoriteButton } from "@/components/shop/shop-favorite-button"
 import { StarRating } from "@/components/shop/star-rating"
 import { CoffeeTasteScale } from "@/components/shop/coffee-acidity"
+import { CoffeeBrewingGuides } from "@/components/shop/coffee-brewing-guides"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
 import { addRecentlyViewed } from "@/lib/recently-viewed"
 import { getTagColorStyle } from "@/lib/tag-color"
 import { findVariantForSelection, getGrindOptions, getVariantGrindOption, getVariantWeights, GRIND_OPTION_LABELS } from "@/lib/shop-variant-options"
-import type { Product, ProductTypeOption } from "@/types"
+import type { CoffeeBrewingGuide, Product, ProductTypeOption } from "@/types"
 
 const DESCRIPTION_HTML_CLASSNAME = [
   "max-w-none text-[15px] leading-7 text-[#554b43]",
@@ -50,7 +51,19 @@ function formatReviewDate(value: string): string {
   return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(date)
 }
 
-export function ShopProduct({ product, products, productTypes, isFavorite = false }: { product: Product; products: Product[]; productTypes?: ProductTypeOption[]; isFavorite?: boolean }) {
+export function ShopProduct({
+  product,
+  products,
+  productTypes,
+  isFavorite = false,
+  coffeeBrewingGuides = [],
+}: {
+  product: Product
+  products: Product[]
+  productTypes?: ProductTypeOption[]
+  isFavorite?: boolean
+  coffeeBrewingGuides?: CoffeeBrewingGuide[]
+}) {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const variants = (product.variants || []).filter((item) => item.is_available)
@@ -293,22 +306,18 @@ export function ShopProduct({ product, products, productTypes, isFavorite = fals
           </div>
         </div>
 
-        {(isCoffee && product.brewing_methods && product.brewing_methods.length > 0) || (isTea && product.brewing_instructions && product.brewing_instructions.length > 0) ? (
+        {isCoffee && <CoffeeBrewingGuides guides={coffeeBrewingGuides} />}
+
+        {isTea && product.brewing_instructions && product.brewing_instructions.length > 0 ? (
           <section className="mt-16">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#faead5]">
-                {isTea ? <Leaf className="h-5 w-5 text-[#5b328a]" /> : <Coffee className="h-5 w-5 text-[#5b328a]" />}
+                <Leaf className="h-5 w-5 text-[#5b328a]" />
               </div>
-              <h2 className="text-xl font-black tracking-tight">{isTea ? "Как заваривать" : "Способы приготовления"}</h2>
+              <h2 className="text-xl font-black tracking-tight">Как заваривать</h2>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {isCoffee && product.brewing_methods?.map((method, index) => (
-                <article key={index} className="flex items-center gap-4 rounded-[20px] border border-black/[0.06] bg-white p-4 shadow-sm">
-                  {method.image_url && <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#faead5]"><Image src={method.image_url} alt={method.method} fill className="object-cover" sizes="64px" /></div>}
-                  <div className="min-w-0"><h3 className="font-bold">{method.method}</h3><p className="mt-0.5 line-clamp-2 text-sm leading-5 text-[#6e655e]">{method.description}</p></div>
-                </article>
-              ))}
-              {isTea && product.brewing_instructions?.map((instruction, index) => (
+              {product.brewing_instructions.map((instruction, index) => (
                 <article key={index} className="flex items-center gap-4 rounded-[20px] border border-black/[0.06] bg-white p-4 shadow-sm">
                   {instruction.image_url && <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#faead5]"><Image src={instruction.image_url} alt={instruction.title} fill className="object-cover" sizes="64px" /></div>}
                   <div className="min-w-0"><h3 className="font-bold">{instruction.title}</h3><p className="mt-0.5 line-clamp-2 text-sm leading-5 text-[#6e655e]">{instruction.text}</p></div>

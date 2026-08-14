@@ -8,7 +8,7 @@ import {
   type SocialProfile,
 } from "@/lib/auth/social"
 import { OAUTH_STATE_COOKIE_NAME } from "@/lib/auth/social-constants"
-import { createSession, upsertAuthUser } from "@/lib/auth/local"
+import { createSession, shouldUseSecureCookies, upsertAuthUser } from "@/lib/auth/local"
 
 function getBaseUrl() {
   return (
@@ -126,14 +126,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { accessToken } = await exchangeCodeForToken({
+    const tokens = await exchangeCodeForToken({
       provider: providerName,
       code,
       codeVerifier: stored.codeVerifier || undefined,
       state: stateParam,
     })
 
-    const profile = await fetchSocialProfile(providerName, accessToken)
+    const profile = await fetchSocialProfile(providerName, tokens)
 
     const customerType = stored.customerType || "individual"
     const { user, created } = await upsertAuthUser({
@@ -145,7 +145,8 @@ export async function GET(request: NextRequest) {
         full_name: profile.name,
         avatar_url: profile.avatarUrl || "",
         phone: profile.phone || "",
-        email_verified: true,
+        email_verified: profile.provider !== "telegram",
+        email_is_placeholder: profile.provider === "telegram",
         auth_provider: profile.provider,
       },
     })
@@ -162,7 +163,7 @@ export async function GET(request: NextRequest) {
     response.cookies.set(OAUTH_STATE_COOKIE_NAME, "", {
       httpOnly: true,
       sameSite: "lax",
-      secure: false,
+      secure: shouldUseSecureCookies(),
       path: "/",
       maxAge: 0,
     })

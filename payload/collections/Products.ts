@@ -378,30 +378,6 @@ export const Products: CollectionConfig = {
           min: 0,
           max: 100,
         },
-        {
-          name: "brewingMethods",
-          type: "array",
-          label: "Методы заваривания",
-          fields: [
-            {
-              name: "method",
-              type: "text",
-              label: "Метод",
-              required: true,
-            },
-            {
-              name: "description",
-              type: "textarea",
-              label: "Описание",
-            },
-            {
-              name: "image",
-              type: "upload",
-              label: "Изображение",
-              relationTo: "media",
-            },
-          ],
-        },
       ],
     },
 

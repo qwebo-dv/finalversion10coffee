@@ -15,6 +15,8 @@ import * as migration_20260812_210000_paid_order_confirmation_email from './2026
 import * as migration_20260812_220000_product_review_authors from './20260812_220000_product_review_authors.ts';
 import * as migration_20260813_090000_faqs from './20260813_090000_faqs.ts';
 import * as migration_20260813_100000_repair_faqs_locked_documents from './20260813_100000_repair_faqs_locked_documents.ts';
+import * as migration_20260814_150000_brewing_method_articles from './20260814_150000_brewing_method_articles.ts';
+import * as migration_20260814_160000_global_coffee_brewing_guides from './20260814_160000_global_coffee_brewing_guides.ts';
 
 export const migrations = [
   {
@@ -101,5 +103,15 @@ export const migrations = [
     up: migration_20260813_100000_repair_faqs_locked_documents.up,
     down: migration_20260813_100000_repair_faqs_locked_documents.down,
     name: '20260813_100000_repair_faqs_locked_documents'
+  },
+  {
+    up: migration_20260814_150000_brewing_method_articles.up,
+    down: migration_20260814_150000_brewing_method_articles.down,
+    name: '20260814_150000_brewing_method_articles'
+  },
+  {
+    up: migration_20260814_160000_global_coffee_brewing_guides.up,
+    down: migration_20260814_160000_global_coffee_brewing_guides.down,
+    name: '20260814_160000_global_coffee_brewing_guides'
   },
 ];
