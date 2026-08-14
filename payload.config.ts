@@ -28,6 +28,7 @@ import { Faqs } from "./payload/collections/Faqs"
 import { SiteSettings } from "./payload/globals/SiteSettings"
 import { PaymentSettings } from "./payload/globals/PaymentSettings"
 import { businessDashboardHandler } from "./payload/endpoints/businessDashboard"
+import { adminUnreadCountsHandler } from "./payload/endpoints/adminUnreadCounts"
 
 function requiredEnv(name: "DATABASE_URL" | "PAYLOAD_SECRET"): string {
   const value = process.env[name]?.trim()
@@ -117,6 +118,11 @@ export default buildConfig({
   secret: payloadSecret,
 
   endpoints: [
+    {
+      path: "/admin-unread-counts",
+      method: "get",
+      handler: adminUnreadCountsHandler,
+    },
     {
       path: "/business-dashboard",
       method: "get",

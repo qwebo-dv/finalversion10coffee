@@ -14,6 +14,8 @@
   backdrop-filter: blur(14px);
 }
 
+.admin-workspace-bar--content { grid-template-columns: minmax(190px, 1fr) minmax(150px, 1fr); }
+
 .admin-workspace-bar__identity { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
 .admin-workspace-bar__identity strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .admin-workspace-bar__label { color: var(--theme-elevation-500); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
@@ -47,8 +49,9 @@
 .admin-workspace-bar__switch button.is-active { background: #171717; color: #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, .14); }
 
 .admin-workspace-bar__links { display: flex; justify-content: flex-end; gap: 7px; }
-.admin-workspace-bar__links a { padding: 7px 10px; border-radius: 8px; color: var(--theme-elevation-600); font-size: 11px; font-weight: 650; text-decoration: none; }
-.admin-workspace-bar__links a:hover { background: var(--theme-elevation-100); color: var(--theme-text); }
+.admin-workspace-bar__link { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 8px; color: var(--theme-elevation-600); font-size: 11px; font-weight: 650; text-decoration: none; }
+.admin-workspace-bar__link:hover { background: var(--theme-elevation-100); color: var(--theme-text); }
+.admin-workspace-bar__badge { display: inline-flex; min-width: 17px; height: 17px; align-items: center; justify-content: center; padding: 0 4px; border-radius: 999px; background: #e6610d; color: #fff; font-size: 10px; font-variant-numeric: tabular-nums; line-height: 1; }
 
 @media (max-width: 800px) {
   .admin-workspace-bar { position: relative; grid-template-columns: 1fr; gap: 8px; padding: 12px 18px; }
