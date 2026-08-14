@@ -64,7 +64,7 @@ export function CoffeeBrewingGuides({ guides }: CoffeeBrewingGuidesProps) {
 
       <Dialog open={Boolean(selectedGuide)} onOpenChange={(open) => !open && setSelectedGuide(null)}>
         {selectedGuide && (
-          <DialogContent showCloseButton={false} className="relative flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-[#f8f5f1] p-0 sm:max-w-3xl">
+          <DialogContent showCloseButton={false} className="flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-[#f8f5f1] p-0 sm:max-w-3xl">
             <DialogClose asChild>
               <button
                 type="button"
