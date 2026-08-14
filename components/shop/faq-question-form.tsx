@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react"
 import { ArrowRight, LoaderCircle } from "lucide-react"
+import { toast } from "sonner"
 
 export function FaqQuestionForm() {
   const [isOpen, setIsOpen] = useState(false)
@@ -11,11 +12,12 @@ export function FaqQuestionForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const formElement = event.currentTarget
     setIsSubmitting(true)
     setError(null)
     setMessage(null)
 
-    const form = new FormData(event.currentTarget)
+    const form = new FormData(formElement)
     const response = await fetch("/api/faq", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -29,12 +31,16 @@ export function FaqQuestionForm() {
     const result = response ? await response.json().catch(() => ({})) : {}
     setIsSubmitting(false)
     if (!response?.ok) {
-      setError(typeof result.error === "string" ? result.error : "Не удалось отправить вопрос. Попробуйте ещё раз.")
+      const errorMessage = typeof result.error === "string" ? result.error : "Не удалось отправить вопрос. Попробуйте ещё раз."
+      setError(errorMessage)
+      toast.error(errorMessage)
       return
     }
 
-    event.currentTarget.reset()
-    setMessage("Вопрос отправлен. После модерации мы добавим ответ в FAQ.")
+    formElement.reset()
+    const successMessage = "Вопрос отправлен. После модерации мы добавим ответ в FAQ."
+    setMessage(successMessage)
+    toast.success(successMessage)
   }
 
   return (
