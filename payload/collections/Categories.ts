@@ -2,6 +2,7 @@ import type { CollectionConfig } from "payload"
 import { contentManagerOnly, superAdminOnly } from "../access/adminRoles"
 import { getRelationshipId } from "@/lib/product-types"
 import { validateCategoryProductType } from "../hooks/validateCategoryProductType"
+import { ensureSlug } from "../hooks/ensureSlug"
 
 export const Categories: CollectionConfig = {
   slug: "categories",
@@ -30,6 +31,9 @@ export const Categories: CollectionConfig = {
       unique: true,
       admin: {
         description: "URL-имя категории (латиница, дефисы)",
+        components: {
+          Field: "/payload/components/SlugField",
+        },
       },
     },
     {
@@ -108,6 +112,7 @@ export const Categories: CollectionConfig = {
     delete: superAdminOnly,
   },
   hooks: {
+    beforeValidate: [ensureSlug({ collection: "categories", sourceField: "name" })],
     beforeChange: [validateCategoryProductType],
   },
 }

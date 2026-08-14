@@ -1,6 +1,7 @@
 import type { CollectionConfig } from "payload"
 import { contentManagerOnly, superAdminOnly } from "../access/adminRoles"
 import { revalidatePath, revalidateTag } from "next/cache"
+import { ensureSlug } from "../hooks/ensureSlug"
 
 export const News: CollectionConfig = {
   slug: "news",
@@ -27,6 +28,11 @@ export const News: CollectionConfig = {
       label: "Slug (URL)",
       required: true,
       unique: true,
+      admin: {
+        components: {
+          Field: "/payload/components/SlugField",
+        },
+      },
     },
     {
       name: "excerpt",
@@ -77,6 +83,7 @@ export const News: CollectionConfig = {
     delete: superAdminOnly,
   },
   hooks: {
+    beforeValidate: [ensureSlug({ collection: "news", sourceField: "title" })],
     beforeChange: [
       ({ data }) => {
         // Auto-set publishedAt when first published

@@ -1,5 +1,6 @@
 import type { CollectionConfig } from "payload"
 import { contentManagerOnly, superAdminOnly } from "../access/adminRoles"
+import { ensureSlug } from "../hooks/ensureSlug"
 
 export const Tags: CollectionConfig = {
   slug: "tags",
@@ -31,6 +32,9 @@ export const Tags: CollectionConfig = {
       unique: true,
       admin: {
         description: "Только латиница, цифры, дефис. Например: new, popular, sale",
+        components: {
+          Field: "/payload/components/SlugField",
+        },
       },
     },
     {
@@ -51,5 +55,8 @@ export const Tags: CollectionConfig = {
     create: contentManagerOnly,
     update: contentManagerOnly,
     delete: superAdminOnly,
+  },
+  hooks: {
+    beforeValidate: [ensureSlug({ collection: "tags", sourceField: "name" })],
   },
 }

@@ -1,6 +1,7 @@
 import type { CollectionConfig, Where } from "payload"
 import { contentManagerOnly, superAdminOnly } from "../access/adminRoles"
 import { PRODUCT_DETAILS_SCHEMA_OPTIONS } from "@/lib/product-types"
+import { ensureSlug } from "../hooks/ensureSlug"
 
 export const ProductTypes: CollectionConfig = {
   slug: "product-types",
@@ -29,6 +30,9 @@ export const ProductTypes: CollectionConfig = {
       unique: true,
       admin: {
         description: "Латиница без пробелов, например coffee, tea, syrups",
+        components: {
+          Field: "/payload/components/SlugField",
+        },
       },
     },
     {
@@ -80,6 +84,7 @@ export const ProductTypes: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeValidate: [ensureSlug({ collection: "product-types", sourceField: "name" })],
     beforeDelete: [
       async ({ req, id }) => {
         const usageWhere: Where = { productTypeRef: { equals: id } }

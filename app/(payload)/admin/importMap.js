@@ -4,6 +4,7 @@ import { default as default_0f3c28c0f569dde18fb1427e58cc1418 } from '../../../pa
 import { default as default_0ef052de648d309538212e8af9eb37d1 } from '../../../payload/components/MoyskladOrderRetryButton'
 import { default as default_a7a591272d1175fa6786d0420d4a2476 } from '../../../payload/components/IssuePromoButton'
 import { default as default_2b51eb54bf9dc710843a5d5856532549 } from '../../../payload/components/FavoritesAnalyticsDashboard'
+import { default as default_f968dbdc919ca4a487572670a38751cb } from '../../../payload/components/SlugField'
 import { default as default_eb55fc0d6925e2087ac3430be89eece1 } from '../../../payload/components/ColorPickerField'
 import { default as default_962b746cf9d9bea7babbcdc52aec30df } from '../../../payload/components/ProductTypeRelationshipField'
 import { RscEntryLexicalCell as RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
@@ -44,6 +45,7 @@ export const importMap = {
   "/payload/components/MoyskladOrderRetryButton#default": default_0ef052de648d309538212e8af9eb37d1,
   "/payload/components/IssuePromoButton#default": default_a7a591272d1175fa6786d0420d4a2476,
   "/payload/components/FavoritesAnalyticsDashboard#default": default_2b51eb54bf9dc710843a5d5856532549,
+  "/payload/components/SlugField#default": default_f968dbdc919ca4a487572670a38751cb,
   "/payload/components/ColorPickerField#default": default_eb55fc0d6925e2087ac3430be89eece1,
   "/payload/components/ProductTypeRelationshipField#default": default_962b746cf9d9bea7babbcdc52aec30df,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e,

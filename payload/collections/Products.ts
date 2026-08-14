@@ -4,6 +4,7 @@ import { importMoyskladCatalog } from "@/lib/moysklad/import-catalog"
 import { notifyProductRestock } from "../hooks/productRestock"
 import { PRODUCT_DETAILS_SCHEMA_OPTIONS, getRelationshipId } from "@/lib/product-types"
 import { syncProductTypeConfig } from "../hooks/syncProductTypeConfig"
+import { ensureSlug } from "../hooks/ensureSlug"
 
 export const Products: CollectionConfig = {
   slug: "products",
@@ -55,6 +56,11 @@ export const Products: CollectionConfig = {
       label: "Slug (URL)",
       required: true,
       unique: true,
+      admin: {
+        components: {
+          Field: "/payload/components/SlugField",
+        },
+      },
     },
     {
       name: "productTypeRef",
@@ -440,6 +446,7 @@ export const Products: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeValidate: [ensureSlug({ collection: "products", sourceField: "name" })],
     beforeChange: [syncProductTypeConfig],
     afterChange: [notifyProductRestock],
   },
