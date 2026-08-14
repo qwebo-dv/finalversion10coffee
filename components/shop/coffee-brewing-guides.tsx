@@ -64,13 +64,13 @@ export function CoffeeBrewingGuides({ guides }: CoffeeBrewingGuidesProps) {
 
       <Dialog open={Boolean(selectedGuide)} onOpenChange={(open) => !open && setSelectedGuide(null)}>
         {selectedGuide && (
-          <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-3xl overflow-y-auto rounded-2xl border-0 bg-[#f8f5f1] p-0 sm:max-w-3xl">
+          <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-[#f8f5f1] p-0 sm:max-w-3xl">
             {selectedGuide.image_url && (
-              <div className="relative aspect-[16/7] overflow-hidden bg-[#faead5]">
+              <div className="relative aspect-[16/7] shrink-0 overflow-hidden bg-[#faead5]">
                 <Image src={selectedGuide.image_url} alt="" fill className="object-cover" sizes="(min-width: 640px) 768px, 100vw" />
               </div>
             )}
-            <div className="p-6 sm:p-8">
+            <div className="min-h-0 flex-1 overflow-y-auto p-6 sm:p-8">
               <DialogHeader>
                 <DialogTitle className="pr-8 text-2xl font-black leading-tight text-[#1d1d1b]">{selectedGuide.title}</DialogTitle>
                 {selectedGuide.description && <DialogDescription className="text-base leading-6 text-[#6e655e]">{selectedGuide.description}</DialogDescription>}
