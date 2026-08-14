@@ -30,8 +30,8 @@ export default async function DashboardLayout({
   }
 
   return (
-    <HtmlWrapper>
-      <AuthProvider>
+    <HtmlWrapper contactWidget={false}>
+      <AuthProvider sessionScope="business">
         <GuestCartProvider>
           <CartProvider sessionScope="business">
             <NotificationProvider>

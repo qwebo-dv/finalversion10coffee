@@ -5,6 +5,7 @@ import configPromise from "@payload-config"
 import { convertLexicalToHTML } from "@payloadcms/richtext-lexical/html"
 import type { SerializedEditorState } from "@payloadcms/richtext-lexical/lexical"
 import { createClient } from "@/lib/supabase/server"
+import type { CustomerSessionScope } from "@/lib/auth/constants"
 import { getMediaUrl, type PayloadMediaRef as MediaUrlRef } from "@/lib/media"
 import { getRelationshipId, normalizeProductDetailsSchema } from "@/lib/product-types"
 import {
@@ -22,9 +23,9 @@ async function getPayloadClient() {
   return getPayload({ config: configPromise })
 }
 
-async function getCurrentUserId(): Promise<string | null> {
+async function getCurrentUserId(sessionScope?: CustomerSessionScope): Promise<string | null> {
   try {
-    const supabase = await createClient()
+    const supabase = await createClient(sessionScope)
     const { data: { user } } = await supabase.auth.getUser()
     return user?.id || null
   } catch {
@@ -849,8 +850,8 @@ export async function getClientDiscountConfig(): Promise<ClientDiscountConfig> {
 // Favorites (Payload-based)
 // ============================================================
 
-export async function getFavoriteProductIds(): Promise<string[]> {
-  const clientId = await getCurrentUserId()
+export async function getFavoriteProductIds(sessionScope?: CustomerSessionScope): Promise<string[]> {
+  const clientId = await getCurrentUserId(sessionScope)
   if (!clientId) return []
 
   const payload = await getPayloadClient()
@@ -864,8 +865,8 @@ export async function getFavoriteProductIds(): Promise<string[]> {
   return (docs as PayloadFavoriteDoc[]).map((d) => String(typeof d.product === "object" && d.product !== null ? d.product.id : d.product))
 }
 
-export async function getFavoriteProducts(): Promise<Product[]> {
-  const clientId = await getCurrentUserId()
+export async function getFavoriteProducts(sessionScope?: CustomerSessionScope): Promise<Product[]> {
+  const clientId = await getCurrentUserId(sessionScope)
   if (!clientId) return []
 
   const payload = await getPayloadClient()
@@ -887,8 +888,8 @@ export async function getFavoriteProducts(): Promise<Product[]> {
     .filter((product): product is Product => Boolean(product?.is_visible && product.variants?.some(isAvailableVariant)))
 }
 
-export async function toggleFavorite(productId: string): Promise<{ isFavorite: boolean }> {
-  const clientId = await getCurrentUserId()
+export async function toggleFavorite(productId: string, sessionScope?: CustomerSessionScope): Promise<{ isFavorite: boolean }> {
+  const clientId = await getCurrentUserId(sessionScope)
   if (!clientId) return { isFavorite: false }
 
   const payload = await getPayloadClient()

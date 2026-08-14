@@ -94,32 +94,23 @@
 }
 
 /* ===== Company details ===== */
-.companyCard {
-  grid-column: 1 / -1;
-  margin-top: 1rem;
-  padding: clamp(1.5rem, 3vw, 3rem);
-  border-radius: 1rem;
-  background: #f7f3ee;
+.companyDetails {
+  padding-top: 0.5rem;
 }
 
-.companyHeading {
-  padding-bottom: 2rem;
-  border-bottom: 1px solid rgba(29, 29, 27, 0.12);
-}
-
-.companyHeading h2 {
+.companyDetails h2 {
   margin: 0;
   color: #1d1d1b;
-  font-size: clamp(1.75rem, 3vw, 2.75rem);
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
   font-weight: 500;
   line-height: 1.15;
 }
 
 .detailsGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.75rem 3rem;
-  margin: 2rem 0 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem 2rem;
+  margin: 1.25rem 0 0;
 }
 
 .detailsGrid div {
@@ -144,7 +135,7 @@
 }
 
 .detailsGrid .detailWide {
-  grid-column: span 3;
+  grid-column: 1 / -1;
 }
 
 /* ===== Messenger row ===== */
@@ -173,13 +164,6 @@
     aspect-ratio: 16/9;
   }
 
-  .detailsGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .detailsGrid .detailWide {
-    grid-column: span 2;
-  }
 }
 
 @media (max-width: 600px) {

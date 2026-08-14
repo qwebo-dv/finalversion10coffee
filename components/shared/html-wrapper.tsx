@@ -1,5 +1,6 @@
 import localFont from "next/font/local"
 import Script from "next/script"
+import { ContactWidget } from "@/components/shared/contact-widget"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import "@/app/globals.css"
@@ -21,7 +22,13 @@ const googleSans = localFont({
   display: "swap",
 })
 
-export function HtmlWrapper({ children }: { children: React.ReactNode }) {
+export function HtmlWrapper({
+  children,
+  contactWidget = true,
+}: {
+  children: React.ReactNode
+  contactWidget?: boolean
+}) {
   return (
     <html lang="ru">
       <head>
@@ -35,6 +42,7 @@ export function HtmlWrapper({ children }: { children: React.ReactNode }) {
         </noscript>
         <TooltipProvider>
           {children}
+          {contactWidget && <ContactWidget />}
         </TooltipProvider>
         <Toaster position="top-right" richColors duration={2000} />
         <Script

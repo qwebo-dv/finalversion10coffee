@@ -1,8 +1,10 @@
 import type { AppUser } from "@/lib/auth/types"
+import type { CustomerSessionScope } from "@/lib/auth/constants"
 
 type AuthCallback = (_event: "INITIAL_SESSION", session: { user: AppUser | null } | null) => void
 
-function getSessionScope() {
+function getSessionScope(explicitScope?: CustomerSessionScope) {
+  if (explicitScope) return explicitScope
   const pathname = window.location.pathname
   if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) return "business"
   return pathname === "/shop"
@@ -16,29 +18,29 @@ function getSessionScope() {
     : "business"
 }
 
-function authHeaders() {
-  return { "x-coffee-auth-scope": getSessionScope() }
+function authHeaders(sessionScope?: CustomerSessionScope) {
+  return { "x-coffee-auth-scope": getSessionScope(sessionScope) }
 }
 
-async function fetchUser() {
-  const res = await fetch("/api/auth/me", { cache: "no-store", headers: authHeaders() })
+async function fetchUser(sessionScope?: CustomerSessionScope) {
+  const res = await fetch("/api/auth/me", { cache: "no-store", headers: authHeaders(sessionScope) })
   if (!res.ok) throw new Error(`Auth request failed with HTTP ${res.status}`)
   const json = await res.json()
   return (json.user as AppUser | null) || null
 }
 
 type BrowserClient = ReturnType<typeof createBrowserClient>
-let browserClient: BrowserClient | null = null
+const browserClients = new Map<CustomerSessionScope | "auto", BrowserClient>()
 
-function createBrowserClient() {
+function createBrowserClient(sessionScope?: CustomerSessionScope) {
   return {
     auth: {
       async getUser() {
-        const user = await fetchUser()
+        const user = await fetchUser(sessionScope)
         return { data: { user }, error: null }
       },
       onAuthStateChange(callback: AuthCallback) {
-        void fetchUser().then((user) => callback("INITIAL_SESSION", user ? { user } : null))
+        void fetchUser(sessionScope).then((user) => callback("INITIAL_SESSION", user ? { user } : null))
         return {
           data: {
             subscription: {
@@ -50,7 +52,7 @@ function createBrowserClient() {
       async updateUser(params: { data?: Record<string, unknown>; password?: string }) {
         const res = await fetch("/api/auth/me", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json", ...authHeaders() },
+          headers: { "Content-Type": "application/json", ...authHeaders(sessionScope) },
           body: JSON.stringify(params),
         })
         const json = await res.json()
@@ -60,14 +62,19 @@ function createBrowserClient() {
         }
       },
       async signOut() {
-        await fetch("/api/auth/signout", { method: "POST", headers: authHeaders() })
+        await fetch("/api/auth/signout", { method: "POST", headers: authHeaders(sessionScope) })
         return { error: null }
       },
     },
   }
 }
 
-export function createClient() {
-  browserClient ||= createBrowserClient()
+export function createClient(sessionScope?: CustomerSessionScope) {
+  const key = sessionScope || "auto"
+  let browserClient = browserClients.get(key)
+  if (!browserClient) {
+    browserClient = createBrowserClient(sessionScope)
+    browserClients.set(key, browserClient)
+  }
   return browserClient
 }

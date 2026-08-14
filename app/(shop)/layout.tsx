@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
   return (
     <HtmlWrapper>
-      <AuthProvider>
+      <AuthProvider sessionScope="individual">
         <GuestCartProvider>
           <PayloadAdminEditProvider>
             <div className="flex min-h-screen flex-col">

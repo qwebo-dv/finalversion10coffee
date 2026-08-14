@@ -54,45 +54,30 @@ export default function KontaktyPage() {
                 <a href="mailto:10coffee@mail.ru">10coffee@mail.ru</a>
               </p>
             </div>
+
+            <section className={styles.companyDetails} aria-labelledby="company-details-title">
+              <h2 id="company-details-title">Реквизиты</h2>
+
+              <dl className={styles.detailsGrid}>
+                <div className={styles.detailWide}>
+                  <dt>Полное название организации</dt>
+                  <dd>ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ «ПЕЙДЖ КОФЕ»</dd>
+                </div>
+                <div><dt>ИНН</dt><dd>2366021670</dd></div>
+                <div><dt>ОГРН</dt><dd>1202300037092</dd></div>
+              </dl>
+            </section>
           </div>
 
           {/* Right: map */}
           <div className={styles.mapBlock}>
             <iframe
-              src="https://yandex.ru/map-widget/v1/?ll=39.735351%2C43.603466&z=17&pt=39.735351,43.603466,pm2rdm"
+              src="https://yandex.ru/map-widget/v1/?ll=39.735351%2C43.603466&z=17&pt=39.735351,43.603466,pm2rdm&scroll=false"
               title="10кофе на карте"
               allowFullScreen
             />
           </div>
 
-          <section className={styles.companyCard} aria-labelledby="company-details-title">
-            <div className={styles.companyHeading}>
-              <p className={styles.infoLabel}>Реквизиты</p>
-              <h2 id="company-details-title">Информация о компании</h2>
-            </div>
-
-            <dl className={styles.detailsGrid}>
-              <div className={styles.detailWide}>
-                <dt>Полное название организации</dt>
-                <dd>ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ «ПЕЙДЖ КОФЕ»</dd>
-              </div>
-              <div className={styles.detailWide}>
-                <dt>Юридический адрес</dt>
-                <dd>Краснодарский край, г. Сочи, ул. Пластунская (Центральный р-н), д. 79/1, пом. 1</dd>
-              </div>
-              <div><dt>ИНН</dt><dd>2366021670</dd></div>
-              <div><dt>ОГРН</dt><dd>1202300037092</dd></div>
-              <div><dt>КПП</dt><dd>236601001</dd></div>
-              <div><dt>ОКАТО</dt><dd>03426371000</dd></div>
-              <div><dt>ОКПО</dt><dd>44859961</dd></div>
-              <div><dt>ОКТМО</dt><dd>03726000001</dd></div>
-              <div className={styles.detailWide}><dt>Расчётный счёт</dt><dd>40702810230060009772</dd></div>
-              <div className={styles.detailWide}><dt>Банк</dt><dd>ЮГО-ЗАПАДНЫЙ БАНК ПАО СБЕРБАНК</dd></div>
-              <div><dt>БИК</dt><dd>046015602</dd></div>
-              <div><dt>Корреспондентский счёт</dt><dd>30101810600000000602</dd></div>
-              <div className={styles.detailWide}><dt>Руководитель</dt><dd>Тен Игорь Олегович, директор</dd></div>
-            </dl>
-          </section>
         </div>
       </section>
 

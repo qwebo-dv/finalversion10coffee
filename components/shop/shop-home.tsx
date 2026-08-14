@@ -18,7 +18,7 @@ const CATEGORY_STYLES = [
 
 const CATEGORY_ICONS = [Coffee, Leaf, Sparkles, FlaskConical]
 
-export function ShopHome({ products, productTypes, faqs }: { products: Product[]; productTypes: ProductTypeOption[]; faqs: PublishedFaq[] }) {
+export function ShopHome({ products, productTypes, faqs, favoriteIds = [] }: { products: Product[]; productTypes: ProductTypeOption[]; faqs: PublishedFaq[]; favoriteIds?: string[] }) {
   const visibleTypes = productTypes
     .filter((type) => !["sluzhebnoe", "oprihodovanie-i-to"].includes(type.slug))
     .slice(0, 4)
@@ -74,7 +74,7 @@ export function ShopHome({ products, productTypes, faqs }: { products: Product[]
                 <Link href={`/shop/${featuredProduct.slug}`} className="hidden items-center gap-2 text-sm font-black text-[#5b328a] sm:flex">Подробнее <ArrowRight className="h-4 w-4" /></Link>
               </div>
               <div className="min-w-0 lg:col-span-4 lg:col-start-9 lg:row-start-2 lg:mt-8 [&>article]:h-full">
-                <ShopProductCard product={featuredProduct} tasteMetric={getShopProductCardTasteMetric(featuredProduct)} />
+                <ShopProductCard product={featuredProduct} isFavorite={favoriteIds.includes(featuredProduct.id)} tasteMetric={getShopProductCardTasteMetric(featuredProduct)} />
               </div>
             </>
           )}
@@ -84,7 +84,7 @@ export function ShopHome({ products, productTypes, faqs }: { products: Product[]
       {popular.length > 0 && (
         <section className="mx-auto max-w-[1480px] px-5 pb-24 lg:px-10">
           <SectionHeading eyebrow="Выбор покупателей" title="Популярные товары" href="/shop?coll=popular" linkLabel="Смотреть все" />
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{popular.map((product) => <ShopProductCard key={product.id} product={product} tasteMetric={getShopProductCardTasteMetric(product)} />)}</div>
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{popular.map((product) => <ShopProductCard key={product.id} product={product} isFavorite={favoriteIds.includes(product.id)} tasteMetric={getShopProductCardTasteMetric(product)} />)}</div>
         </section>
       )}
 
@@ -92,7 +92,7 @@ export function ShopHome({ products, productTypes, faqs }: { products: Product[]
         <section className="bg-[#eee7df] py-24">
           <div className="mx-auto max-w-[1480px] px-5 lg:px-10">
             <SectionHeading eyebrow="Недавно в каталоге" title="Новинки" href="/kofe?coll=new" linkLabel="Все новинки" />
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{newest.map((product) => <ShopProductCard key={product.id} product={product} tasteMetric={getShopProductCardTasteMetric(product)} />)}</div>
+            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{newest.map((product) => <ShopProductCard key={product.id} product={product} isFavorite={favoriteIds.includes(product.id)} tasteMetric={getShopProductCardTasteMetric(product)} />)}</div>
           </div>
         </section>
       )}
@@ -104,7 +104,7 @@ export function ShopHome({ products, productTypes, faqs }: { products: Product[]
             { icon: Coffee, number: "01", title: "Вы выбираете", text: "Сорт, фасовку и нужный помол прямо в карточке товара." },
             { icon: PackageCheck, number: "02", title: "Мы обжариваем", text: "Комплектуем заказ и бережно упаковываем каждую позицию." },
             { icon: Truck, number: "03", title: "Отправляем", text: "Передаём заказ в доставку или готовим к самовывозу." },
-            { icon: ShieldCheck, number: "04", title: "Всегда на связи", text: "Помогаем с выбором и решаем вопросы до получения заказа." },
+            { icon: ShieldCheck, number: "04", title: "Всегда на связи", text: "Помогаем с выбором, отвечаем на вопросы и консультируем." },
           ].map((step) => (
             <div key={step.number} className="bg-white p-8 lg:p-10">
               <div className="flex items-center justify-between"><step.icon className="h-7 w-7 text-[#e6610d]" /><span className="text-xs font-black text-[#b7ada5]">{step.number}</span></div>

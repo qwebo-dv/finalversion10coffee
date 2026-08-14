@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import type { CustomerSessionScope } from "@/lib/auth/constants"
 import type { AppUser } from "@/lib/auth/types"
 
 interface AuthContextValue {
@@ -16,10 +17,10 @@ const AuthContext = createContext<AuthContextValue>({
   userType: null,
 })
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children, sessionScope }: { children: React.ReactNode; sessionScope?: CustomerSessionScope }) {
   const [user, setUser] = useState<AppUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const supabase = createClient(sessionScope)
 
   useEffect(() => {
     let cancelled = false

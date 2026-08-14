@@ -27,7 +27,7 @@ export default async function PublicLayout({
 
   return (
     <HtmlWrapper>
-      <AuthProvider>
+      <AuthProvider sessionScope="business">
         <div className="landing-scope">
           {children}
         </div>

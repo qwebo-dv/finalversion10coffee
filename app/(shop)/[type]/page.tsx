@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { ShopCatalog } from "@/components/shop/shop-catalog"
-import { getCategories, getProductTypes, getShopProducts } from "@/lib/actions/products"
+import { getCategories, getFavoriteProductIds, getProductTypes, getShopProducts } from "@/lib/actions/products"
 import type { ProductType } from "@/types"
 
 export const dynamic = "force-dynamic"
@@ -28,10 +28,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const productTypes = await getProductTypes()
   if (!productTypes.some((item) => item.slug === type)) notFound()
 
-  const [products, categoryGroups] = await Promise.all([
+  const [products, categoryGroups, favoriteIds] = await Promise.all([
     getShopProducts(),
     getCategories(type as ProductType),
+    getFavoriteProductIds("individual"),
   ])
 
-  return <ShopCatalog productTypes={productTypes} products={products} initialType={type} categoryGroups={categoryGroups} />
+  return <ShopCatalog productTypes={productTypes} products={products} favoriteIds={favoriteIds} initialType={type} categoryGroups={categoryGroups} />
 }

@@ -9,6 +9,7 @@ import { Check, ChevronDown, Coffee, Droplets, LayoutGrid, Leaf, Search, Shoppin
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { ShopHeader } from "@/components/shop/shop-header"
 import { AdminEditProductLink } from "@/components/shop/admin-edit-product-link"
+import { ShopFavoriteButton } from "@/components/shop/shop-favorite-button"
 import { CoffeeAcidity, CoffeeTasteScale } from "@/components/shop/coffee-acidity"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
 import { getTagColorStyle } from "@/lib/tag-color"
@@ -25,6 +26,7 @@ interface CatalogGroup {
 interface ShopCatalogProps {
   productTypes: ProductTypeOption[]
   products: Product[]
+  favoriteIds?: string[]
   initialType?: string
   categoryGroups?: CatalogGroup[]
 }
@@ -118,7 +120,7 @@ function FilterDropdown({ label, options, selected, onToggle, onClear }: {
   )
 }
 
-export function ShopProductCard({ product, tasteMetric }: { product: Product; tasteMetric?: "acidity" | "bitterness" | null }) {
+export function ShopProductCard({ product, tasteMetric, isFavorite = false }: { product: Product; tasteMetric?: "acidity" | "bitterness" | null; isFavorite?: boolean }) {
   const variants = (product.variants || []).filter((item) => item.is_available)
   const [variant, setVariant] = useState<ProductVariant | null>(variants[0] || null)
   const { items, addItem } = useGuestCart()
@@ -138,7 +140,8 @@ export function ShopProductCard({ product, tasteMetric }: { product: Product; ta
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-[24px] border border-black/[0.05] bg-white shadow-[0_12px_36px_rgba(45,27,17,0.045)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(91,50,138,0.1)]">
-      <div className="absolute right-4 top-4 z-20"><AdminEditProductLink productId={product.id} compact /></div>
+      <div className="absolute right-16 top-4 z-20"><AdminEditProductLink productId={product.id} compact /></div>
+      <ShopFavoriteButton productId={product.id} initialIsFavorite={isFavorite} />
       <Link href={`/shop/${product.slug}`} className="relative block aspect-[4/3] overflow-hidden bg-[#faead5] xl:aspect-[16/11]">
         {product.images[0] ? (
           <Image src={product.images[0]} alt={product.name} fill className="object-cover transition duration-700 group-hover:scale-[1.04]" sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 100vw" />
@@ -282,7 +285,7 @@ function getCatalogSectionTitle(name: string, productType: string) {
   return name
 }
 
-export function ShopCatalog({ productTypes, products, initialType = "", categoryGroups = [] }: ShopCatalogProps) {
+export function ShopCatalog({ productTypes, products, favoriteIds = [], initialType = "", categoryGroups = [] }: ShopCatalogProps) {
   const router = useRouter()
   const [activeType, setActiveType] = useState(initialType)
   const [query, setQuery] = useState("")
@@ -539,6 +542,7 @@ export function ShopCatalog({ productTypes, products, initialType = "", category
                         <ShopProductCard
                           key={product.id}
                           product={product}
+                          isFavorite={favoriteIds.includes(product.id)}
                           tasteMetric={getShopProductCardTasteMetric(product)}
                         />
                       ))}
@@ -547,7 +551,7 @@ export function ShopCatalog({ productTypes, products, initialType = "", category
               ))}
             </div>
           ) : (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filtered.map((product) => <ShopProductCard key={product.id} product={product} />)}</div>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filtered.map((product) => <ShopProductCard key={product.id} product={product} isFavorite={favoriteIds.includes(product.id)} />)}</div>
           )
         )}
       </section>

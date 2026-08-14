@@ -10,6 +10,7 @@ import { useAuth } from "@/providers/auth-provider"
 import { openAuthModal } from "@/components/auth/auth-modal-store"
 import { ShopHeader } from "@/components/shop/shop-header"
 import { AdminEditProductLink } from "@/components/shop/admin-edit-product-link"
+import { ShopFavoriteButton } from "@/components/shop/shop-favorite-button"
 import { StarRating } from "@/components/shop/star-rating"
 import { CoffeeTasteScale } from "@/components/shop/coffee-acidity"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
@@ -49,9 +50,9 @@ function formatReviewDate(value: string): string {
   return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(date)
 }
 
-export function ShopProduct({ product, products, productTypes }: { product: Product; products: Product[]; productTypes?: ProductTypeOption[] }) {
+export function ShopProduct({ product, products, productTypes, isFavorite = false }: { product: Product; products: Product[]; productTypes?: ProductTypeOption[]; isFavorite?: boolean }) {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const variants = (product.variants || []).filter((item) => item.is_available)
   const [variant, setVariant] = useState(variants[0] || null)
   const [quantity, setQuantity] = useState(1)
@@ -68,6 +69,33 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
   const [submitting, setSubmitting] = useState(false)
   const [voteError, setVoteError] = useState<string | null>(null)
   const [voteDone, setVoteDone] = useState(false)
+  const [reviewEligibility, setReviewEligibility] = useState<"checking" | "eligible" | "not-eligible" | "failed">("checking")
+
+  useEffect(() => {
+    if (authLoading) {
+      setReviewEligibility("checking")
+      return
+    }
+    if (!user) return
+
+    let cancelled = false
+    setReviewEligibility("checking")
+    fetch(`/api/product-reviews?product=${encodeURIComponent(product.id)}`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Review eligibility request failed")
+        return response.json() as Promise<{ canReview?: boolean }>
+      })
+      .then((data) => {
+        if (!cancelled) setReviewEligibility(data.canReview ? "eligible" : "not-eligible")
+      })
+      .catch(() => {
+        if (!cancelled) setReviewEligibility("failed")
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, product.id, user])
 
   const images = product.images.length > 0 ? product.images : []
   const subtitle = [product.region, product.processing_method].filter(Boolean).join(" · ")
@@ -119,9 +147,9 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
         }),
       })
       if (!response.ok) {
-        const body = await response.text().catch(() => "")
+        const body = await response.json().catch(() => null) as { error?: string } | null
         console.error("[review] POST failed", response.status, body)
-        throw new Error(`Review POST failed: ${response.status}`)
+        throw new Error(body?.error || "Не удалось отправить отзыв")
       }
       setVoteDone(true)
       router.refresh()
@@ -261,7 +289,7 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
             <button type="button" onClick={addToCart} disabled={!variant} className={`mt-8 flex h-16 w-full items-center justify-center gap-3 rounded-full text-base font-black text-white shadow-xl transition disabled:opacity-40 ${inCart ? "bg-[#e6610d] shadow-[#e6610d]/25 hover:bg-[#cf5206]" : "bg-[#1d1d1b] shadow-black/15 hover:bg-black"}`}>
               {inCart ? <Check className="h-5 w-5" /> : <ShoppingBag className="h-5 w-5" />}{inCart ? "В корзине" : `Добавить в корзину · ${variant ? formatPrice(variant.price * quantity) : "—"}`}
             </button>
-            <p className="mt-4 text-center text-sm text-[#9b9087]">Оформление без регистрации, оплата при получении или онлайн</p>
+            <ShopFavoriteButton productId={product.id} initialIsFavorite={isFavorite} variant="detail" />
           </div>
         </div>
 
@@ -344,11 +372,23 @@ export function ShopProduct({ product, products, productTypes }: { product: Prod
             {reviews.length > 0 && <p className="mt-3 text-sm text-[#8d827a]">Средняя оценка из {reviews.length} отзывов</p>}
 
             <div id="shop-review-form" className="mt-9 rounded-[28px] bg-white p-7 shadow-[0_20px_60px_rgba(45,27,17,0.07)]">
-              {!user ? (
+              {authLoading || (user && reviewEligibility === "checking") ? (
+                <div className="py-6 text-center text-sm font-semibold text-[#766d66]">Проверяем историю заказов...</div>
+              ) : !user ? (
                 <div className="text-center">
                   <h3 className="text-lg font-black">Хотите оставить отзыв?</h3>
                   <p className="mt-2 text-sm leading-6 text-[#766d66]">Отзывы могут оставлять только зарегистрированные покупатели.</p>
                   <button type="button" onClick={() => openAuthModal("login")} className="mt-5 w-full rounded-full bg-[#5b328a] px-6 py-4 text-sm font-black text-white transition hover:bg-[#47256e]">Войти в аккаунт</button>
+                </div>
+              ) : reviewEligibility === "not-eligible" ? (
+                <div className="text-center">
+                  <h3 className="text-lg font-black">Отзыв доступен после получения товара</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#766d66]">Оставить отзыв могут покупатели, у которых этот товар есть в оплаченном и доставленном заказе.</p>
+                </div>
+              ) : reviewEligibility === "failed" ? (
+                <div className="text-center">
+                  <h3 className="text-lg font-black">Не удалось проверить заказ</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#766d66]">Попробуйте обновить страницу. Отзыв не будет сохранён без подтверждённой покупки.</p>
                 </div>
               ) : voteDone ? (
                 <div className="mt-4 flex items-center gap-3 rounded-2xl bg-[#e8f5e9] p-4 text-sm font-bold text-[#2e7d32]"><CheckCircle2 className="h-5 w-5 shrink-0" /> Спасибо! Отзыв отправлен на модерацию и появится после проверки.</div>

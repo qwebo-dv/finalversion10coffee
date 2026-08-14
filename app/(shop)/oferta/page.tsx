@@ -97,14 +97,6 @@ export default async function OfferPage() {
               <div className="sm:col-span-2"><dt className="text-white/55">Полное наименование</dt><dd>ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ «ПЕЙДЖ КОФЕ»</dd></div>
               <div><dt className="text-white/55">ИНН / КПП</dt><dd>2366021670 / 236601001</dd></div>
               <div><dt className="text-white/55">ОГРН</dt><dd>1202300037092</dd></div>
-              <div className="sm:col-span-2"><dt className="text-white/55">Адрес</dt><dd>Краснодарский край, г. Сочи, ул. Пластунская (Центральный р-н), д. 79/1, пом. 1</dd></div>
-              <div className="sm:col-span-2"><dt className="text-white/55">Расчётный счёт</dt><dd>40702810230060009772</dd></div>
-              <div className="sm:col-span-2"><dt className="text-white/55">Банк</dt><dd>ЮГО-ЗАПАДНЫЙ БАНК ПАО СБЕРБАНК</dd></div>
-              <div><dt className="text-white/55">БИК</dt><dd>046015602</dd></div>
-              <div><dt className="text-white/55">Корреспондентский счёт</dt><dd>30101810600000000602</dd></div>
-              <div><dt className="text-white/55">Телефон</dt><dd><a href="tel:+79384537060">+7 (938) 453-70-60</a></dd></div>
-              <div><dt className="text-white/55">Email</dt><dd><a href="mailto:10coffee@mail.ru">10coffee@mail.ru</a></dd></div>
-              <div className="sm:col-span-2"><dt className="text-white/55">Руководитель</dt><dd>Тен Игорь Олегович, директор</dd></div>
             </dl>
           </section>
         </div>
