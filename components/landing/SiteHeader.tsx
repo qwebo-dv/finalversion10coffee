@@ -9,6 +9,7 @@ import MapModal from "./MapModal";
 import styles from "./LandingHeader.module.css";
 
 const NAV_LINKS = [
+  { label: "Интернет-магазин", href: "https://shop.10coffee.ru", external: true },
   { label: "О нас", href: "/o-nas" },
   { label: "Блог", href: "/blog" },
   { label: "Обучение", href: "/obuchenie" },
@@ -46,7 +47,11 @@ export default function SiteHeader() {
         </Link>
 
         <div className={styles.navCenter}>
-          {NAV_LINKS.map((link) => (
+          {NAV_LINKS.map((link) => link.external ? (
+            <a key={link.href} href={link.href} className={styles.navLink}>
+              {link.label}
+            </a>
+          ) : (
             <Link key={link.href} href={link.href} className={styles.navLink}>
               {link.label}
             </Link>

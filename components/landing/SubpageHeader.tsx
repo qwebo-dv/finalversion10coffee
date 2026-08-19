@@ -9,6 +9,7 @@ import BurgerMenu from "./BurgerMenu";
 import styles from "./SubpageHeader.module.css";
 
 const NAV_LINKS = [
+  { label: "Интернет-магазин", href: "https://shop.10coffee.ru", external: true },
   { label: "О нас", href: "/o-nas" },
   { label: "Блог", href: "/blog" },
   { label: "Обучение", href: "/obuchenie" },
@@ -33,7 +34,11 @@ export default function SubpageHeader() {
         </Link>
 
         <div className={styles.links}>
-          {NAV_LINKS.map((link) => (
+          {NAV_LINKS.map((link) => link.external ? (
+            <a key={link.href} href={link.href} className={styles.link}>
+              {link.label}
+            </a>
+          ) : (
             <Link
               key={link.href}
               href={link.href}

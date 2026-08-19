@@ -9,6 +9,9 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin/", "/api/", "/dashboard/"],
       },
     ],
-    sitemap: "https://10coffee.ru/sitemap.xml",
+    sitemap: [
+      "https://10coffee.ru/sitemap.xml",
+      "https://shop.10coffee.ru/shop/sitemap.xml",
+    ],
   }
 }

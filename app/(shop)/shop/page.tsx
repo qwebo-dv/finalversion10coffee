@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { permanentRedirect } from "next/navigation"
 import { getFavoriteProductIds, getProductTypes, getShopProducts } from "@/lib/actions/products"
 import { ShopHome } from "@/components/shop/shop-home"
@@ -8,6 +9,17 @@ export const dynamic = "force-dynamic"
 
 interface ShopPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+export async function generateMetadata({ searchParams }: ShopPageProps): Promise<Metadata> {
+  const query = await searchParams
+  const searchQuery = Array.isArray(query.q) ? query.q[0] : query.q
+
+  if (!searchQuery?.trim()) return {}
+
+  return {
+    robots: { index: false, follow: true },
+  }
 }
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {

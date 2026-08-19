@@ -1,8 +1,13 @@
+import type { Metadata } from "next"
 import { CartProvider } from "@/providers/cart-provider"
 import { NotificationProvider } from "@/providers/notification-provider"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
 import { ShopHeader } from "@/components/shop/shop-header"
 import { getProductTypes, getShopProducts } from "@/lib/actions/products"
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, nocache: true },
+}
 
 export const dynamic = "force-dynamic"
 

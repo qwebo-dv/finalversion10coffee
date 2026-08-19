@@ -18,6 +18,7 @@ const MENU_IMAGES = [
 ];
 
 const NAV_LINKS = [
+  { label: "Интернет-магазин", href: "https://shop.10coffee.ru", external: true },
   { label: "О нас", href: "/o-nas" },
   { label: "Блог", href: "/blog" },
   { label: "Обучение", href: "/obuchenie" },
@@ -195,7 +196,7 @@ export default function BurgerMenu({ isOpen, onClose, onOpenMap, pageRef }: Burg
       return;
     }
     if (external) {
-      window.open(href, "_blank");
+      window.location.assign(href);
       return;
     }
     if (href.startsWith("#")) {
@@ -244,7 +245,7 @@ export default function BurgerMenu({ isOpen, onClose, onOpenMap, pageRef }: Burg
                         setTimeout(() => openAuthModal("login"), 800);
                         return;
                       }
-                      handleLinkClick(link.href, false, "isMap" in link && link.isMap);
+                      handleLinkClick(link.href, "external" in link && link.external, "isMap" in link && link.isMap);
                     }}
                   >
                     {link.label}
