@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { CreditCard, Loader2 } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 
@@ -8,6 +8,31 @@ export function PendingPaymentCard() {
   const { pendingPayment, setPendingPayment, clearCart } = useGuestCart()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const checkPaymentStatus = useCallback(async () => {
+    if (!pendingPayment) return
+    const response = await fetch("/api/shop/payments/yookassa/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: pendingPayment.token }),
+    })
+    const result = await response.json() as { ok?: boolean; status?: string }
+    if (response.ok && result.ok && result.status === "paid") {
+      clearCart()
+      setPendingPayment(null)
+      window.location.assign(`/order/success?orderId=${encodeURIComponent(pendingPayment.orderId)}`)
+    }
+  }, [clearCart, pendingPayment, setPendingPayment])
+
+  useEffect(() => {
+    if (!pendingPayment) return
+    void checkPaymentStatus().catch(() => undefined)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void checkPaymentStatus().catch(() => undefined)
+    }, 10_000)
+    return () => window.clearInterval(timer)
+  }, [checkPaymentStatus, pendingPayment])
+
   if (!pendingPayment) return null
 
   async function retry() {

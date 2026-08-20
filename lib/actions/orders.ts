@@ -470,10 +470,7 @@ export async function getClientOrders(sessionScope: CustomerSessionScope = "busi
     and: [
       ownerWhere,
       sessionScope === "individual" ? {
-        and: [
-          { salesChannel: { equals: "retail" } },
-          { paymentStatus: { in: ["paid", "refunded"] } },
-        ],
+        salesChannel: { equals: "retail" },
       } : {
         or: [
           { salesChannel: { equals: "wholesale" } },
@@ -505,7 +502,6 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
       depth: 1,
     })
     const order = doc as PayloadOrderDoc
-    if (order.salesChannel === "retail" && !["paid", "refunded"].includes(order.paymentStatus || "")) return null
     return transformOrder(order)
   } catch {
     return null

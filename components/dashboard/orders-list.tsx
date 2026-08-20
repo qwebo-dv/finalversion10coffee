@@ -90,7 +90,7 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
 
   async function handleRepeatOrder(orderId: string) {
     if (isIndividual) {
-      window.location.href = "/shop"
+      window.location.assign("/shop")
       return
     }
     const result = await repeatOrder(orderId)

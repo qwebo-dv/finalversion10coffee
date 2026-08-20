@@ -5,6 +5,7 @@ import Link from "next/link"
 import { BadgePercent, Bell, CheckCheck, ChevronRight, Heart, Newspaper, Package, Settings, ShoppingBag } from "lucide-react"
 import { useNotifications } from "@/providers/notification-provider"
 import type { Notification, NotificationType } from "@/types"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   order_update: ShoppingBag,
@@ -19,23 +20,54 @@ function formatNotificationDate(value: string) {
   return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(date)
 }
 
-function NotificationItem({ item }: { item: Notification }) {
+function NotificationItem({ item, onOpen }: { item: Notification; onOpen: (item: Notification) => void }) {
   const Icon = TYPE_ICON[item.type] || Bell
   return (
-    <article className={`flex gap-3 px-4 py-3 ${item.is_read ? "" : "bg-[#f8f1fc]"}`}>
+    <button type="button" data-notification-id={item.id} onClick={() => onOpen(item)} className={`flex w-full gap-3 px-4 py-3 text-left ${item.is_read ? "" : "bg-[#f8f1fc]"} hover:bg-[#f8f5f1]`}>
       <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#faead5] text-[#e6610d]"><Icon className="h-4 w-4" /></span>
       <div className="min-w-0">
         <div className="flex items-start gap-2"><p className="flex-1 text-xs font-black text-[#1d1d1b]">{item.title}</p>{!item.is_read && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#e6610d]" />}</div>
         <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#766d66]">{item.message}</p>
         <time className="mt-1.5 block text-[10px] text-[#a39890]">{formatNotificationDate(item.created_at)}</time>
       </div>
-    </article>
+    </button>
+  )
+}
+
+function NotificationsFeed({ notifications, loading, markAsRead, onOpen }: { notifications: Notification[]; loading: boolean; markAsRead: (id: string) => Promise<void>; onOpen: (item: Notification) => void }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const viewedRef = useRef(new Set<string>())
+
+  useEffect(() => {
+    const root = scrollRef.current
+    if (!root || loading) return
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const id = (entry.target as HTMLElement).dataset.notificationId
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.75 && id && !viewedRef.current.has(id)) {
+          viewedRef.current.add(id)
+          const notification = notifications.find((item) => item.id === id)
+          if (notification && !notification.is_read) void markAsRead(id)
+        }
+      }
+    }, { root, threshold: [0.75] })
+    root.querySelectorAll<HTMLElement>("[data-notification-id]").forEach((element) => observer.observe(element))
+    return () => observer.disconnect()
+  }, [loading, markAsRead, notifications])
+
+  return (
+    <div ref={scrollRef} className="max-h-[360px] overflow-y-auto">
+      {loading ? <p className="px-4 py-12 text-center text-xs text-[#8d827a]">Загружаем уведомления…</p>
+        : notifications.length ? notifications.map((item) => <NotificationItem key={item.id} item={item} onOpen={onOpen} />)
+          : <div className="px-4 py-14 text-center"><Bell className="mx-auto h-8 w-8 text-[#e0d8d1]" /><p className="mt-3 text-xs font-bold text-[#766d66]">Пока уведомлений нет</p><p className="mt-1 text-[11px] leading-4 text-[#a39890]">Здесь будут новости, статусы заказов и персональные предложения.</p></div>}
+    </div>
   )
 }
 
 export function NotificationMenu({ avatarUrl, displayName, initial }: { avatarUrl: string | null; displayName: string; initial: string }) {
-  const { notifications, unreadCount, loading, markAllAsRead } = useNotifications()
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications()
   const [open, setOpen] = useState(false)
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -45,6 +77,11 @@ export function NotificationMenu({ avatarUrl, displayName, initial }: { avatarUr
     document.addEventListener("mousedown", closeOnOutsideClick)
     return () => document.removeEventListener("mousedown", closeOnOutsideClick)
   }, [])
+
+  function openNotification(notification: Notification) {
+    if (!notification.is_read) void markAsRead(notification.id)
+    setSelectedNotification(notification)
+  }
 
   return (
     <div className="relative" ref={rootRef}>
@@ -69,11 +106,7 @@ export function NotificationMenu({ avatarUrl, displayName, initial }: { avatarUr
               <div><h2 className="text-sm font-black">Уведомления</h2><p className="mt-0.5 text-[11px] text-[#8d827a]">{unreadCount ? `${unreadCount} непрочитанных` : "Все прочитано"}</p></div>
               {unreadCount > 0 && <button type="button" onClick={() => void markAllAsRead()} className="inline-flex items-center gap-1.5 rounded-lg bg-[#f4edfa] px-2.5 py-1.5 text-[11px] font-bold text-[#5b328a] transition hover:bg-[#eadcf6]"><CheckCheck className="h-3.5 w-3.5" />Прочитать все</button>}
             </header>
-            <div className="max-h-[360px] overflow-y-auto">
-              {loading ? <p className="px-4 py-12 text-center text-xs text-[#8d827a]">Загружаем уведомления…</p>
-                : notifications.length ? notifications.map((item) => <NotificationItem key={item.id} item={item} />)
-                  : <div className="px-4 py-14 text-center"><Bell className="mx-auto h-8 w-8 text-[#e0d8d1]" /><p className="mt-3 text-xs font-bold text-[#766d66]">Пока уведомлений нет</p><p className="mt-1 text-[11px] leading-4 text-[#a39890]">Здесь будут новости, статусы заказов и персональные предложения.</p></div>}
-            </div>
+            <NotificationsFeed notifications={notifications} loading={loading} markAsRead={markAsRead} onOpen={openNotification} />
           </div>
           <div className="flex flex-col p-4">
             <Link href="/main" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-[#f8f5f1]">
@@ -88,6 +121,12 @@ export function NotificationMenu({ avatarUrl, displayName, initial }: { avatarUr
           </div>
         </section>
       )}
+      <Dialog open={Boolean(selectedNotification)} onOpenChange={(nextOpen) => { if (!nextOpen) setSelectedNotification(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>{selectedNotification?.title}</DialogTitle></DialogHeader>
+          {selectedNotification && <div className="space-y-3 text-sm leading-6 text-[#554b43]"><p className="whitespace-pre-wrap">{selectedNotification.message}</p><time className="block text-xs text-[#8d827a]">{formatNotificationDate(selectedNotification.created_at)}</time></div>}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
