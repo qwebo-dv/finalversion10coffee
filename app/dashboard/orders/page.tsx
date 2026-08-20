@@ -3,8 +3,8 @@ import { OrdersList } from "@/components/dashboard/orders-list"
 
 export const dynamic = "force-dynamic"
 
-export default async function OrdersPage() {
-  const orders = await getClientOrders()
+export async function OrdersPage({ sessionScope = "business" }: { sessionScope?: "individual" | "business" } = {}) {
+  const orders = await getClientOrders(sessionScope)
 
   return (
     <div className="space-y-6">
@@ -18,4 +18,8 @@ export default async function OrdersPage() {
       <OrdersList initialOrders={orders} />
     </div>
   )
+}
+
+export default function WholesaleOrdersPage() {
+  return <OrdersPage sessionScope="business" />
 }

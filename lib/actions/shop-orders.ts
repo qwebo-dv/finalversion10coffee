@@ -10,6 +10,7 @@ import { buildYooKassaReceiptItems } from "@/lib/payments/yookassa-receipt"
 import { createOrderPaymentToken } from "@/lib/payments/order-payment-token"
 import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
 import { calculateTariff } from "@/lib/cdek"
+import { createClient } from "@/lib/supabase/server"
 import type { CartItem, DeliveryMethod, Product } from "@/types"
 
 export interface ShopOrderInput {
@@ -235,7 +236,59 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
 
   let clientId: string | number | undefined
   let warning: string | undefined
-  if (input.createAccount) {
+  const auth = await createClient("individual")
+  const { data: { user: currentUser } } = await auth.auth.getUser()
+
+  if (currentUser) {
+    const clients = await payload.find({
+      collection: "clients",
+      where: {
+        or: [
+          { supabaseId: { equals: currentUser.id } },
+          ...(currentUser.email ? [{
+            and: [
+              { email: { equals: currentUser.email.toLowerCase() } },
+              { customerType: { equals: "individual" } },
+              { salesChannel: { equals: "retail" } },
+            ],
+          }] : []),
+        ],
+      },
+      limit: 1,
+      depth: 0,
+    })
+    const existingClient = clients.docs[0] as { id?: string | number; supabaseId?: string | null } | undefined
+    if (existingClient?.id) {
+      clientId = existingClient.id
+      if (existingClient.supabaseId !== currentUser.id) {
+        await payload.update({
+          collection: "clients",
+          id: existingClient.id,
+          data: {
+            supabaseId: currentUser.id,
+            customerType: "individual",
+            salesChannel: "retail",
+          },
+        })
+      }
+    } else {
+      const createdClient = await payload.create({
+        collection: "clients",
+        data: {
+          supabaseId: currentUser.id,
+          fullName,
+          email: currentUser.email || email,
+          phone,
+          address,
+          customerType: "individual",
+          salesChannel: "retail",
+        },
+      })
+      clientId = createdClient.id
+    }
+  }
+
+  if (!currentUser && input.createAccount) {
     const registration = await signUp({
       email,
       full_name: fullName,

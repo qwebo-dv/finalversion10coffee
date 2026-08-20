@@ -18,6 +18,8 @@ import { revalidatePath } from "next/cache"
 import nodemailer from "nodemailer"
 import type { Order, OrderItem, OrderStatus, DeliveryMethod } from "@/types"
 import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad/sync"
+import { normalizeRussianPhone } from "@/lib/utils/phone"
+import type { CustomerSessionScope } from "@/lib/auth/constants"
 
 interface OrderEmailItem {
   productName: string
@@ -278,9 +280,9 @@ async function incrementPromoUses(payload: Payload, promoCodeId: string | number
   throw new Error(`Не удалось атомарно обновить счётчик промокода ${promoCodeId}`)
 }
 
-async function getCurrentUserId(): Promise<string | null> {
+async function getCurrentUserId(sessionScope?: CustomerSessionScope): Promise<string | null> {
   try {
-    const supabase = await createClient()
+    const supabase = await createClient(sessionScope)
     const { data: { user } } = await supabase.auth.getUser()
     return user?.id ?? null
   } catch {
@@ -435,40 +437,44 @@ function transformOrder(doc: PayloadOrderDoc): Order {
 // Client-facing actions
 // ============================================================
 
-export async function getClientOrders(): Promise<Order[]> {
+export async function getClientOrders(sessionScope: CustomerSessionScope = "business"): Promise<Order[]> {
 
-  const userId = await getCurrentUserId()
+  const userId = await getCurrentUserId(sessionScope)
   if (!userId) return []
 
   let userEmail = ""
   try {
-    const supabase = await createClient()
+    const supabase = await createClient(sessionScope)
     const { data: { user } } = await supabase.auth.getUser()
     userEmail = user?.email?.toLowerCase() || ""
   } catch {}
 
-  const clientDocId = await getClientDocId(userId)
+  const clientDoc = await getClientDoc(userId)
 
   const payload = await getPayloadClient()
 
-  let ownerWhere: Where
-  if (clientDocId) {
-    ownerWhere = {
-      or: [
-        { client: { equals: clientDocId } },
-        ...(userEmail ? [{ customerEmail: { equals: userEmail } }] : []),
+  const ownerConditions: Where[] = [
+    ...(clientDoc ? [{ client: { equals: clientDoc.id } }] : []),
+    ...(userEmail ? [{ customerEmail: { equals: userEmail } }] : []),
+    ...(clientDoc?.phone && clientDoc.fullName ? [{
+      and: [
+        { customerPhone: { equals: normalizeRussianPhone(clientDoc.phone) } },
+        { customerFullName: { equals: clientDoc.fullName } },
       ],
-    }
-  } else if (userEmail) {
-    ownerWhere = { customerEmail: { equals: userEmail } }
-  } else {
-    return []
-  }
+    }] : []),
+  ]
+  if (ownerConditions.length === 0) return []
+  const ownerWhere: Where = ownerConditions.length === 1 ? ownerConditions[0] : { or: ownerConditions }
 
   const where: Where = {
     and: [
       ownerWhere,
-      {
+      sessionScope === "individual" ? {
+        and: [
+          { salesChannel: { equals: "retail" } },
+          { paymentStatus: { in: ["paid", "refunded"] } },
+        ],
+      } : {
         or: [
           { salesChannel: { equals: "wholesale" } },
           { paymentStatus: { in: ["paid", "refunded"] } },

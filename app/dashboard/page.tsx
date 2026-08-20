@@ -174,7 +174,7 @@ export async function DashboardPage({ forceIndividual = false }: { forceIndividu
   const isIndividual = forceIndividual || currentUser?.user_metadata?.customer_type === "individual"
 
   const [orders, companies, newsResult] = await Promise.all([
-    getClientOrders(),
+    getClientOrders(forceIndividual ? "individual" : "business"),
     isIndividual ? Promise.resolve([]) : getClientCompanies().catch((error) => {
       console.error("[dashboard] Не удалось загрузить компании", error)
       return []
