@@ -403,11 +403,11 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
 
         {/* ── MOBILE BOTTOM NAV ── */}
         <nav className="lg:hidden sticky bottom-0 z-40 bg-white border-t border-neutral-100 px-2 pb-[env(safe-area-inset-bottom)]">
-          <div className="flex items-center justify-around h-14">
+          <div className="flex h-14 items-center">
             <Link
               href={isIndividual ? "/main/orders" : "/dashboard"}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-1.5 py-1.5 sm:px-3 rounded-xl transition-colors",
+                "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
                 pathname === (isIndividual ? "/main/orders" : "/dashboard") ? "text-[#5b328a]" : "text-neutral-400"
               )}
             >
@@ -419,7 +419,7 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
                 <Link
                   href="/main/delivery"
                   className={cn(
-                    "flex flex-col items-center gap-0.5 px-1.5 py-1.5 sm:px-3 rounded-xl transition-colors",
+                    "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
                     pathname.startsWith("/main/delivery") ? "text-[#5b328a]" : "text-neutral-400"
                   )}
                 >
@@ -429,7 +429,7 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
                 <Link
                   href="/main/favorites"
                   className={cn(
-                    "flex flex-col items-center gap-0.5 px-1.5 py-1.5 sm:px-3 rounded-xl transition-colors",
+                    "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
                     pathname.startsWith("/main/favorites") ? "text-[#5b328a]" : "text-neutral-400"
                   )}
                 >
@@ -441,7 +441,7 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
               <Link
                 href="/dashboard/catalog"
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
+                  "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
                   isCatalog ? "text-[#5b328a]" : "text-neutral-400"
                 )}
               >
@@ -453,7 +453,7 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
               <button
                 onClick={() => togglePanel("cart")}
                 className={cn(
-                  "relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
+                  "relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
                   activePanel === "cart" ? "text-[#5b328a]" : "text-neutral-400"
                 )}
               >
@@ -470,7 +470,7 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
               <Link
                 href="/dashboard/companies"
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
+                  "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
                   pathname.startsWith("/dashboard/companies") ? "text-[#5b328a]" : "text-neutral-400"
                 )}
               >
@@ -481,23 +481,21 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
             <Link
               href={isIndividual ? "/main/settings" : "/dashboard/settings"}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-1.5 py-1.5 sm:px-3 rounded-xl transition-colors",
+                "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
                 pathname === (isIndividual ? "/main/settings" : "/dashboard/settings") ? "text-[#5b328a]" : "text-neutral-400"
               )}
             >
               <Settings className="h-5 w-5" />
               <span className="text-[10px] font-medium">Настройки</span>
             </Link>
-            {isIndividual && (
-              <button
-                type="button"
-                onClick={() => signOut("individual")}
-                className="flex flex-col items-center gap-0.5 rounded-xl px-1.5 py-1.5 text-[#e6610d] transition-colors hover:bg-[#faead5]/50 sm:px-3"
-              >
-                <LogOut className="h-5 w-5" />
-                <span className="text-[10px] font-medium">Выйти</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => signOut(isIndividual ? "individual" : "business")}
+              className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 text-[#e6610d] transition-colors hover:bg-[#faead5]/50 sm:px-3"
+            >
+              <LogOut className="h-5 w-5" />
+              <span className="text-[10px] font-medium">Выйти</span>
+            </button>
           </div>
         </nav>
       </div>
