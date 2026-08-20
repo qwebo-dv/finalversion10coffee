@@ -17,6 +17,11 @@ export type ShopCdekSelection = {
 type City = { code: number; city: string; region: string }
 type Tariff = { code: number; price: number; minDays: number; maxDays: number; name: string; mode: number }
 type Office = { code: string; name: string; address_full: string; work_time: string; type: string; location?: Record<string, unknown>; [key: string]: unknown }
+type AddressSuggestion = { city?: string; region?: string }
+
+function normalizeLocation(value: string): string {
+  return value.toLocaleLowerCase("ru-RU").replace(/[^а-яёa-z0-9]/g, "")
+}
 
 export function CdekDeliverySelector({ weightGrams, defaultAddress, onChange }: { weightGrams: number; defaultAddress: string; onChange: (selection: ShopCdekSelection | null) => void }) {
   const [query, setQuery] = useState("")
@@ -31,11 +36,58 @@ export function CdekDeliverySelector({ weightGrams, defaultAddress, onChange }: 
   const [error, setError] = useState<string | null>(null)
   const [courierAddress, setCourierAddress] = useState(defaultAddress)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const restoredAddress = useRef("")
+  const restoreCancelled = useRef(false)
   const activeTariff = type === "pickup" ? pickup : courier
 
   useEffect(() => {
     if (defaultAddress) setCourierAddress((current) => current || defaultAddress)
   }, [defaultAddress])
+
+  useEffect(() => {
+    const address = defaultAddress.trim()
+    if (!address || city || restoredAddress.current === address) return
+    restoredAddress.current = address
+    restoreCancelled.current = false
+    let cancelled = false
+
+    async function restoreCity() {
+      try {
+        const addressResponse = await fetch("/api/dadata/address", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: address }),
+        })
+        const addressData = await addressResponse.json()
+        if (!addressResponse.ok) return
+        const suggestion = addressData.suggestions?.[0] as AddressSuggestion | undefined
+        const savedCity = suggestion?.city?.trim()
+        if (!savedCity || cancelled || restoreCancelled.current) return
+
+        const citiesResponse = await fetch(`/api/cdek/cities?q=${encodeURIComponent(savedCity)}`)
+        const citiesData = await citiesResponse.json()
+        if (!citiesResponse.ok || !Array.isArray(citiesData) || cancelled || restoreCancelled.current) return
+
+        const exactCities = (citiesData as City[]).filter((candidate) =>
+          normalizeLocation(candidate.city) === normalizeLocation(savedCity),
+        )
+        const savedRegion = normalizeLocation(suggestion?.region || "")
+        const restoredCity = exactCities.find((candidate) =>
+          savedRegion && normalizeLocation(candidate.region).includes(savedRegion),
+        ) || exactCities[0]
+        if (!restoredCity) return
+
+        setCity(restoredCity)
+        setQuery(`${restoredCity.city}, ${restoredCity.region}`)
+        setCities([])
+      } catch {
+        // The customer can still select the city manually if either provider is unavailable.
+      }
+    }
+
+    void restoreCity()
+    return () => { cancelled = true }
+  }, [city, defaultAddress])
 
   useEffect(() => {
     if (!city || weightGrams <= 0) return
@@ -82,6 +134,7 @@ export function CdekDeliverySelector({ weightGrams, defaultAddress, onChange }: 
   }, [activeTariff, city, office, onChange, type])
 
   function search(value: string) {
+    restoreCancelled.current = true
     setQuery(value)
     setCity(null)
     setPickup(null)

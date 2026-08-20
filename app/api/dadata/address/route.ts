@@ -4,6 +4,9 @@ interface DadataSuggestion {
   value?: string
   unrestricted_value?: string
   data?: {
+    city?: string | null
+    settlement?: string | null
+    region?: string | null
     street_with_type?: string | null
     house_type?: string | null
     house?: string | null
@@ -71,6 +74,8 @@ export async function POST(request: NextRequest) {
       value: city ? localAddress(s) : s.value || "",
       label: s.value || "",
       unrestricted: s.unrestricted_value || "",
+      city: s.data?.city || s.data?.settlement || "",
+      region: s.data?.region || "",
     }))
       .filter((suggestion) => suggestion.value && suggestion.label)
 

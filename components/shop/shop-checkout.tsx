@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { FormEvent, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CheckCircle2, Loader2, LockKeyhole, ShoppingBag, Tag, X } from "lucide-react"
+import { ArrowLeft, CheckCircle2, ChevronDown, Loader2, LockKeyhole, ShoppingBag, Tag, X } from "lucide-react"
 import { createShopOrder, previewShopPromo } from "@/lib/actions/shop-orders"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
@@ -148,7 +148,9 @@ export function ShopCheckout({
           ? `ПВЗ СДЭК: ${cdekSelection.office?.name || ""} — ${cdekSelection.office?.address || ""}`
           : deliveryMethod === "cdek" && cdekSelection
             ? withCity(cdekSelection.cityName, String(data.get("address") || ""))
-            : String(data.get("address") || ""),
+            : deliveryMethod === "sochi_delivery"
+              ? withCity("Сочи", String(data.get("address") || ""))
+              : String(data.get("address") || ""),
         deliveryMethod,
         comment: String(data.get("comment") || ""),
         promoCode: appliedPromo?.code || "",
@@ -254,10 +256,14 @@ export function ShopCheckout({
             <fieldset className="mt-8"><legend className="text-sm font-black">Способ получения</legend><div className="mt-3 grid gap-3 sm:grid-cols-3">{([['cdek','СДЭК'],['sochi_delivery','По Сочи'],['self_pickup','Самовывоз']] as [DeliveryMethod,string][]).map(([value,label]) => <button key={value} type="button" onClick={() => { setDeliveryMethod(value); setCdekSelection(null) }} className={`rounded-2xl border px-4 py-4 text-sm font-bold ${deliveryMethod === value ? "border-[#5b328a] bg-[#f4edfa] text-[#5b328a]" : "border-black/10"}`}>{label}</button>)}</div></fieldset>
 
             {deliveryMethod === "cdek" && <CdekDeliverySelector weightGrams={totalWeight} defaultAddress={defaultAddress} onChange={setCdekSelection} />}
-            {deliveryMethod === "sochi_delivery" && <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><AddressInput name="address" required value={deliveryAddress} onChange={setDeliveryAddress} className="h-12 rounded-2xl border-black/10 px-4 focus-visible:border-[#5b328a] focus-visible:ring-0" placeholder="Начните вводить город, улицу и дом" /></label>}
+            {deliveryMethod === "sochi_delivery" && <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><AddressInput name="address" required value={deliveryAddress} onChange={setDeliveryAddress} city="Сочи" className="h-12 rounded-2xl border-black/10 px-4 focus-visible:border-[#5b328a] focus-visible:ring-0" placeholder="Начните вводить улицу и дом" /></label>}
             <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Комментарий</span><textarea name="comment" rows={3} className="w-full rounded-2xl border border-black/10 p-4 outline-none focus:border-[#5b328a]" placeholder="Пожелания к заказу" /></label>
-            <div className="mt-5">
-              <span className="mb-2 block text-xs font-bold text-[#655c55]">Промокод</span>
+            <details className="group mt-5 rounded-2xl border border-black/10 bg-white">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-[#655c55] [&::-webkit-details-marker]:hidden">
+                <span>{appliedPromo ? `Промокод ${appliedPromo.code} применён` : "У меня есть промокод"}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="border-t border-black/10 p-4">
               <div className="flex gap-2">
                 <input
                   name="promoCode"
@@ -301,7 +307,8 @@ export function ShopCheckout({
                   </div>
                 )}
               </div>
-            </div>
+              </div>
+            </details>
 
             {!isRetailAccountCheckout && <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl bg-[#f8f5f1] p-4"><input name="createAccount" type="checkbox" className="mt-1 h-4 w-4 accent-[#5b328a]" /><span><b className="block text-sm">Создать личный кабинет</b><span className="mt-1 block text-xs leading-5 text-[#7d736b]">Необязательно. Пароль будет отправлен на email, а заказ появится в истории.</span></span></label>}
 
