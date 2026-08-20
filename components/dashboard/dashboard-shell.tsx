@@ -405,10 +405,10 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
         <nav className="lg:hidden sticky bottom-0 z-40 bg-white border-t border-neutral-100 px-2 pb-[env(safe-area-inset-bottom)]">
           <div className="flex items-center justify-around h-14">
             <Link
-              href="/dashboard"
+              href={isIndividual ? "/main/orders" : "/dashboard"}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
-                pathname === "/dashboard" ? "text-[#5b328a]" : "text-neutral-400"
+                "flex flex-col items-center gap-0.5 px-1.5 py-1.5 sm:px-3 rounded-xl transition-colors",
+                pathname === (isIndividual ? "/main/orders" : "/dashboard") ? "text-[#5b328a]" : "text-neutral-400"
               )}
             >
               <Package className="h-5 w-5" />
@@ -417,20 +417,20 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
             {isIndividual ? (
               <>
                 <Link
-                  href="/dashboard/recently-viewed"
+                  href="/main/recently-viewed"
                   className={cn(
-                    "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
-                    pathname.startsWith("/dashboard/recently-viewed") ? "text-[#5b328a]" : "text-neutral-400"
+                    "flex flex-col items-center gap-0.5 px-1.5 py-1.5 sm:px-3 rounded-xl transition-colors",
+                    pathname.startsWith("/main/recently-viewed") ? "text-[#5b328a]" : "text-neutral-400"
                   )}
                 >
                   <History className="h-5 w-5" />
-                  <span className="text-[10px] font-medium">Просмотрено</span>
+                  <span className="text-[10px] font-medium">История</span>
                 </Link>
                 <Link
-                  href="/dashboard/favorites"
+                  href="/main/favorites"
                   className={cn(
-                    "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
-                    pathname.startsWith("/dashboard/favorites") ? "text-[#5b328a]" : "text-neutral-400"
+                    "flex flex-col items-center gap-0.5 px-1.5 py-1.5 sm:px-3 rounded-xl transition-colors",
+                    pathname.startsWith("/main/favorites") ? "text-[#5b328a]" : "text-neutral-400"
                   )}
                 >
                   <Heart className="h-5 w-5" />
@@ -479,15 +479,25 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
               </Link>
             )}
             <Link
-              href="/dashboard/settings"
+              href={isIndividual ? "/main/settings" : "/dashboard/settings"}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors",
-                pathname === "/dashboard/settings" ? "text-[#5b328a]" : "text-neutral-400"
+                "flex flex-col items-center gap-0.5 px-1.5 py-1.5 sm:px-3 rounded-xl transition-colors",
+                pathname === (isIndividual ? "/main/settings" : "/dashboard/settings") ? "text-[#5b328a]" : "text-neutral-400"
               )}
             >
               <Settings className="h-5 w-5" />
               <span className="text-[10px] font-medium">Настройки</span>
             </Link>
+            {isIndividual && (
+              <button
+                type="button"
+                onClick={() => signOut("individual")}
+                className="flex flex-col items-center gap-0.5 rounded-xl px-1.5 py-1.5 text-[#e6610d] transition-colors hover:bg-[#faead5]/50 sm:px-3"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="text-[10px] font-medium">Выйти</span>
+              </button>
+            )}
           </div>
         </nav>
       </div>

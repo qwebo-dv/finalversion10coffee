@@ -195,7 +195,7 @@ export async function signUp(formData: {
 export async function signOut(scope?: "individual" | "business") {
   const supabase = await createClient(scope)
   await supabase.auth.signOut()
-  redirect(scope === "individual" ? process.env.SHOP_SITE_URL || "/shop" : "/")
+  redirect(scope === "individual" ? "/shop" : "/")
 }
 
 export async function resetPassword(formData: { email: string }) {
