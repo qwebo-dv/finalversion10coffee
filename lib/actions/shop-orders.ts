@@ -2,7 +2,8 @@
 
 import { getPayload } from "payload"
 import configPromise from "@payload-config"
-import { getShopProducts } from "@/lib/actions/products"
+import { getClientDiscountConfig, getShopProducts } from "@/lib/actions/products"
+import { calculateClientDiscount, type ClientDiscountLine } from "@/lib/discounts"
 import { signUp } from "@/lib/actions/auth"
 import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad/sync"
 import { createYooKassaPayment } from "@/lib/payments/yookassa"
@@ -48,6 +49,15 @@ export interface ShopPromoPreviewResult {
   discountAmount?: number
   discountLabel?: string
   eligibleSubtotal?: number
+}
+
+export interface ShopPersonalDiscountPreviewResult {
+  success?: boolean
+  error?: string
+  hasExclusivePersonalRules?: boolean
+  discountAmount?: number
+  discountLabel?: string
+  lines?: Pick<ClientDiscountLine, "productName" | "categoryName" | "discountPercent" | "discountAmount" | "source">[]
 }
 
 interface PromoDoc {
@@ -163,10 +173,14 @@ export async function previewShopPromo(input: ShopPromoPreviewInput): Promise<Sh
   if (!code) return { error: "Введите промокод" }
 
   try {
-    const [payload, products] = await Promise.all([
+    const [payload, products, personalConfig] = await Promise.all([
       getPayload({ config: configPromise }),
       getShopProducts(),
+      getClientDiscountConfig("individual"),
     ])
+    if (personalConfig.categoryDiscounts.length > 0 || (personalConfig.productDiscounts?.length || 0) > 0) {
+      return { error: "Промокоды недоступны при персональной скидке на категорию или товар" }
+    }
     const cartItems = buildValidatedCart(products, input.items)
     if (cartItems.length === 0) return { error: "Корзина пуста или товары больше недоступны" }
 
@@ -191,6 +205,39 @@ export async function previewShopPromo(input: ShopPromoPreviewInput): Promise<Sh
     }
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Не удалось проверить промокод" }
+  }
+}
+
+export async function previewShopPersonalDiscount(
+  items: ShopOrderInput["items"]
+): Promise<ShopPersonalDiscountPreviewResult> {
+  try {
+    const [products, config] = await Promise.all([
+      getShopProducts(),
+      getClientDiscountConfig("individual"),
+    ])
+    const hasExclusivePersonalRules = config.categoryDiscounts.length > 0
+      || (config.productDiscounts?.length || 0) > 0
+    const cartItems = buildValidatedCart(products, items)
+    if (cartItems.length === 0) return { success: true, hasExclusivePersonalRules, discountAmount: 0, lines: [] }
+
+    const result = calculateClientDiscount(cartItems, config)
+    return {
+      success: true,
+      hasExclusivePersonalRules,
+      discountAmount: result.amount,
+      discountLabel: result.label,
+      lines: result.lines.map((line) => ({
+        productName: line.productName,
+        categoryName: line.categoryName,
+        discountPercent: line.discountPercent,
+        discountAmount: line.discountAmount,
+        source: line.source,
+      })),
+    }
+  } catch (error) {
+    console.error("[shop-discounts] Не удалось рассчитать персональную скидку", error)
+    return { error: "Не удалось загрузить персональную скидку" }
   }
 }
 
@@ -226,13 +273,6 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.variant?.price || 0) * item.quantity, 0)
   const totalWeight = cartItems.reduce((sum, item) => sum + (item.variant?.weight_grams || 0) * item.quantity, 0)
-
-  let promoResult: Awaited<ReturnType<typeof resolvePromo>>
-  try {
-    promoResult = await resolvePromo({ payload, code: input.promoCode, email, cartItems, subtotal })
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "Не удалось применить промокод" }
-  }
 
   let clientId: string | number | undefined
   let warning: string | undefined
@@ -309,6 +349,44 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     }
   }
 
+  const personalConfig = currentUser
+    ? await getClientDiscountConfig("individual")
+    : { discountPercent: 0, categoryDiscounts: [], productDiscounts: [] }
+  const hasExclusivePersonalRules = personalConfig.categoryDiscounts.length > 0
+    || (personalConfig.productDiscounts?.length || 0) > 0
+  if (hasExclusivePersonalRules && input.promoCode?.trim()) {
+    return { error: "Промокоды недоступны при персональной скидке на категорию или товар" }
+  }
+
+  let promoResult: Awaited<ReturnType<typeof resolvePromo>>
+  try {
+    promoResult = await resolvePromo({
+      payload,
+      code: hasExclusivePersonalRules ? undefined : input.promoCode,
+      email,
+      cartItems,
+      subtotal,
+    })
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Не удалось применить промокод" }
+  }
+
+  const personalDiscount = currentUser
+    ? calculateClientDiscount(cartItems, personalConfig)
+    : calculateClientDiscount(cartItems, { discountPercent: 0, categoryDiscounts: [], productDiscounts: [] })
+  const promoWins = Boolean(
+    promoResult.promo
+    && promoResult.discountAmount >= personalDiscount.amount
+    && promoResult.discountAmount > 0
+  )
+  const discountAmount = promoWins ? promoResult.discountAmount : personalDiscount.amount
+  const appliedDiscountLines = promoWins
+    ? promoResult.discountLines
+    : personalDiscount.lines.map((line) => ({
+        cartItemId: line.cartItemId,
+        discountPercent: line.discountPercent,
+      }))
+
   let deliveryCost = 0
   if (input.deliveryMethod === "cdek") {
     const cityCode = Number(input.cdekCityCode)
@@ -329,10 +407,19 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
       return { error: "Не удалось подтвердить стоимость доставки СДЭК. Попробуйте ещё раз." }
     }
   }
-  const total = Math.max(0, subtotal - promoResult.discountAmount) + deliveryCost
+  const total = Math.max(0, subtotal - discountAmount) + deliveryCost
   const items = cartItems.map((item) => {
     const stockLossLine = buildMoyskladStockLossLines([item])[0]
     const lineSubtotal = (item.variant?.price || 0) * item.quantity
+    const personalLine = !promoWins
+      ? personalDiscount.lines.find((line) => line.cartItemId === item.id)
+      : undefined
+    const promoLine = promoWins
+      ? promoResult.discountLines.find((line) => line.cartItemId === item.id)
+      : undefined
+    const lineDiscountPercent = personalLine?.discountPercent || promoLine?.discountPercent || 0
+    const lineDiscountAmount = personalLine?.discountAmount
+      ?? (lineDiscountPercent > 0 ? Math.round(lineSubtotal * lineDiscountPercent / 100) : 0)
     return {
       productId: item.product?.id || "",
       productName: item.product?.name || "",
@@ -341,6 +428,8 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
       quantity: item.quantity,
       unitPrice: item.variant?.price || 0,
       totalPrice: lineSubtotal,
+      discountPercent: lineDiscountPercent,
+      discountAmount: lineDiscountAmount,
       stockProductMoyskladId: stockLossLine?.productMoyskladId || "",
       stockQuantityKg: stockLossLine?.quantityKg || 0,
       stockPricePerKg: stockLossLine?.pricePerKg || 0,
@@ -359,7 +448,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     deliveryMethod: input.deliveryMethod,
     deliveryAddress: address,
     subtotal,
-    discountAmount: promoResult.discountAmount,
+    discountAmount,
     deliveryCost,
     total,
     totalWeightGrams: totalWeight,
@@ -367,7 +456,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     items,
   }
   if (clientId) orderData.client = clientId
-  if (promoResult.promo) orderData.promoCode = promoResult.promo.id
+  if (promoWins && promoResult.promo) orderData.promoCode = promoResult.promo.id
 
   const order = await payload.create({ collection: "orders", data: orderData }) as {
     id: string | number
@@ -386,7 +475,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
       customerType: "individual",
       createdAt: order.createdAt,
       subtotal,
-      discountAmount: promoResult.discountAmount,
+      discountAmount,
       deliveryCost,
       total,
       deliveryMethod: input.deliveryMethod,
@@ -396,10 +485,10 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     client: { fullName, email, phone },
     company: null,
     cartItems,
-    discountLines: promoResult.discountLines,
+    discountLines: appliedDiscountLines,
   })
 
-  if (promoResult.promo) {
+  if (promoWins && promoResult.promo) {
     await payload.update({
       collection: "promo-codes",
       id: promoResult.promo.id,
@@ -414,7 +503,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     customerEmail: email,
     receiptItems: buildYooKassaReceiptItems({
       items,
-      discountAmount: promoResult.discountAmount,
+      discountAmount,
       deliveryCost,
       vatRate: order.vatRate,
       vatCustomRate: order.vatCustomRate,

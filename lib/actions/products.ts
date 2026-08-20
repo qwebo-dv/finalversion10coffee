@@ -787,8 +787,8 @@ export async function getClientDiscount(): Promise<number> {
   return config.discountPercent
 }
 
-export async function getClientDiscountConfig(): Promise<ClientDiscountConfig> {
-  const userId = await getCurrentUserId()
+export async function getClientDiscountConfig(sessionScope?: CustomerSessionScope): Promise<ClientDiscountConfig> {
+  const userId = await getCurrentUserId(sessionScope)
   if (!userId) return EMPTY_CLIENT_DISCOUNT_CONFIG
 
   try {

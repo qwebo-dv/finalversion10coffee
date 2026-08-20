@@ -30,6 +30,7 @@ import {
   Star,
   Truck,
   LayoutDashboard,
+  BadgePercent,
 } from "lucide-react"
 import { getSiteSettings } from "@/lib/actions/site-settings"
 import { cn } from "@/lib/utils"
@@ -576,12 +577,14 @@ const notifIcons: Record<NotificationType, typeof Bell> = {
   order_update: ShoppingBag,
   news: Newspaper,
   product_restock: Package,
+  personal_discount: BadgePercent,
 }
 
 const notifColors: Record<NotificationType, string> = {
   order_update: "bg-[#faead5] text-[#e6610d]",
   news: "bg-[#faead5] text-[#5b328a]",
   product_restock: "bg-[#faead5] text-[#5b328a]",
+  personal_discount: "bg-[#f4edfa] text-[#5b328a]",
 }
 
 function NotificationsContent({

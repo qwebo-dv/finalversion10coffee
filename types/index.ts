@@ -40,7 +40,7 @@ export interface ProductTag {
   color?: string
 }
 
-export type NotificationType = "order_update" | "news" | "product_restock"
+export type NotificationType = "order_update" | "news" | "product_restock" | "personal_discount"
 
 export type PromoDiscountType = "percentage" | "fixed_amount"
 export type CustomerType = "individual" | "business"

@@ -3,7 +3,7 @@
 import { useNotifications } from "@/providers/notification-provider"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Bell, CheckCheck, ShoppingBag, Newspaper, Package } from "lucide-react"
+import { Bell, CheckCheck, ShoppingBag, Newspaper, Package, BadgePercent } from "lucide-react"
 import { formatDateTime } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
 import type { NotificationType } from "@/types"
@@ -12,12 +12,14 @@ const typeIcons: Record<NotificationType, typeof Bell> = {
   order_update: ShoppingBag,
   news: Newspaper,
   product_restock: Package,
+  personal_discount: BadgePercent,
 }
 
 const typeLabels: Record<NotificationType, string> = {
   order_update: "Заказ",
   news: "Новости",
   product_restock: "Товар",
+  personal_discount: "Скидка",
 }
 
 export default function NotificationsPage() {

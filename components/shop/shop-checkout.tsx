@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { FormEvent, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, CheckCircle2, ChevronDown, Loader2, LockKeyhole, MapPin, ShoppingBag, Tag, X } from "lucide-react"
-import { createShopOrder, previewShopPromo } from "@/lib/actions/shop-orders"
+import { createShopOrder, previewShopPersonalDiscount, previewShopPromo } from "@/lib/actions/shop-orders"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
 import PhoneInput from "@/components/shared/phone-input"
@@ -52,6 +52,19 @@ export function ShopCheckout({
     discountLabel: string
     eligibleSubtotal: number
   } | null>(null)
+  const [personalDiscount, setPersonalDiscount] = useState<{
+    discountAmount: number
+    discountLabel: string
+    lines: {
+      productName?: string
+      categoryName?: string
+      discountPercent: number
+      discountAmount: number
+      source: "product" | "category" | "base"
+    }[]
+  } | null>(null)
+  const [hasExclusivePersonalRules, setHasExclusivePersonalRules] = useState(false)
+  const [discountRulesResolvedForUserId, setDiscountRulesResolvedForUserId] = useState<string | null>(null)
 
   const defaultAddress = (user?.user_metadata?.address as string) || ""
   const isRetailAccountCheckout = user?.user_metadata?.customer_type === "individual"
@@ -84,8 +97,45 @@ export function ShopCheckout({
   const subtotal = lines.reduce((sum, line) => sum + (line.variant?.price || 0) * line.item.quantity, 0)
   const totalWeight = lines.reduce((sum, line) => sum + (line.variant?.weight_grams || 0) * line.item.quantity, 0)
   const deliveryCost = deliveryMethod === "cdek" ? cdekSelection?.deliveryCost || 0 : 0
-  const discountAmount = appliedPromo?.discountAmount || 0
+  const personalDiscountAmount = personalDiscount?.discountAmount || 0
+  const promoIsApplied = Boolean(appliedPromo && appliedPromo.discountAmount >= personalDiscountAmount)
+  const personalDiscountIsApplied = personalDiscountAmount > 0 && !promoIsApplied
+  const discountAmount = promoIsApplied ? appliedPromo?.discountAmount || 0 : personalDiscountAmount
   const total = Math.max(0, subtotal - discountAmount) + deliveryCost
+
+  useEffect(() => {
+    let cancelled = false
+    if (!user || items.length === 0) {
+      setPersonalDiscount(null)
+      setHasExclusivePersonalRules(false)
+      setDiscountRulesResolvedForUserId(null)
+      return
+    }
+
+    void previewShopPersonalDiscount(items).then((response) => {
+      if (cancelled) return
+      setHasExclusivePersonalRules(response.hasExclusivePersonalRules === true)
+      setDiscountRulesResolvedForUserId(user.id)
+      if (response.hasExclusivePersonalRules) {
+        setAppliedPromo(null)
+        setPromoCode("")
+        setPromoError(null)
+      }
+      if (!response.success || !response.discountAmount || !response.lines?.length) {
+        setPersonalDiscount(null)
+        return
+      }
+      setPersonalDiscount({
+        discountAmount: response.discountAmount,
+        discountLabel: response.discountLabel || "Персональная скидка",
+        lines: response.lines,
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [items, user])
 
   function resetPromo() {
     setAppliedPromo(null)
@@ -267,9 +317,34 @@ export function ShopCheckout({
               </div>
             )}
             <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Комментарий</span><textarea name="comment" rows={3} className="w-full rounded-2xl border border-black/10 p-4 outline-none focus:border-[#5b328a]" placeholder="Пожелания к заказу" /></label>
-            <details className="group mt-5 rounded-2xl border border-black/10 bg-white">
+            {personalDiscount && (
+              <div className="mt-5 rounded-2xl border border-[#5b328a]/25 bg-[#f4edfa] px-4 py-4 text-[#5b328a]" aria-live="polite">
+                <div className="flex items-start gap-3">
+                  <Tag className="mt-0.5 h-5 w-5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black">Ваша персональная скидка действует</p>
+                    <p className="mt-1 text-xs leading-5">
+                      {personalDiscount.discountLabel}: −{formatPrice(personalDiscount.discountAmount)}
+                    </p>
+                    <div className="mt-2 space-y-1 text-xs leading-5 text-[#655080]">
+                      {personalDiscount.lines.map((line, index) => (
+                        <p key={`${line.productName || line.categoryName || "discount"}-${index}`}>
+                          {line.discountPercent}% · {line.source === "category" && line.categoryName
+                            ? `категория «${line.categoryName}»`
+                            : line.productName || "товары заказа"} · −{formatPrice(line.discountAmount)}
+                        </p>
+                      ))}
+                    </div>
+                    {appliedPromo && personalDiscountIsApplied && (
+                      <p className="mt-2 text-xs font-bold">Она выгоднее введённого промокода, поэтому применена к заказу.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            {!hasExclusivePersonalRules && (!user || discountRulesResolvedForUserId === user.id) && <details className="group mt-5 rounded-2xl border border-black/10 bg-white">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-[#655c55] [&::-webkit-details-marker]:hidden">
-                <span>{appliedPromo ? `Промокод ${appliedPromo.code} применён` : "У меня есть промокод"}</span>
+                <span>{appliedPromo ? `Промокод ${appliedPromo.code} ${promoIsApplied ? "применён" : "проверен"}` : "У меня есть промокод"}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
               </summary>
               <div className="border-t border-black/10 p-4">
@@ -308,8 +383,8 @@ export function ShopCheckout({
                     <div className="flex min-w-0 items-center gap-3">
                       <CheckCircle2 className="h-5 w-5 shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-sm font-black">Промокод {appliedPromo.code} применён</p>
-                        <p className="mt-0.5 text-xs">Скидка {appliedPromo.discountLabel}: −{formatPrice(appliedPromo.discountAmount)}</p>
+                        <p className="text-sm font-black">Промокод {appliedPromo.code} проверен</p>
+                        <p className="mt-0.5 text-xs">Скидка {appliedPromo.discountLabel}: −{formatPrice(appliedPromo.discountAmount)}{personalDiscountIsApplied ? ". Персональная скидка выгоднее." : " и применена к заказу."}</p>
                       </div>
                     </div>
                     <button type="button" onClick={() => { setPromoCode(""); resetPromo() }} className="rounded-full p-1.5 hover:bg-emerald-100" aria-label="Удалить промокод"><X className="h-4 w-4" /></button>
@@ -317,7 +392,7 @@ export function ShopCheckout({
                 )}
               </div>
               </div>
-            </details>
+            </details>}
 
             {!isRetailAccountCheckout && <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl bg-[#f8f5f1] p-4"><input name="createAccount" type="checkbox" className="mt-1 h-4 w-4 accent-[#5b328a]" /><span><b className="block text-sm">Создать личный кабинет</b><span className="mt-1 block text-xs leading-5 text-[#7d736b]">Необязательно. Пароль будет отправлен на email, а заказ появится в истории.</span></span></label>}
 
@@ -344,8 +419,8 @@ export function ShopCheckout({
           <aside className="h-fit rounded-[32px] bg-[#1d1d1b] p-6 text-white lg:sticky lg:top-8">
             <h2 className="text-xl font-black">Ваш заказ</h2>
             <div className="mt-5 space-y-4">{lines.map(({ item, product, variant }) => <div key={item.id} className="flex gap-3 border-b border-white/10 pb-4"><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{product?.name}</p><p className="mt-1 text-xs text-white/50">{variant?.name} · {item.quantity} шт.</p></div><b className="text-sm">{formatPrice((variant?.price || 0) * item.quantity)}</b></div>)}</div>
-            {appliedPromo && <div className="mt-5 flex items-center gap-2 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-emerald-300"><Tag className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate text-xs font-bold">{appliedPromo.code}</span><strong className="text-sm">−{formatPrice(discountAmount)}</strong></div>}
-            <div className="mt-6 space-y-2 border-t border-white/10 pt-5"><div className="flex items-end justify-between"><span className="text-sm text-white/55">Товары</span><strong>{formatPrice(subtotal)}</strong></div>{appliedPromo && <div className="flex items-end justify-between text-emerald-300"><span className="text-sm">Скидка по промокоду</span><strong>−{formatPrice(discountAmount)}</strong></div>}{deliveryCost > 0 && <div className="flex items-end justify-between"><span className="text-sm text-white/55">Доставка СДЭК</span><strong>{formatPrice(deliveryCost)}</strong></div>}<div className="flex items-end justify-between pt-2"><span className="text-sm text-white/55">Итого</span><strong className="text-2xl">{formatPrice(total)}</strong></div></div>
+            {discountAmount > 0 && <div className="mt-5 flex items-center gap-2 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-emerald-300"><Tag className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate text-xs font-bold">{promoIsApplied ? `Промокод ${appliedPromo?.code}` : "Персональная скидка"}</span><strong className="text-sm">−{formatPrice(discountAmount)}</strong></div>}
+            <div className="mt-6 space-y-2 border-t border-white/10 pt-5"><div className="flex items-end justify-between"><span className="text-sm text-white/55">Товары</span><strong>{formatPrice(subtotal)}</strong></div>{discountAmount > 0 && <div className="flex items-end justify-between text-emerald-300"><span className="text-sm">{promoIsApplied ? "Скидка по промокоду" : "Персональная скидка"}</span><strong>−{formatPrice(discountAmount)}</strong></div>}{deliveryCost > 0 && <div className="flex items-end justify-between"><span className="text-sm text-white/55">Доставка СДЭК</span><strong>{formatPrice(deliveryCost)}</strong></div>}<div className="flex items-end justify-between pt-2"><span className="text-sm text-white/55">Итого</span><strong className="text-2xl">{formatPrice(total)}</strong></div></div>
           </aside>
         </div>
       </div>
