@@ -136,6 +136,15 @@ export interface CdekOffice {
   address_full: string
   work_time: string
   type: string // PVZ or POSTAMAT
+  location?: Record<string, unknown>
+  country_code?: string
+  have_cashless?: boolean
+  have_cash?: boolean
+  allowed_cod?: boolean
+  is_dressing_room?: boolean
+  dimensions?: unknown[] | null
+  weight_min?: number
+  weight_max?: number
 }
 
 export async function getDeliveryPoints(cityCode: number): Promise<CdekOffice[]> {
@@ -163,5 +172,14 @@ export async function getDeliveryPoints(cityCode: number): Promise<CdekOffice[]>
     address_full: (p.location as Record<string, unknown>)?.address_full as string || (p.location as Record<string, unknown>)?.address as string || "",
     work_time: p.work_time as string || "",
     type: p.type as string || "PVZ",
+    location: p.location as Record<string, unknown> || undefined,
+    country_code: p.country_code as string || "RU",
+    have_cashless: Boolean(p.have_cashless),
+    have_cash: Boolean(p.have_cash),
+    allowed_cod: Boolean(p.allowed_cod),
+    is_dressing_room: Boolean(p.is_dressing_room),
+    dimensions: p.dimensions as unknown[] | null || null,
+    weight_min: Number(p.weight_min) || 0,
+    weight_max: Number(p.weight_max) || 0,
   }))
 }
