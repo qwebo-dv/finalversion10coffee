@@ -38,34 +38,11 @@ export async function workspaceBaseFilter({ req }: { req: PayloadRequest }): Pro
   return salesChannel ? { salesChannel: { equals: salesChannel } } : null
 }
 
-const VISIBLE_RETAIL_PAYMENT_STATUSES = ["paid", "refunded"]
-
-/**
- * Retail checkout records exist before payment so YooKassa can reference them,
- * but they become operational orders only after a successful payment.
- */
 export async function orderWorkspaceBaseFilter({ req }: { req: PayloadRequest }): Promise<Where | null> {
   const workspace = resolveAdminWorkspace(req)
   if (workspace === "wholesale") return { salesChannel: { equals: "wholesale" } }
-  if (workspace === "retail") {
-    return {
-      and: [
-        { salesChannel: { equals: "retail" } },
-        { paymentStatus: { in: VISIBLE_RETAIL_PAYMENT_STATUSES } },
-      ],
-    }
-  }
-  return {
-    or: [
-      { salesChannel: { equals: "wholesale" } },
-      {
-        and: [
-          { salesChannel: { equals: "retail" } },
-          { paymentStatus: { in: VISIBLE_RETAIL_PAYMENT_STATUSES } },
-        ],
-      },
-    ],
-  }
+  if (workspace === "retail") return { salesChannel: { equals: "retail" } }
+  return null
 }
 
 export async function retailOnlyBaseFilter({ req }: { req: PayloadRequest }): Promise<Where | null> {

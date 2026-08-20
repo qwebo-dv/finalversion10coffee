@@ -20,14 +20,7 @@ const ordersReadAccess: Access = ({ req }) => {
   const channels = getAllowedSalesChannels(req.user)
   const visible: Where[] = []
   if (channels.includes("wholesale")) visible.push({ salesChannel: { equals: "wholesale" } })
-  if (channels.includes("retail")) {
-    visible.push({
-      and: [
-        { salesChannel: { equals: "retail" } },
-        { paymentStatus: { in: ["paid", "refunded"] } },
-      ],
-    })
-  }
+  if (channels.includes("retail")) visible.push({ salesChannel: { equals: "retail" } })
   if (visible.length === 0) return false
   return visible.length === 1 ? visible[0] : { or: visible }
 }
