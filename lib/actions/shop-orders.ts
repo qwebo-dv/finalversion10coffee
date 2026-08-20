@@ -34,6 +34,21 @@ export interface ShopOrderInput {
   acceptTerms?: boolean
 }
 
+export interface ShopPromoPreviewInput {
+  items: ShopOrderInput["items"]
+  promoCode: string
+  email?: string
+}
+
+export interface ShopPromoPreviewResult {
+  success?: boolean
+  error?: string
+  code?: string
+  discountAmount?: number
+  discountLabel?: string
+  eligibleSubtotal?: number
+}
+
 interface PromoDoc {
   id: string | number
   audience?: "all" | "individual" | "business" | null
@@ -137,7 +152,44 @@ async function resolvePromo(params: {
   return {
     promo,
     discountAmount,
+    eligibleSubtotal,
     discountLines: eligibleItems.map((item) => ({ cartItemId: item.id, discountPercent })),
+  }
+}
+
+export async function previewShopPromo(input: ShopPromoPreviewInput): Promise<ShopPromoPreviewResult> {
+  const code = input.promoCode.trim().toUpperCase()
+  if (!code) return { error: "Введите промокод" }
+
+  try {
+    const [payload, products] = await Promise.all([
+      getPayload({ config: configPromise }),
+      getShopProducts(),
+    ])
+    const cartItems = buildValidatedCart(products, input.items)
+    if (cartItems.length === 0) return { error: "Корзина пуста или товары больше недоступны" }
+
+    const subtotal = cartItems.reduce((sum, item) => sum + (item.variant?.price || 0) * item.quantity, 0)
+    const result = await resolvePromo({
+      payload,
+      code,
+      email: input.email?.trim().toLowerCase() || "",
+      cartItems,
+      subtotal,
+    })
+    if (!result.promo) return { error: "Промокод не найден" }
+
+    return {
+      success: true,
+      code,
+      discountAmount: result.discountAmount,
+      eligibleSubtotal: result.eligibleSubtotal,
+      discountLabel: result.promo.discountType === "fixed_amount"
+        ? `${(result.promo.discountValue || 0).toLocaleString("ru-RU")} ₽`
+        : `${result.promo.discountValue || 0}%`,
+    }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Не удалось проверить промокод" }
   }
 }
 
