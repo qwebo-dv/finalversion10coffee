@@ -93,7 +93,7 @@ export function ShopProduct({
 
     let cancelled = false
     setReviewEligibility("checking")
-    fetch(`/api/product-reviews?product=${encodeURIComponent(product.id)}`)
+    fetch(`/api/shop/product-reviews?product=${encodeURIComponent(product.id)}`)
       .then(async (response) => {
         if (!response.ok) throw new Error("Review eligibility request failed")
         return response.json() as Promise<{ canReview?: boolean }>
@@ -149,7 +149,7 @@ export function ShopProduct({
     setSubmitting(true)
     setVoteError(null)
     try {
-      const response = await fetch("/api/product-reviews", {
+      const response = await fetch("/api/shop/product-reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

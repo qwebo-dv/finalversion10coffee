@@ -20,7 +20,7 @@ export const ProductReviews: CollectionConfig = {
     plural: "Отзывы",
   },
   access: {
-    // Public review creation goes through /api/product-reviews, where the
+    // Public review creation goes through /api/shop/product-reviews, where the
     // retail session is verified. Payload REST remains closed to anonymous
     // requests so clientId cannot be spoofed.
     create: ({ req }) => canManageOperations(req.user),
