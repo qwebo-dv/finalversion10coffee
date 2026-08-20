@@ -808,6 +808,17 @@ async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
   })
 }
 
+export async function syncOrderToMoyskladById(payload: Payload, orderId: string | number) {
+  const order = await payload.findByID({
+    collection: "orders",
+    id: orderId,
+    depth: 1,
+    overrideAccess: true,
+  }) as PayloadOrderDoc
+
+  return retryOrder(payload, order)
+}
+
 /**
  * Fetches the set of externalCodes of customer orders that already exist in
  * MoySklad. Site orders are pushed with externalCode = local order id and under

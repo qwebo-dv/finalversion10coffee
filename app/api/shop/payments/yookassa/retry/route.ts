@@ -5,6 +5,8 @@ import { createYooKassaPayment, getYooKassaPayment } from "@/lib/payments/yookas
 import { buildYooKassaReceiptItems } from "@/lib/payments/yookassa-receipt"
 import { verifyOrderPaymentToken } from "@/lib/payments/order-payment-token"
 import { sendPaidOrderConfirmation } from "@/lib/payments/paid-order-email"
+import { refreshYooKassaOrderPayment } from "@/lib/payments/yookassa-order-status"
+import { syncOrderToMoyskladById } from "@/lib/moysklad/order-retry"
 
 export const dynamic = "force-dynamic"
 
@@ -17,6 +19,12 @@ export async function POST(request: NextRequest) {
   const order = await payload.findByID({ collection: "orders", id: orderId, depth: 0, overrideAccess: true })
   if (!order || order.paymentMethod !== "yookassa") return NextResponse.json({ ok: false, error: "Заказ не найден" }, { status: 404 })
   if (order.paymentStatus === "paid") {
+    if (order.moyskladSyncStatus !== "synced" || !order.moyskladCustomerOrderId) {
+      const sync = await syncOrderToMoyskladById(payload, order.id)
+      if ("error" in sync && sync.error) {
+        console.error(`[Order ${order.orderId || order.id}] Не удалось выгрузить оплаченный заказ в МойСклад: ${sync.error}`)
+      }
+    }
     const email = await sendPaidOrderConfirmation(payload, order.id)
     if (!email.sent) console.error(`[Order ${order.orderId || order.id}] Не отправлено письмо об оплате: ${email.error}`)
     return NextResponse.json({ ok: true, status: "paid" })
@@ -28,10 +36,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Не удалось проверить текущий платёж. Попробуйте ещё раз через минуту." }, { status: 502 })
     }
     if (current.ok && current.status === "paid") {
-      await payload.update({ collection: "orders", id: order.id, data: { paymentStatus: "paid", paymentUpdatedAt: new Date().toISOString() }, overrideAccess: true })
-      const email = await sendPaidOrderConfirmation(payload, order.id)
-      if (!email.sent) console.error(`[Order ${order.orderId || order.id}] Не отправлено письмо об оплате: ${email.error}`)
-      return NextResponse.json({ ok: true, status: "paid" })
+      const refreshed = await refreshYooKassaOrderPayment(order.paymentExternalId, "payment")
+      if (!refreshed.ok) return NextResponse.json(refreshed, { status: 502 })
+      return NextResponse.json({ ok: true, status: refreshed.status })
     }
     if (current.status === "pending") {
       const paymentUrl = current.paymentUrl || order.paymentUrl

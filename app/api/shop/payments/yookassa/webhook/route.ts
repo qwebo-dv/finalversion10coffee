@@ -6,9 +6,16 @@ export const dynamic = "force-dynamic"
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as { event?: string; object?: { id?: string } } | null
   if (!body?.object?.id || !["payment.succeeded", "payment.canceled"].includes(body.event || "")) {
+    console.warn("[YooKassa webhook] Отклонено некорректное уведомление")
     return NextResponse.json({ ok: false, error: "Некорректное уведомление" }, { status: 400 })
   }
+  console.log(`[YooKassa webhook] Получено ${body.event} для платежа ${body.object.id}`)
   const result = await refreshYooKassaOrderPayment(body.object.id, "payment")
+  if (!result.ok) {
+    console.error(`[YooKassa webhook] Платёж ${body.object.id} не обработан: ${result.error}`)
+  } else {
+    console.log(`[Order ${result.orderNumber || result.orderId}] Статус оплаты подтверждён: ${result.status}`)
+  }
   if (result.ok && result.status === "paid" && result.confirmationEmailSent === false) {
     // Ask YooKassa to retry the notification. Payment state is already stored,
     // and email delivery is idempotent, so a retry is safe.
