@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import PhoneInput from "@/components/shared/phone-input"
+import AddressInput from "@/components/shared/address-input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
@@ -220,9 +221,9 @@ export default function SettingsPage() {
           {isIndividual && (
             <div>
               <Label>Адрес доставки</Label>
-              <Input
+              <AddressInput
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                onChange={setAddress}
                 placeholder="Город, улица, дом, квартира"
                 className="mt-1.5"
               />

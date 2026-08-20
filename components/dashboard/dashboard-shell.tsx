@@ -417,14 +417,14 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
             {isIndividual ? (
               <>
                 <Link
-                  href="/main/recently-viewed"
+                  href="/main/delivery"
                   className={cn(
                     "flex flex-col items-center gap-0.5 px-1.5 py-1.5 sm:px-3 rounded-xl transition-colors",
-                    pathname.startsWith("/main/recently-viewed") ? "text-[#5b328a]" : "text-neutral-400"
+                    pathname.startsWith("/main/delivery") ? "text-[#5b328a]" : "text-neutral-400"
                   )}
                 >
-                  <History className="h-5 w-5" />
-                  <span className="text-[10px] font-medium">История</span>
+                  <Truck className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Доставка</span>
                 </Link>
                 <Link
                   href="/main/favorites"

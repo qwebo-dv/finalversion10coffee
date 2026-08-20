@@ -5,6 +5,7 @@ import { Loader2, MapPin, Package, Truck } from "lucide-react"
 import { useAuth } from "@/providers/auth-provider"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
+import AddressInput from "@/components/shared/address-input"
 import { toast } from "sonner"
 import type { DeliveryMethod } from "@/types"
 
@@ -111,9 +112,9 @@ export default function DeliveryPage() {
             <MapPin className="h-4 w-4 text-[#5b328a]" />
             Адрес доставки
           </label>
-          <input
+          <AddressInput
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={setAddress}
             placeholder="Город, улица, дом, квартира"
             className="mt-1.5 h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] md:text-sm"
           />

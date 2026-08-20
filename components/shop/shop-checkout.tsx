@@ -7,10 +7,20 @@ import { createShopOrder, previewShopPromo } from "@/lib/actions/shop-orders"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
 import PhoneInput from "@/components/shared/phone-input"
+import AddressInput from "@/components/shared/address-input"
 import { PendingPaymentCard } from "@/components/shop/pending-payment-card"
 import { formatPrice } from "@/lib/utils/format"
 import type { DeliveryMethod, Product } from "@/types"
 import { CdekDeliverySelector, type ShopCdekSelection } from "./cdek-delivery-selector"
+
+function withCity(city: string, address: string): string {
+  const trimmedAddress = address.trim()
+  const normalizedCity = city.trim().toLocaleLowerCase("ru-RU")
+  const alreadyHasCity = trimmedAddress.split(",").some((part) =>
+    part.trim().toLocaleLowerCase("ru-RU").replace(/^г\.?\s+/, "") === normalizedCity,
+  )
+  return alreadyHasCity ? trimmedAddress : `${city}, ${trimmedAddress}`
+}
 
 export function ShopCheckout({
   products,
@@ -32,6 +42,7 @@ export function ShopCheckout({
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
+  const [deliveryAddress, setDeliveryAddress] = useState("")
   const [promoCode, setPromoCode] = useState("")
   const [promoLoading, setPromoLoading] = useState(false)
   const [promoError, setPromoError] = useState<string | null>(null)
@@ -60,6 +71,10 @@ export function ShopCheckout({
     if (!phone) setPhone(profilePhone)
     if (!email && !hasPlaceholderEmail) setEmail(user.email || "")
   }, [email, fullName, hasPlaceholderEmail, phone, user])
+
+  useEffect(() => {
+    if (defaultAddress) setDeliveryAddress((current) => current || defaultAddress)
+  }, [defaultAddress])
 
   const lines = useMemo(() => items.map((item) => {
     const product = products.find((entry) => entry.id === item.productId)
@@ -132,7 +147,7 @@ export function ShopCheckout({
         address: deliveryMethod === "cdek" && cdekSelection?.deliveryType === "pickup"
           ? `ПВЗ СДЭК: ${cdekSelection.office?.name || ""} — ${cdekSelection.office?.address || ""}`
           : deliveryMethod === "cdek" && cdekSelection
-            ? `${cdekSelection.cityName}, ${String(data.get("address") || "")}`
+            ? withCity(cdekSelection.cityName, String(data.get("address") || ""))
             : String(data.get("address") || ""),
         deliveryMethod,
         comment: String(data.get("comment") || ""),
@@ -239,7 +254,7 @@ export function ShopCheckout({
             <fieldset className="mt-8"><legend className="text-sm font-black">Способ получения</legend><div className="mt-3 grid gap-3 sm:grid-cols-3">{([['cdek','СДЭК'],['sochi_delivery','По Сочи'],['self_pickup','Самовывоз']] as [DeliveryMethod,string][]).map(([value,label]) => <button key={value} type="button" onClick={() => { setDeliveryMethod(value); setCdekSelection(null) }} className={`rounded-2xl border px-4 py-4 text-sm font-bold ${deliveryMethod === value ? "border-[#5b328a] bg-[#f4edfa] text-[#5b328a]" : "border-black/10"}`}>{label}</button>)}</div></fieldset>
 
             {deliveryMethod === "cdek" && <CdekDeliverySelector weightGrams={totalWeight} defaultAddress={defaultAddress} onChange={setCdekSelection} />}
-            {deliveryMethod === "sochi_delivery" && <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><input name="address" required autoComplete="street-address" defaultValue={defaultAddress} className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="Город, улица, дом, квартира" /></label>}
+            {deliveryMethod === "sochi_delivery" && <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><AddressInput name="address" required value={deliveryAddress} onChange={setDeliveryAddress} className="h-12 rounded-2xl border-black/10 px-4 focus-visible:border-[#5b328a] focus-visible:ring-0" placeholder="Начните вводить город, улицу и дом" /></label>}
             <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Комментарий</span><textarea name="comment" rows={3} className="w-full rounded-2xl border border-black/10 p-4 outline-none focus:border-[#5b328a]" placeholder="Пожелания к заказу" /></label>
             <div className="mt-5">
               <span className="mb-2 block text-xs font-bold text-[#655c55]">Промокод</span>
