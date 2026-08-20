@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { dbQuery } from "@/lib/db"
 import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
+import { verifyPassword } from "@/lib/auth/local"
 
 async function syncPayloadClientProfile(params: {
   supabaseId: string
@@ -86,8 +87,23 @@ export async function PATCH(request: NextRequest) {
     ? body.data as Record<string, unknown>
     : undefined
   const password = typeof body?.password === "string" ? body.password : undefined
+  const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : ""
   const phoneProvided = Boolean(data && Object.prototype.hasOwnProperty.call(data, "phone"))
   const normalizedData = data ? { ...data } : undefined
+
+  if (password !== undefined && (password.length < 8 || password.length > 72)) {
+    return NextResponse.json({ error: "Пароль должен содержать от 8 до 72 символов" }, { status: 400 })
+  }
+
+  if (password !== undefined) {
+    if (!currentPassword || !user.email) {
+      return NextResponse.json({ error: "Введите текущий пароль" }, { status: 400 })
+    }
+    const verifiedUser = await verifyPassword(user.email, currentPassword)
+    if (!verifiedUser || verifiedUser.id !== user.id) {
+      return NextResponse.json({ error: "Текущий пароль указан неверно" }, { status: 400 })
+    }
+  }
 
   if (phoneProvided) {
     const rawPhone = typeof data?.phone === "string" ? data.phone : ""

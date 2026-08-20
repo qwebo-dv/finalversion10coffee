@@ -10,7 +10,7 @@ import AddressInput from "@/components/shared/address-input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Plus, X, Loader2, Camera } from "lucide-react"
+import { Plus, X, Loader2, Camera, KeyRound } from "lucide-react"
 import { toast } from "sonner"
 import { saveQuickComments, getQuickComments } from "@/lib/actions/client-settings"
 import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
@@ -44,12 +44,16 @@ export default function SettingsPage() {
   const isIndividual = user?.user_metadata?.customer_type === "individual"
   const [loading, setLoading] = useState(false)
   const [avatarLoading, setAvatarLoading] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [quickComments, setQuickComments] = useState<string[]>([])
   const [newComment, setNewComment] = useState("")
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -130,6 +134,35 @@ export default function SettingsPage() {
     if (!result.success) {
       toast.error("Ошибка сохранения комментария")
       setQuickComments(quickComments) // revert
+    }
+  }
+
+  async function handleChangePassword() {
+    if (!user) return
+    if (newPassword.length < 8 || newPassword.length > 72) {
+      toast.error("Пароль должен содержать от 8 до 72 символов")
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Пароли не совпадают")
+      return
+    }
+
+    setPasswordLoading(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword, currentPassword })
+      if (error) throw error
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      toast.success("Пароль изменён")
+    } catch (error) {
+      const message = error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : "Не удалось изменить пароль"
+      toast.error(message)
+    } finally {
+      setPasswordLoading(false)
     }
   }
 
@@ -235,6 +268,64 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {isIndividual && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <KeyRound className="h-4 w-4 text-[#5b328a]" />
+              Смена пароля
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Новый пароль должен содержать от 8 до 72 символов.
+            </p>
+            <div>
+              <Label htmlFor="current-password">Текущий пароль</Label>
+              <Input
+                id="current-password"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-password">Новый пароль</Label>
+              <Input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-password">Повторите новый пароль</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && void handleChangePassword()}
+                className="mt-1.5"
+              />
+            </div>
+            <Button
+              type="button"
+              onClick={handleChangePassword}
+              disabled={passwordLoading || !currentPassword || !newPassword || !confirmPassword}
+            >
+              {passwordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Изменить пароль
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick comments */}
       {!isIndividual && (
