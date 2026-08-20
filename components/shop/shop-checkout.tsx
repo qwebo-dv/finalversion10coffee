@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { FormEvent, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CheckCircle2, ChevronDown, Loader2, LockKeyhole, ShoppingBag, Tag, X } from "lucide-react"
+import { ArrowLeft, CheckCircle2, ChevronDown, Loader2, LockKeyhole, MapPin, ShoppingBag, Tag, X } from "lucide-react"
 import { createShopOrder, previewShopPromo } from "@/lib/actions/shop-orders"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
@@ -257,6 +257,15 @@ export function ShopCheckout({
 
             {deliveryMethod === "cdek" && <CdekDeliverySelector weightGrams={totalWeight} defaultAddress={defaultAddress} onChange={setCdekSelection} />}
             {deliveryMethod === "sochi_delivery" && <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><AddressInput name="address" required value={deliveryAddress} onChange={setDeliveryAddress} city="Сочи" className="h-12 rounded-2xl border-black/10 px-4 focus-visible:border-[#5b328a] focus-visible:ring-0" placeholder="Начните вводить улицу и дом" /></label>}
+            {deliveryMethod === "self_pickup" && (
+              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#5b328a]/20 bg-[#f4edfa] p-4 text-[#5b328a]">
+                <MapPin className="mt-0.5 h-5 w-5 shrink-0" />
+                <div>
+                  <p className="text-sm font-black">Адрес самовывоза</p>
+                  <address className="mt-1 text-sm not-italic leading-6">г. Сочи, ул. Пластунская, 79/1, пом. 1</address>
+                </div>
+              </div>
+            )}
             <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Комментарий</span><textarea name="comment" rows={3} className="w-full rounded-2xl border border-black/10 p-4 outline-none focus:border-[#5b328a]" placeholder="Пожелания к заказу" /></label>
             <details className="group mt-5 rounded-2xl border border-black/10 bg-white">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-[#655c55] [&::-webkit-details-marker]:hidden">
