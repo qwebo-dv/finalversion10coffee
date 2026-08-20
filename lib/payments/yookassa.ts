@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto"
+import type { YooKassaReceiptItem } from "@/lib/payments/yookassa-receipt"
 
 const YOOKASSA_API_URL = "https://api.yookassa.ru/v3"
 
@@ -53,10 +54,22 @@ async function yooKassaRequest<T>(path: string, config: YooKassaConfig, init?: R
   return result
 }
 
-export async function createYooKassaPayment(params: { orderId: string; orderNumber: string; amountRubles: number; description?: string; attemptKey?: string }) {
+export async function createYooKassaPayment(params: {
+  orderId: string
+  orderNumber: string
+  amountRubles: number
+  customerEmail: string
+  receiptItems: YooKassaReceiptItem[]
+  description?: string
+  attemptKey?: string
+}) {
   const config = await getYooKassaConfig()
   if (!isYooKassaReady(config)) return { ok: false as const, code: "not_configured" as const, error: "Онлайн-оплата YooKassa пока не подключена" }
   if (!Number.isFinite(params.amountRubles) || params.amountRubles <= 0) return { ok: false as const, code: "invalid_amount" as const, error: "Некорректная сумма платежа" }
+  const receiptTotal = params.receiptItems.reduce((sum, item) => sum + item.amountRubles, 0)
+  if (!params.customerEmail || params.receiptItems.length === 0 || Math.abs(receiptTotal - params.amountRubles) > 0.001) {
+    return { ok: false as const, code: "invalid_receipt" as const, error: "Некорректные данные фискального чека" }
+  }
 
   const returnUrl = new URL(config.returnUrl)
   returnUrl.searchParams.set("orderId", params.orderId)
@@ -71,6 +84,18 @@ export async function createYooKassaPayment(params: { orderId: string; orderNumb
         confirmation: { type: "redirect", return_url: returnUrl.toString() },
         description: params.description?.slice(0, 128),
         metadata: { order_id: params.orderId, order_number: params.orderNumber },
+        receipt: {
+          customer: { email: params.customerEmail },
+          items: params.receiptItems.map((item) => ({
+            description: item.description,
+            quantity: 1,
+            amount: { value: item.amountRubles.toFixed(2), currency: "RUB" },
+            vat_code: item.vatCode,
+            payment_mode: "full_prepayment",
+            payment_subject: item.paymentSubject,
+          })),
+          internet: true,
+        },
       }),
     })
     if (!payment.id || !payment.confirmation?.confirmation_url) return { ok: false as const, code: "api_error" as const, error: "YooKassa не вернула ссылку на оплату" }

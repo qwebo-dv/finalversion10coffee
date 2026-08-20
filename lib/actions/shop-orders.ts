@@ -6,6 +6,7 @@ import { getShopProducts } from "@/lib/actions/products"
 import { signUp } from "@/lib/actions/auth"
 import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad/sync"
 import { createYooKassaPayment } from "@/lib/payments/yookassa"
+import { buildYooKassaReceiptItems } from "@/lib/payments/yookassa-receipt"
 import { createOrderPaymentToken } from "@/lib/payments/order-payment-token"
 import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
 import { calculateTariff } from "@/lib/cdek"
@@ -263,7 +264,13 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
   if (clientId) orderData.client = clientId
   if (promoResult.promo) orderData.promoCode = promoResult.promo.id
 
-  const order = await payload.create({ collection: "orders", data: orderData }) as { id: string | number; orderId?: string; createdAt?: string }
+  const order = await payload.create({ collection: "orders", data: orderData }) as {
+    id: string | number
+    orderId?: string
+    createdAt?: string
+    vatRate?: string | null
+    vatCustomRate?: number | null
+  }
 
   await syncOrderToMoysklad({
     payload,
@@ -299,6 +306,14 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     orderId: String(order.id),
     orderNumber: order.orderId || String(order.id),
     amountRubles: total,
+    customerEmail: email,
+    receiptItems: buildYooKassaReceiptItems({
+      items,
+      discountAmount: promoResult.discountAmount,
+      deliveryCost,
+      vatRate: order.vatRate,
+      vatCustomRate: order.vatCustomRate,
+    }),
     description: `Заказ ${order.orderId || order.id} в 10coffee`,
   })
 

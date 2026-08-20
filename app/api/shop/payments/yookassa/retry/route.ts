@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getPayload } from "payload"
 import config from "@payload-config"
 import { createYooKassaPayment, getYooKassaPayment } from "@/lib/payments/yookassa"
+import { buildYooKassaReceiptItems } from "@/lib/payments/yookassa-receipt"
 import { verifyOrderPaymentToken } from "@/lib/payments/order-payment-token"
 import { sendPaidOrderConfirmation } from "@/lib/payments/paid-order-email"
 
@@ -48,6 +49,14 @@ export async function POST(request: NextRequest) {
     orderId: String(order.id),
     orderNumber: order.orderId || String(order.id),
     amountRubles: Number(order.total || 0),
+    customerEmail: order.customerEmail || "",
+    receiptItems: buildYooKassaReceiptItems({
+      items: order.items,
+      discountAmount: order.discountAmount,
+      deliveryCost: order.deliveryCost,
+      vatRate: order.vatRate,
+      vatCustomRate: order.vatCustomRate,
+    }),
     description: `Заказ ${order.orderId || order.id} в 10coffee`,
     // A cancelled payment is the idempotent parent of exactly one retry payment.
     // Concurrent clicks or a failed DB update therefore cannot create duplicates.
