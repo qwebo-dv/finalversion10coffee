@@ -62,7 +62,8 @@ function createBrowserClient(sessionScope?: CustomerSessionScope) {
         }
       },
       async signOut() {
-        await fetch("/api/auth/signout", { method: "POST", headers: authHeaders(sessionScope) })
+        const res = await fetch("/api/auth/signout", { method: "POST", headers: authHeaders(sessionScope) })
+        if (!res.ok) return { error: { message: `Sign out failed with HTTP ${res.status}` } }
         return { error: null }
       },
     },

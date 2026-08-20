@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/providers/auth-provider"
 import { useCart } from "@/providers/cart-provider"
 import { useNotifications } from "@/providers/notification-provider"
-import { signOut } from "@/lib/actions/auth"
 import { getFavoriteProducts, getClientDiscountConfig } from "@/lib/actions/products"
 import { CartSidebar } from "./cart-sidebar"
 import {
@@ -44,13 +43,23 @@ type SlidePanel = "favorites" | "notifications" | "cart" | null
 export function DashboardShell({ children, mode }: { children: React.ReactNode; mode?: "retail" | "wholesale" }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const { items, updateQuantity, removeItem, clearCart } = useCart()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
 
   // The retail cabinet is mounted on a dedicated route, so it must never
   // briefly render wholesale UI while the client session is hydrating.
   const isIndividual = mode === "retail" || user?.user_metadata?.customer_type === "individual"
+
+  async function handleSignOut() {
+    try {
+      await signOut()
+      router.replace(isIndividual ? "/shop" : "/")
+      router.refresh()
+    } catch (error) {
+      console.error("[auth] Не удалось выйти из аккаунта", error)
+    }
+  }
 
   const RETAIL_FORBIDDEN_PREFIXES = [
     "/dashboard/catalog",
@@ -249,7 +258,7 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
 
               <button
                 type="button"
-                onClick={() => signOut(isIndividual ? "individual" : "business")}
+                onClick={() => void handleSignOut()}
                 className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[#e6610d] hover:bg-[#faead5]/50 transition-all"
               >
                 <LogOut className="h-4 w-4 shrink-0" />
@@ -490,7 +499,7 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
             </Link>
             <button
               type="button"
-              onClick={() => signOut(isIndividual ? "individual" : "business")}
+              onClick={() => void handleSignOut()}
               className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 text-[#e6610d] transition-colors hover:bg-[#faead5]/50 sm:px-3"
             >
               <LogOut className="h-5 w-5" />

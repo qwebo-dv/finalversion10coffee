@@ -9,12 +9,14 @@ interface AuthContextValue {
   user: AppUser | null
   loading: boolean
   userType: "client" | "admin" | null
+  signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
   userType: null,
+  signOut: async () => {},
 })
 
 export function AuthProvider({ children, sessionScope }: { children: React.ReactNode; sessionScope?: CustomerSessionScope }) {
@@ -49,8 +51,15 @@ export function AuthProvider({ children, sessionScope }: { children: React.React
     | "admin"
     | null
 
+  async function signOut() {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw new Error(error.message)
+    setUser(null)
+    setLoading(false)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, userType }}>
+    <AuthContext.Provider value={{ user, loading, userType, signOut }}>
       {children}
     </AuthContext.Provider>
   )

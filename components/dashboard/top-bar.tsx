@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/providers/auth-provider"
-import { signOut } from "@/lib/actions/auth"
 import { Bell, LogOut, ChevronDown, ExternalLink } from "lucide-react"
 import {
   DropdownMenu,
@@ -18,7 +18,8 @@ interface TopBarProps {
 }
 
 export function TopBar({ notificationCount = 0 }: TopBarProps) {
-  const { user } = useAuth()
+  const router = useRouter()
+  const { user, signOut } = useAuth()
   const [signingOut, setSigningOut] = useState(false)
 
   const displayName =
@@ -26,7 +27,13 @@ export function TopBar({ notificationCount = 0 }: TopBarProps) {
 
   async function handleSignOut() {
     setSigningOut(true)
-    await signOut("business")
+    try {
+      await signOut()
+      router.replace("/")
+      router.refresh()
+    } finally {
+      setSigningOut(false)
+    }
   }
 
   return (
