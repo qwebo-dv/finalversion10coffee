@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { ArrowUpRight, ChevronDown, ChevronRight, Menu, Minus, Plus, Search, ShoppingBag, User, X } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
@@ -37,7 +37,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
   const [cartOpen, setCartOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [query, setQuery] = useState("")
-  const { items, itemCount, updateQuantity, removeItem, clearCart, pendingPayment } = useGuestCart()
+  const { items, hydrated, updateQuantity, removeItem, removeItems, clearCart, pendingPayment } = useGuestCart()
   const { user } = useAuth()
   const individualUser = user?.user_metadata?.customer_type === "individual"
 
@@ -50,6 +50,15 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
     const variant = product?.variants?.find((entry) => entry.id === item.variantId)
     return { item, product, variant }
   }).filter((line) => line.product && line.variant)
+  const itemCount = cartLines.reduce((sum, line) => sum + line.item.quantity, 0)
+  const unavailableItemIds = useMemo(() => items.filter((item) => {
+    const product = products.find((entry) => entry.id === item.productId)
+    return !product?.variants?.some((entry) => entry.id === item.variantId)
+  }).map((item) => item.id), [items, products])
+
+  useEffect(() => {
+    if (hydrated && unavailableItemIds.length > 0) removeItems(unavailableItemIds)
+  }, [hydrated, removeItems, unavailableItemIds])
   const cartTotal = cartLines.reduce((sum, line) => sum + (line.variant?.price || 0) * line.item.quantity, 0)
 
   const typeLinks = productTypes && productTypes.length > 0

@@ -24,6 +24,7 @@ interface GuestCartContextValue {
   addItem: (item: Omit<GuestCartItem, "id">) => void
   updateQuantity: (id: string, quantity: number) => void
   removeItem: (id: string) => void
+  removeItems: (ids: string[]) => void
   clearCart: () => void
   pendingPayment: PendingShopPayment | null
   setPendingPayment: (payment: PendingShopPayment | null) => void
@@ -37,6 +38,32 @@ function buildItemId(item: Pick<GuestCartItem, "productId" | "variantId" | "grin
   return `${item.productId}:${item.variantId}:${item.grindOption || ""}`
 }
 
+function parseStoredItems(value: string): GuestCartItem[] {
+  const parsed: unknown = JSON.parse(value)
+  if (!Array.isArray(parsed)) return []
+
+  const items = new Map<string, GuestCartItem>()
+  for (const candidate of parsed) {
+    if (!candidate || typeof candidate !== "object") continue
+    const item = candidate as Partial<GuestCartItem>
+    if (typeof item.productId !== "string" || !item.productId) continue
+    if (typeof item.variantId !== "string" || !item.variantId) continue
+    if (typeof item.quantity !== "number" || !Number.isFinite(item.quantity) || item.quantity <= 0) continue
+    if (item.grindOption != null && typeof item.grindOption !== "string") continue
+
+    const normalized = {
+      productId: item.productId,
+      variantId: item.variantId,
+      quantity: Math.floor(item.quantity),
+      ...(item.grindOption ? { grindOption: item.grindOption } : {}),
+    }
+    const id = buildItemId(normalized)
+    items.set(id, { ...normalized, id })
+  }
+
+  return Array.from(items.values())
+}
+
 export function GuestCartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<GuestCartItem[]>([])
   const [hydrated, setHydrated] = useState(false)
@@ -47,7 +74,7 @@ export function GuestCartProvider({ children }: { children: React.ReactNode }) {
       const stored = window.localStorage.getItem(STORAGE_KEY)
       // Browser storage is the external source used to hydrate this client-only cart.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (stored) setItems(JSON.parse(stored) as GuestCartItem[])
+      if (stored) setItems(parseStoredItems(stored))
     } catch {
       window.localStorage.removeItem(STORAGE_KEY)
     }
@@ -94,11 +121,17 @@ export function GuestCartProvider({ children }: { children: React.ReactNode }) {
     setItems((current) => current.filter((item) => item.id !== id))
   }, [])
 
+  const removeItems = useCallback((ids: string[]) => {
+    if (ids.length === 0) return
+    const idsToRemove = new Set(ids)
+    setItems((current) => current.filter((item) => !idsToRemove.has(item.id)))
+  }, [])
+
   const clearCart = useCallback(() => setItems([]), [])
   const itemCount = useMemo(() => items.reduce((sum, item) => sum + item.quantity, 0), [items])
 
   return (
-    <GuestCartContext.Provider value={{ items, itemCount, hydrated, addItem, updateQuantity, removeItem, clearCart, pendingPayment, setPendingPayment }}>
+    <GuestCartContext.Provider value={{ items, itemCount, hydrated, addItem, updateQuantity, removeItem, removeItems, clearCart, pendingPayment, setPendingPayment }}>
       {children}
     </GuestCartContext.Provider>
   )
