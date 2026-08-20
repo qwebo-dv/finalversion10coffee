@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import { CartProvider } from "@/providers/cart-provider"
-import { NotificationProvider } from "@/providers/notification-provider"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
 import { ShopHeader } from "@/components/shop/shop-header"
 import { getProductTypes, getShopProducts } from "@/lib/actions/products"
@@ -16,12 +15,10 @@ export default async function RetailCabinetLayout({ children }: { children: Reac
 
   return (
     <CartProvider sessionScope="individual">
-      <NotificationProvider>
-        <div className="flex min-h-screen flex-col">
-          <ShopHeader products={products} productTypes={productTypes} />
-          <div className="flex-1"><DashboardShell mode="retail">{children}</DashboardShell></div>
-        </div>
-      </NotificationProvider>
+      <div className="flex min-h-screen flex-col">
+        <ShopHeader products={products} productTypes={productTypes} />
+        <div className="flex-1"><DashboardShell mode="retail">{children}</DashboardShell></div>
+      </div>
     </CartProvider>
   )
 }

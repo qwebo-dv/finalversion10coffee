@@ -317,31 +317,6 @@ export function ShopCheckout({
               </div>
             )}
             <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Комментарий</span><textarea name="comment" rows={3} className="w-full rounded-2xl border border-black/10 p-4 outline-none focus:border-[#5b328a]" placeholder="Пожелания к заказу" /></label>
-            {personalDiscount && (
-              <div className="mt-5 rounded-2xl border border-[#5b328a]/25 bg-[#f4edfa] px-4 py-4 text-[#5b328a]" aria-live="polite">
-                <div className="flex items-start gap-3">
-                  <Tag className="mt-0.5 h-5 w-5 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black">Ваша персональная скидка действует</p>
-                    <p className="mt-1 text-xs leading-5">
-                      {personalDiscount.discountLabel}: −{formatPrice(personalDiscount.discountAmount)}
-                    </p>
-                    <div className="mt-2 space-y-1 text-xs leading-5 text-[#655080]">
-                      {personalDiscount.lines.map((line, index) => (
-                        <p key={`${line.productName || line.categoryName || "discount"}-${index}`}>
-                          {line.discountPercent}% · {line.source === "category" && line.categoryName
-                            ? `категория «${line.categoryName}»`
-                            : line.productName || "товары заказа"} · −{formatPrice(line.discountAmount)}
-                        </p>
-                      ))}
-                    </div>
-                    {appliedPromo && personalDiscountIsApplied && (
-                      <p className="mt-2 text-xs font-bold">Она выгоднее введённого промокода, поэтому применена к заказу.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
             {!hasExclusivePersonalRules && (!user || discountRulesResolvedForUserId === user.id) && <details className="group mt-5 rounded-2xl border border-black/10 bg-white">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-[#655c55] [&::-webkit-details-marker]:hidden">
                 <span>{appliedPromo ? `Промокод ${appliedPromo.code} ${promoIsApplied ? "применён" : "проверен"}` : "У меня есть промокод"}</span>

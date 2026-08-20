@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react"
 import { ArrowUpRight, ChevronDown, ChevronRight, Menu, Minus, Plus, Search, ShoppingBag, User, X } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
+import { NotificationMenu } from "@/components/shop/notification-menu"
 import { openAuthModal } from "@/components/auth/auth-modal-store"
 import { PendingPaymentCard } from "@/components/shop/pending-payment-card"
 import { formatPrice } from "@/lib/utils/format"
@@ -96,12 +97,7 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
           <div className="flex shrink-0 items-center gap-5">
             <a href="https://10coffee.ru" className="flex items-center gap-1 transition hover:text-[#e6610d]">Оптовый сайт <ArrowUpRight className="h-3 w-3" /></a>
             {individualUser ? (
-              <Link href="/main" title={displayName} className="hidden items-center gap-2 transition hover:text-[#e6610d] lg:flex">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e6610d] text-[10px] font-black text-white">
-                  {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initial}
-                </span>
-                <span className="max-w-[130px] truncate text-xs font-bold">{displayName}</span>
-              </Link>
+              <div className="hidden md:flex"><NotificationMenu avatarUrl={avatarUrl} displayName={displayName} initial={initial} /></div>
             ) : (
               <button type="button" onClick={() => openAuth("login")} className="hidden items-center gap-1.5 transition hover:text-[#e6610d] lg:flex"><User className="h-3 w-3" /> Войти</button>
             )}
