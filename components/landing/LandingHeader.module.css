@@ -9,7 +9,7 @@
   align-items: center;
   gap: 1.5rem;
   width: calc(100% - 3rem);
-  max-width: 920px;
+  max-width: 1200px;
   box-sizing: border-box;
   padding: 0.35rem 1rem;
   background-color: rgba(29, 29, 27, 0.92);
@@ -203,9 +203,20 @@
   transform: translateY(-5.5px) rotate(-45deg);
 }
 
-@media (min-width: 1001px) {
+@media (min-width: 1121px) {
   .burger {
     display: none;
+  }
+}
+
+/* Keep the desktop header readable before all navigation links fit on one row. */
+@media (min-width: 1001px) and (max-width: 1120px) {
+  .navCenter {
+    display: none;
+  }
+
+  .navActions {
+    margin-left: auto;
   }
 }
 
