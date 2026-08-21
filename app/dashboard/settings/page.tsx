@@ -62,6 +62,7 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const socialError = searchParams.get("social_error")
   const linkedProvider = searchParams.get("social_linked")
+  const transferProvider = searchParams.get("social_transfer")
 
   useEffect(() => {
     if (user) {
@@ -153,10 +154,11 @@ export default function SettingsPage() {
     }
   }
 
-  function handleLinkProvider(provider: "yandex" | "vk" | "telegram") {
+  function handleLinkProvider(provider: "yandex" | "vk" | "telegram", transfer = false) {
     if (!user || socialLoading) return
     setSocialLoading(true)
-    window.location.assign(`/api/auth/social/${provider}?intent=link&customer_type=${isIndividual ? "individual" : "business"}`)
+    const transferQuery = transfer ? "&transfer=1" : ""
+    window.location.assign(`/api/auth/social/${provider}?intent=link&customer_type=${isIndividual ? "individual" : "business"}${transferQuery}`)
   }
 
   async function handleChangePassword() {
@@ -213,6 +215,24 @@ export default function SettingsPage() {
       {socialError && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           Не удалось привязать способ входа: {socialError}
+        </div>
+      )}
+
+      {transferProvider && (transferProvider === "yandex" || transferProvider === "vk" || transferProvider === "telegram") && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p>
+            Этот способ входа уже связан с другой учётной записью. Можно перенести только способ входа в текущий аккаунт.
+            Заказы, баллы и другие данные двух аккаунтов при этом не объединяются.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            className="mt-3"
+            disabled={socialLoading}
+            onClick={() => handleLinkProvider(transferProvider, true)}
+          >
+            Подтвердить перенос
+          </Button>
         </div>
       )}
 

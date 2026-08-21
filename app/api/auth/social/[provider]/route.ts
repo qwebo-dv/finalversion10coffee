@@ -20,6 +20,7 @@ export async function GET(
     ? "business"
     : "individual"
   const isLinking = request.nextUrl.searchParams.get("intent") === "link"
+  const allowTransfer = request.nextUrl.searchParams.get("transfer") === "1"
   const providerName = getSocialProvider(provider)
 
   if (!providerName) {
@@ -61,6 +62,7 @@ export async function GET(
       provider: providerName,
       customerType,
       linkUserId: currentUser?.id || null,
+      allowTransfer,
       expiresAt: Date.now() + 10 * 60 * 1000,
     }),
     {

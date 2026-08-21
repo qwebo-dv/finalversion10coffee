@@ -266,6 +266,7 @@ export async function linkSocialIdentity(params: {
   userId: string
   provider: string
   providerUserId: string
+  allowTransfer?: boolean
 }) {
   try {
     const { rows } = await dbQuery<{ user_id: string }>(
@@ -274,13 +275,14 @@ export async function linkSocialIdentity(params: {
         )
         values ($1, $2, $3, now(), now())
         on conflict (provider, provider_user_id) do update
-          set updated_at = now()
+          set user_id = ${params.allowTransfer ? "excluded.user_id" : "auth_social_identities.user_id"},
+              updated_at = now()
         returning user_id`,
       [params.userId, params.provider, params.providerUserId]
     )
 
     if (rows[0]?.user_id !== params.userId) {
-      throw new Error("Этот способ входа уже привязан к другому аккаунту")
+      throw new Error("Этот способ входа уже привязан к другому аккаунту. Подтвердите перенос в текущий аккаунт.")
     }
   } catch (error) {
     // Keep existing social login available during a rolling deployment. The

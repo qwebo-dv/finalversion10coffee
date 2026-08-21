@@ -31,6 +31,18 @@ function errorRedirect(reason: string) {
   )
 }
 
+function linkErrorRedirect(
+  customerType: "individual" | "business",
+  provider: string,
+  reason: string,
+  canTransfer: boolean
+) {
+  const basePath = customerType === "individual" ? "/main/settings" : "/dashboard/settings"
+  const params = new URLSearchParams({ social_error: reason })
+  if (canTransfer) params.set("social_transfer", provider)
+  return NextResponse.redirect(new URL(`${basePath}?${params.toString()}`, getBaseUrl()))
+}
+
 async function syncClientProfile(userId: string, profile: SocialProfile) {
   await dbQuery(
     `insert into public.client_profiles (id, email, full_name, phone, created_at, updated_at)
@@ -114,6 +126,7 @@ export async function GET(request: NextRequest) {
     provider?: string
     customerType?: "individual" | "business"
     linkUserId?: string | null
+    allowTransfer?: boolean
     expiresAt?: number
   }
   try {
@@ -179,6 +192,7 @@ export async function GET(request: NextRequest) {
       userId: user.id,
       provider: profile.provider,
       providerUserId: profile.providerId,
+      allowTransfer: stored.allowTransfer === true,
     })
 
     if (created) {
@@ -205,9 +219,17 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     console.error("Social callback error:", error)
-    return errorRedirect(
-      error instanceof Error ? error.message : "Ошибка авторизации"
-    )
+    const reason = error instanceof Error ? error.message : "Ошибка авторизации"
+    const customerType = stored.customerType || "individual"
+    if (stored.linkUserId) {
+      return linkErrorRedirect(
+        customerType,
+        providerName,
+        reason,
+        reason.includes("уже привязан к другому аккаунту")
+      )
+    }
+    return errorRedirect(reason)
   }
 }
 
