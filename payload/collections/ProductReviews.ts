@@ -1,6 +1,6 @@
 import type { CollectionConfig } from "payload"
 import { productReviewsModerationHandler } from "../endpoints/productReviewsModeration"
-import { operationsDeleteAccess, canManageOperations } from "../access/adminRoles"
+import { operationsDeleteAccess, canManageContent } from "../access/adminRoles"
 import { retailOnlyBaseFilter } from "../admin/workspace"
 
 export const ProductReviews: CollectionConfig = {
@@ -23,18 +23,18 @@ export const ProductReviews: CollectionConfig = {
     // Public review creation goes through /api/shop/product-reviews, where the
     // retail session is verified. Payload REST remains closed to anonymous
     // requests so clientId cannot be spoofed.
-    create: ({ req }) => canManageOperations(req.user),
-    read: ({ req }) => canManageOperations(req.user) || { status: { equals: "approved" } },
-    update: ({ req }) => canManageOperations(req.user),
+    create: ({ req }) => canManageContent(req.user),
+    read: ({ req }) => canManageContent(req.user) || { status: { equals: "approved" } },
+    update: ({ req }) => canManageContent(req.user),
     delete: operationsDeleteAccess,
   },
   hooks: {
     beforeValidate: [
       ({ data, operation, req, originalDoc }) => {
-        if (operation === "create" && !canManageOperations(req.user) && data) {
+        if (operation === "create" && !canManageContent(req.user) && data) {
           data.status = "pending"
         }
-        if (data && canManageOperations(req.user)) {
+        if (data && canManageContent(req.user)) {
           const authorClient = data.authorClient ?? originalDoc?.authorClient
           const authorName = String(data.authorName ?? originalDoc?.authorName ?? "").trim()
           if (authorClient && authorName) {
@@ -129,8 +129,8 @@ export const ProductReviews: CollectionConfig = {
         description: "Отзыв появляется на сайте только после публикации администратором.",
       },
       access: {
-        create: ({ req }) => canManageOperations(req.user),
-        update: ({ req }) => canManageOperations(req.user),
+        create: ({ req }) => canManageContent(req.user),
+        update: ({ req }) => canManageContent(req.user),
       },
     },
   ],

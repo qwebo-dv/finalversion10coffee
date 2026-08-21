@@ -44,9 +44,18 @@ export function asAdminUser(user: unknown): AdminUserLike | null {
   return candidate.collection === "admins" ? candidate : null
 }
 
-export function isSuperAdmin(user: unknown): boolean {
+// Administrators created before roles were introduced have no role value.
+// They previously had the operational rights of a manager, so preserve that
+// behaviour without granting super-admin-only capabilities.
+function effectiveAdminRole(user: unknown): AdminRole | string | null {
   const admin = asAdminUser(user)
-  return admin?.role === "admin" || admin?.role === "super_admin"
+  if (!admin) return null
+  return admin.role || "manager"
+}
+
+export function isSuperAdmin(user: unknown): boolean {
+  const role = effectiveAdminRole(user)
+  return role === "admin" || role === "super_admin"
 }
 
 export function isStaffUser(user: unknown): boolean {
@@ -54,35 +63,44 @@ export function isStaffUser(user: unknown): boolean {
 }
 
 export function canManageContent(user: unknown): boolean {
-  const role = asAdminUser(user)?.role
+  const role = effectiveAdminRole(user)
   return Boolean(role && CONTENT_ROLES.has(role))
 }
 
 export function canManageOperations(user: unknown): boolean {
-  const role = asAdminUser(user)?.role
+  const role = effectiveAdminRole(user)
   return Boolean(role && OPERATIONAL_ROLES.has(role))
 }
 
 export function canReadOperations(user: unknown): boolean {
-  const role = asAdminUser(user)?.role
+  const role = effectiveAdminRole(user)
   return Boolean(role && OPERATIONAL_READ_ROLES.has(role))
 }
 
 export function canRunIntegrations(user: unknown): boolean {
-  const role = asAdminUser(user)?.role
+  const role = effectiveAdminRole(user)
   return Boolean(role && INTEGRATION_ROLES.has(role))
 }
 
 export function getAllowedSalesChannels(user: unknown): SalesChannel[] {
   const admin = asAdminUser(user)
   if (!admin) return []
-  if (isSuperAdmin(admin) || LEGACY_FULL_ACCESS_ROLES.has(admin.role || "")) {
+  const role = effectiveAdminRole(admin)
+  if (isSuperAdmin(admin) || LEGACY_FULL_ACCESS_ROLES.has(role || "")) {
+    return ["wholesale", "retail"]
+  }
+
+  // These roles are configured for both workspaces in Admins.beforeValidate.
+  // Keep the same access for legacy administrator records created before the
+  // workspace flags existed, otherwise Payload returns 403 for relationships
+  // such as the client selector in product reviews.
+  if (["content_manager", "support", "integration_operator"].includes(role || "")) {
     return ["wholesale", "retail"]
   }
 
   const channels: SalesChannel[] = []
-  if (admin.canAccessWholesale || admin.role === "wholesale_manager") channels.push("wholesale")
-  if (admin.canAccessRetail || admin.role === "retail_manager") channels.push("retail")
+  if (admin.canAccessWholesale || role === "wholesale_manager") channels.push("wholesale")
+  if (admin.canAccessRetail || role === "retail_manager") channels.push("retail")
   return channels
 }
 
