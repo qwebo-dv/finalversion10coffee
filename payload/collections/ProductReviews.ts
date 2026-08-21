@@ -1,6 +1,6 @@
 import type { CollectionConfig } from "payload"
 import { productReviewsModerationHandler } from "../endpoints/productReviewsModeration"
-import { operationsDeleteAccess, canManageContent } from "../access/adminRoles"
+import { operationsDeleteAccess, isStaffUser } from "../access/adminRoles"
 import { retailOnlyBaseFilter } from "../admin/workspace"
 
 export const ProductReviews: CollectionConfig = {
@@ -23,18 +23,18 @@ export const ProductReviews: CollectionConfig = {
     // Public review creation goes through /api/shop/product-reviews, where the
     // retail session is verified. Payload REST remains closed to anonymous
     // requests so clientId cannot be spoofed.
-    create: ({ req }) => canManageContent(req.user),
-    read: ({ req }) => canManageContent(req.user) || { status: { equals: "approved" } },
-    update: ({ req }) => canManageContent(req.user),
+    create: ({ req }) => isStaffUser(req.user),
+    read: ({ req }) => isStaffUser(req.user) || { status: { equals: "approved" } },
+    update: ({ req }) => isStaffUser(req.user),
     delete: operationsDeleteAccess,
   },
   hooks: {
     beforeValidate: [
       ({ data, operation, req, originalDoc }) => {
-        if (operation === "create" && !canManageContent(req.user) && data) {
+        if (operation === "create" && !isStaffUser(req.user) && data) {
           data.status = "pending"
         }
-        if (data && canManageContent(req.user)) {
+        if (data && isStaffUser(req.user)) {
           const authorClient = data.authorClient ?? originalDoc?.authorClient
           const authorName = String(data.authorName ?? originalDoc?.authorName ?? "").trim()
           if (authorClient && authorName) {
@@ -129,8 +129,8 @@ export const ProductReviews: CollectionConfig = {
         description: "Отзыв появляется на сайте только после публикации администратором.",
       },
       access: {
-        create: ({ req }) => canManageContent(req.user),
-        update: ({ req }) => canManageContent(req.user),
+        create: ({ req }) => isStaffUser(req.user),
+        update: ({ req }) => isStaffUser(req.user),
       },
     },
   ],
