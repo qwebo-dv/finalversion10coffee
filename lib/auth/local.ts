@@ -27,6 +27,17 @@ function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex")
 }
 
+function isMissingSocialIdentitiesTable(error: unknown) {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      (("code" in error && (error as { code?: unknown }).code === "42P01") ||
+        ("message" in error &&
+          typeof (error as { message?: unknown }).message === "string" &&
+          (error as { message: string }).message.includes("auth_social_identities")))
+  )
+}
+
 function toUser(row: UserRow): AppUser {
   return {
     id: row.id,
@@ -232,18 +243,23 @@ export async function getUserBySocialIdentity(
   provider: string,
   providerUserId: string
 ): Promise<AppUser | null> {
-  const { rows } = await dbReadQuery<UserRow>(
-    `select u.id, u.email, u.encrypted_password, u.raw_user_meta_data, u.raw_app_meta_data
-       from public.auth_social_identities identity
-       join auth.users u on u.id = identity.user_id
-      where identity.provider = $1
-        and identity.provider_user_id = $2
-        and u.deleted_at is null
-      limit 1`,
-    [provider, providerUserId]
-  )
+  try {
+    const { rows } = await dbReadQuery<UserRow>(
+      `select u.id, u.email, u.encrypted_password, u.raw_user_meta_data, u.raw_app_meta_data
+         from public.auth_social_identities identity
+         join auth.users u on u.id = identity.user_id
+        where identity.provider = $1
+          and identity.provider_user_id = $2
+          and u.deleted_at is null
+        limit 1`,
+      [provider, providerUserId]
+    )
 
-  return rows[0] ? toUser(rows[0]) : null
+    return rows[0] ? toUser(rows[0]) : null
+  } catch (error) {
+    if (isMissingSocialIdentitiesTable(error)) return null
+    throw error
+  }
 }
 
 export async function linkSocialIdentity(params: {
@@ -251,31 +267,43 @@ export async function linkSocialIdentity(params: {
   provider: string
   providerUserId: string
 }) {
-  const { rows } = await dbQuery<{ user_id: string }>(
-    `insert into public.auth_social_identities (
-        user_id, provider, provider_user_id, created_at, updated_at
-      )
-      values ($1, $2, $3, now(), now())
-      on conflict (provider, provider_user_id) do update
-        set updated_at = now()
-      returning user_id`,
-    [params.userId, params.provider, params.providerUserId]
-  )
+  try {
+    const { rows } = await dbQuery<{ user_id: string }>(
+      `insert into public.auth_social_identities (
+          user_id, provider, provider_user_id, created_at, updated_at
+        )
+        values ($1, $2, $3, now(), now())
+        on conflict (provider, provider_user_id) do update
+          set updated_at = now()
+        returning user_id`,
+      [params.userId, params.provider, params.providerUserId]
+    )
 
-  if (rows[0]?.user_id !== params.userId) {
-    throw new Error("Этот способ входа уже привязан к другому аккаунту")
+    if (rows[0]?.user_id !== params.userId) {
+      throw new Error("Этот способ входа уже привязан к другому аккаунту")
+    }
+  } catch (error) {
+    // Keep existing social login available during a rolling deployment. The
+    // migration enables durable provider-ID links as soon as it is applied.
+    if (isMissingSocialIdentitiesTable(error)) return
+    throw error
   }
 }
 
 export async function listSocialIdentities(userId: string): Promise<string[]> {
-  const { rows } = await dbReadQuery<{ provider: string }>(
-    `select provider
-       from public.auth_social_identities
-      where user_id = $1
-      order by provider asc`,
-    [userId]
-  )
-  return rows.map((row) => row.provider)
+  try {
+    const { rows } = await dbReadQuery<{ provider: string }>(
+      `select provider
+         from public.auth_social_identities
+        where user_id = $1
+        order by provider asc`,
+      [userId]
+    )
+    return rows.map((row) => row.provider)
+  } catch (error) {
+    if (isMissingSocialIdentitiesTable(error)) return []
+    throw error
+  }
 }
 
 export async function destroyCurrentSession(scope?: CustomerSessionScope) {

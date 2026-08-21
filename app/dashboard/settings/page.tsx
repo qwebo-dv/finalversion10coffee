@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { useAuth } from "@/providers/auth-provider"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -40,6 +41,7 @@ function resizeImage(file: File, maxSize: number): Promise<Blob> {
 
 export default function SettingsPage() {
   const { user } = useAuth()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const isIndividual = user?.user_metadata?.customer_type === "individual"
   const [loading, setLoading] = useState(false)
@@ -58,6 +60,8 @@ export default function SettingsPage() {
   const [socialProviders, setSocialProviders] = useState<string[]>([])
   const [socialLoading, setSocialLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const socialError = searchParams.get("social_error")
+  const linkedProvider = searchParams.get("social_linked")
 
   useEffect(() => {
     if (user) {
@@ -205,6 +209,18 @@ export default function SettingsPage() {
           Управление профилем и настройками
         </p>
       </div>
+
+      {socialError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Не удалось привязать способ входа: {socialError}
+        </div>
+      )}
+
+      {linkedProvider && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Способ входа «{linkedProvider === "yandex" ? "Яндекс" : linkedProvider === "vk" ? "VK" : linkedProvider === "telegram" ? "Telegram" : linkedProvider}» привязан к аккаунту.
+        </div>
+      )}
 
       {/* Profile */}
       <Card>

@@ -187,9 +187,14 @@ export async function GET(request: NextRequest) {
 
     await createSession(user.id, customerType)
 
-    const response = NextResponse.redirect(
-      new URL(customerType === "individual" ? "/main" : "/dashboard", getBaseUrl())
-    )
+    const destination = stored.linkUserId
+      ? customerType === "individual"
+        ? `/main/settings?social_linked=${encodeURIComponent(providerName)}`
+        : `/dashboard/settings?social_linked=${encodeURIComponent(providerName)}`
+      : customerType === "individual"
+        ? "/main"
+        : "/dashboard"
+    const response = NextResponse.redirect(new URL(destination, getBaseUrl()))
     response.cookies.set(OAUTH_STATE_COOKIE_NAME, "", {
       httpOnly: true,
       sameSite: "lax",
