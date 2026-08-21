@@ -40,7 +40,10 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
   const [query, setQuery] = useState("")
   const { items, hydrated, updateQuantity, removeItem, removeItems, clearCart, pendingPayment } = useGuestCart()
   const { user } = useAuth()
-  const individualUser = user?.user_metadata?.customer_type === "individual"
+  // The shop layout has its own individual session cookie. OAuth can restore
+  // a pre-existing client whose legacy metadata has no customer_type, so the
+  // active session—not that optional metadata—must control the header state.
+  const individualUser = Boolean(user)
 
   const avatarUrl: string | null = individualUser ? user?.user_metadata?.avatar_url || null : null
   const displayName = individualUser ? user?.user_metadata?.full_name || user?.email || "" : ""

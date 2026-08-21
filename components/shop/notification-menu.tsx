@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { BadgePercent, Bell, CheckCheck, ChevronRight, Heart, Newspaper, Package, Settings, ShoppingBag } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { BadgePercent, Bell, CheckCheck, ChevronRight, Heart, LogOut, Newspaper, Package, Settings, ShoppingBag } from "lucide-react"
+import { useAuth } from "@/providers/auth-provider"
 import { useNotifications } from "@/providers/notification-provider"
 import type { Notification, NotificationType } from "@/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -65,9 +67,12 @@ function NotificationsFeed({ notifications, loading, markAsRead, onOpen }: { not
 }
 
 export function NotificationMenu({ avatarUrl, displayName, initial }: { avatarUrl: string | null; displayName: string; initial: string }) {
+  const router = useRouter()
+  const { signOut } = useAuth()
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications()
   const [open, setOpen] = useState(false)
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null)
+  const [signingOut, setSigningOut] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -81,6 +86,18 @@ export function NotificationMenu({ avatarUrl, displayName, initial }: { avatarUr
   function openNotification(notification: Notification) {
     if (!notification.is_read) void markAsRead(notification.id)
     setSelectedNotification(notification)
+  }
+
+  async function handleSignOut() {
+    setSigningOut(true)
+    try {
+      await signOut()
+      setOpen(false)
+      router.replace("/shop")
+      router.refresh()
+    } finally {
+      setSigningOut(false)
+    }
   }
 
   return (
@@ -118,6 +135,9 @@ export function NotificationMenu({ avatarUrl, displayName, initial }: { avatarUr
               <Link href="/main/favorites" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-bold text-[#554b43] transition hover:bg-[#f8f5f1] hover:text-[#5b328a]"><Heart className="h-4 w-4 text-[#8d827a]" />Избранное</Link>
               <Link href="/main/settings" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-bold text-[#554b43] transition hover:bg-[#f8f5f1] hover:text-[#5b328a]"><Settings className="h-4 w-4 text-[#8d827a]" />Настройки профиля</Link>
             </nav>
+            <button type="button" onClick={() => void handleSignOut()} disabled={signingOut} className="mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#d54a00] transition hover:bg-[#fff1e9] disabled:cursor-wait disabled:opacity-60">
+              <LogOut className="h-4 w-4" />{signingOut ? "Выходим…" : "Выйти"}
+            </button>
           </div>
         </section>
       )}
