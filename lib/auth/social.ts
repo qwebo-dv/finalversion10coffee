@@ -18,6 +18,7 @@ interface ProviderConfig {
   userInfoUrl: string
   clientIdEnv: string
   clientSecretEnv: string
+  requiresClientSecret?: boolean
   requiresPkce: boolean
   scope: string
   usesBasicTokenAuth?: boolean
@@ -39,6 +40,7 @@ const PROVIDERS: Record<SocialProviderName, ProviderConfig> = {
     userInfoUrl: "https://id.vk.com/oauth2/user_info",
     clientIdEnv: "VK_CLIENT_ID",
     clientSecretEnv: "VK_CLIENT_SECRET",
+    requiresClientSecret: false,
     requiresPkce: true,
     scope: "email",
   },
@@ -69,7 +71,7 @@ export function isSocialProviderConfigured(name: SocialProviderName): boolean {
   const config = PROVIDERS[name]
   return Boolean(
     process.env[config.clientIdEnv]?.trim() &&
-      process.env[config.clientSecretEnv]?.trim()
+      (!config.requiresClientSecret || process.env[config.clientSecretEnv]?.trim())
   )
 }
 
@@ -162,6 +164,7 @@ export async function exchangeCodeForToken(params: {
   code: string
   codeVerifier?: string
   state?: string
+  deviceId?: string
 }): Promise<{ accessToken: string; idToken?: string }> {
   const { provider, code } = params
   const config = PROVIDERS[provider]
@@ -172,24 +175,28 @@ export async function exchangeCodeForToken(params: {
   let result: Record<string, unknown>
 
   if (provider === "vk") {
-    const body = new URLSearchParams({
-      code,
+    if (!params.deviceId) {
+      throw new Error("OAuth VK: device_id не получен")
+    }
+
+    const query = new URLSearchParams({
       code_verifier: params.codeVerifier || "",
       grant_type: "authorization_code",
       redirect_uri: redirectUri,
       client_id: clientId,
+      device_id: params.deviceId,
     })
-    if (params.state) body.set("state", params.state)
+    if (params.state) query.set("state", params.state)
 
     const response = await fetch(
-      `https://id.vk.com/oauth2/auth?${body.toString()}`,
+      `https://id.vk.com/oauth2/auth?${query.toString()}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           Accept: "application/json",
         },
-        body: body.toString(),
+        body: new URLSearchParams({ code }).toString(),
       }
     )
     const text = await response.text()

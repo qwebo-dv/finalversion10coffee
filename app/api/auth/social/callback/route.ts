@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const code = searchParams.get("code")
   const stateParam = searchParams.get("state")
+  const deviceId = searchParams.get("device_id")
   const errorParam = searchParams.get("error")
 
   if (errorParam) {
@@ -131,6 +132,7 @@ export async function GET(request: NextRequest) {
       code,
       codeVerifier: stored.codeVerifier || undefined,
       state: stateParam,
+      deviceId: deviceId || undefined,
     })
 
     const profile = await fetchSocialProfile(providerName, tokens)
