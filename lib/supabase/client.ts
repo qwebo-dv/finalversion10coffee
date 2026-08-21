@@ -49,7 +49,7 @@ function createBrowserClient(sessionScope?: CustomerSessionScope) {
           },
         }
       },
-      async updateUser(params: { data?: Record<string, unknown>; password?: string; currentPassword?: string }) {
+      async updateUser(params: { email?: string; data?: Record<string, unknown>; password?: string; currentPassword?: string }) {
         const res = await fetch("/api/auth/me", {
           method: "PATCH",
           headers: { "Content-Type": "application/json", ...authHeaders(sessionScope) },

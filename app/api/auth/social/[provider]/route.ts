@@ -9,7 +9,7 @@ import {
   randomOAuthState,
 } from "@/lib/auth/social"
 import { OAUTH_STATE_COOKIE_NAME } from "@/lib/auth/social-constants"
-import { shouldUseSecureCookies } from "@/lib/auth/local"
+import { getCurrentUser, shouldUseSecureCookies } from "@/lib/auth/local"
 
 export async function GET(
   request: NextRequest,
@@ -19,6 +19,7 @@ export async function GET(
   const customerType = request.nextUrl.searchParams.get("customer_type") === "business"
     ? "business"
     : "individual"
+  const isLinking = request.nextUrl.searchParams.get("intent") === "link"
   const providerName = getSocialProvider(provider)
 
   if (!providerName) {
@@ -30,6 +31,13 @@ export async function GET(
   if (!isSocialProviderConfigured(providerName)) {
     return NextResponse.redirect(
       new URL("/?auth=login&social_error=not_configured", getBaseUrl())
+    )
+  }
+
+  const currentUser = isLinking ? await getCurrentUser(customerType) : null
+  if (isLinking && !currentUser) {
+    return NextResponse.redirect(
+      new URL("/main/settings?social_error=Для привязки способа входа войдите в аккаунт", getBaseUrl())
     )
   }
 
@@ -52,6 +60,7 @@ export async function GET(
       codeVerifier: codeVerifier || null,
       provider: providerName,
       customerType,
+      linkUserId: currentUser?.id || null,
       expiresAt: Date.now() + 10 * 60 * 1000,
     }),
     {

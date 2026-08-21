@@ -173,10 +173,15 @@ export async function upsertAuthUser(params: {
 
 export async function updateAuthUser(
   id: string,
-  params: { password?: string; metadata?: Record<string, unknown> }
+  params: { email?: string; password?: string; metadata?: Record<string, unknown> }
 ) {
   const sets: string[] = ["updated_at = now()"]
   const values: unknown[] = []
+
+  if (params.email) {
+    values.push(params.email.trim().toLowerCase())
+    sets.push(`email = $${values.length}`)
+  }
 
   if (params.password) {
     values.push(await bcrypt.hash(params.password, 10))
@@ -221,6 +226,56 @@ export async function createSession(userId: string, scope?: CustomerSessionScope
 
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE_NAMES[await getCustomerSessionScope(scope)], token, cookieOptions())
+}
+
+export async function getUserBySocialIdentity(
+  provider: string,
+  providerUserId: string
+): Promise<AppUser | null> {
+  const { rows } = await dbReadQuery<UserRow>(
+    `select u.id, u.email, u.encrypted_password, u.raw_user_meta_data, u.raw_app_meta_data
+       from public.auth_social_identities identity
+       join auth.users u on u.id = identity.user_id
+      where identity.provider = $1
+        and identity.provider_user_id = $2
+        and u.deleted_at is null
+      limit 1`,
+    [provider, providerUserId]
+  )
+
+  return rows[0] ? toUser(rows[0]) : null
+}
+
+export async function linkSocialIdentity(params: {
+  userId: string
+  provider: string
+  providerUserId: string
+}) {
+  const { rows } = await dbQuery<{ user_id: string }>(
+    `insert into public.auth_social_identities (
+        user_id, provider, provider_user_id, created_at, updated_at
+      )
+      values ($1, $2, $3, now(), now())
+      on conflict (provider, provider_user_id) do update
+        set updated_at = now()
+      returning user_id`,
+    [params.userId, params.provider, params.providerUserId]
+  )
+
+  if (rows[0]?.user_id !== params.userId) {
+    throw new Error("Этот способ входа уже привязан к другому аккаунту")
+  }
+}
+
+export async function listSocialIdentities(userId: string): Promise<string[]> {
+  const { rows } = await dbReadQuery<{ provider: string }>(
+    `select provider
+       from public.auth_social_identities
+      where user_id = $1
+      order by provider asc`,
+    [userId]
+  )
+  return rows.map((row) => row.provider)
 }
 
 export async function destroyCurrentSession(scope?: CustomerSessionScope) {

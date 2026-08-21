@@ -316,13 +316,14 @@ export function createLocalClient(sessionScope?: CustomerSessionScope) {
         await destroyCurrentSession(sessionScope)
         return { error: null }
       },
-      async updateUser(params: { data?: Record<string, unknown>; password?: string }) {
+      async updateUser(params: { email?: string; data?: Record<string, unknown>; password?: string }) {
         const currentUser = await getCurrentUser(sessionScope)
         if (!currentUser) return { data: { user: null }, error: { message: "Не авторизован" } }
         const metadata = params.data
           ? { ...currentUser.user_metadata, ...params.data }
           : undefined
         const user = await updateAuthUser(currentUser.id, {
+          email: params.email,
           metadata,
           password: params.password,
         })

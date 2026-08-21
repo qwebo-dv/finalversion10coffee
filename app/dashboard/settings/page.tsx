@@ -10,7 +10,7 @@ import AddressInput from "@/components/shared/address-input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Plus, X, Loader2, Camera, KeyRound } from "lucide-react"
+import { Plus, X, Loader2, Camera, KeyRound, Check, Send } from "lucide-react"
 import { toast } from "sonner"
 import { saveQuickComments, getQuickComments } from "@/lib/actions/client-settings"
 import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
@@ -46,6 +46,7 @@ export default function SettingsPage() {
   const [avatarLoading, setAvatarLoading] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [fullName, setFullName] = useState("")
+  const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
@@ -54,11 +55,14 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [socialProviders, setSocialProviders] = useState<string[]>([])
+  const [socialLoading, setSocialLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (user) {
       setFullName(user.user_metadata?.full_name || "")
+      setEmail(user.email || "")
       setPhone(user.user_metadata?.phone || "")
       setAddress((user.user_metadata?.address as string) || "")
       setAvatarUrl(user.user_metadata?.avatar_url || null)
@@ -67,6 +71,13 @@ export default function SettingsPage() {
       getQuickComments().then((comments) => {
         setQuickComments(comments)
       })
+
+      fetch("/api/auth/social/identities", { cache: "no-store" })
+        .then(async (response) => response.ok ? response.json() : { providers: [] })
+        .then((data: { providers?: unknown }) => {
+          setSocialProviders(Array.isArray(data.providers) ? data.providers.filter((provider): provider is string => typeof provider === "string") : [])
+        })
+        .catch(() => setSocialProviders([]))
     }
   }, [user, supabase])
 
@@ -111,6 +122,7 @@ export default function SettingsPage() {
       const normalizedPhone = normalizeRussianPhone(phone)
       // Update auth metadata so values persist across sessions
       const { error: authError } = await supabase.auth.updateUser({
+        email,
         data: { full_name: fullName, phone: normalizedPhone, address: address.trim() },
       })
       if (authError) throw authError
@@ -135,6 +147,12 @@ export default function SettingsPage() {
       toast.error("Ошибка сохранения комментария")
       setQuickComments(quickComments) // revert
     }
+  }
+
+  function handleLinkProvider(provider: "yandex" | "vk" | "telegram") {
+    if (!user || socialLoading) return
+    setSocialLoading(true)
+    window.location.assign(`/api/auth/social/${provider}?intent=link&customer_type=${isIndividual ? "individual" : "business"}`)
   }
 
   async function handleChangePassword() {
@@ -232,7 +250,18 @@ export default function SettingsPage() {
 
           <div>
             <Label>Email</Label>
-            <Input value={user?.email || ""} disabled className="mt-1.5" />
+            <Input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              className="mt-1.5"
+            />
+            {user?.user_metadata?.email_is_placeholder === true && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Укажите ваш рабочий email для заказов и уведомлений. Вход через Telegram сохранится.
+              </p>
+            )}
           </div>
           <div>
             <Label>ФИО</Label>
@@ -268,6 +297,54 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {isIndividual && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Способы входа</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Привяжите удобные социальные сети к текущему аккаунту. Все способы будут вести в один личный кабинет.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {([
+                { id: "yandex", label: "Яндекс", className: "bg-[#FC3F1D]" },
+                { id: "vk", label: "VK", className: "bg-[#0077FF]" },
+                { id: "telegram", label: "Telegram", className: "bg-[#2AABEE]" },
+              ] as const).map((provider) => {
+                const linked = socialProviders.includes(provider.id)
+                return (
+                  <div key={provider.id} className="rounded-xl border border-neutral-200 p-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`flex h-6 w-6 items-center justify-center rounded-md text-xs font-bold text-white ${provider.className}`}>
+                        {provider.id === "telegram" ? <Send className="h-3.5 w-3.5" fill="currentColor" /> : provider.label === "Яндекс" ? "Я" : "VK"}
+                      </span>
+                      <span className="text-sm font-semibold">{provider.label}</span>
+                    </div>
+                    {linked ? (
+                      <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                        <Check className="h-3.5 w-3.5" /> Привязан
+                      </p>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 w-full"
+                        disabled={socialLoading}
+                        onClick={() => handleLinkProvider(provider.id)}
+                      >
+                        Привязать
+                      </Button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {isIndividual && (
         <Card>

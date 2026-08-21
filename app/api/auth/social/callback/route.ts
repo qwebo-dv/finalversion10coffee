@@ -8,7 +8,14 @@ import {
   type SocialProfile,
 } from "@/lib/auth/social"
 import { OAUTH_STATE_COOKIE_NAME } from "@/lib/auth/social-constants"
-import { createSession, shouldUseSecureCookies, upsertAuthUser } from "@/lib/auth/local"
+import {
+  createSession,
+  getCurrentUser,
+  getUserBySocialIdentity,
+  linkSocialIdentity,
+  shouldUseSecureCookies,
+  upsertAuthUser,
+} from "@/lib/auth/local"
 
 function getBaseUrl() {
   return (
@@ -106,6 +113,7 @@ export async function GET(request: NextRequest) {
     codeVerifier?: string | null
     provider?: string
     customerType?: "individual" | "business"
+    linkUserId?: string | null
     expiresAt?: number
   }
   try {
@@ -138,19 +146,39 @@ export async function GET(request: NextRequest) {
     const profile = await fetchSocialProfile(providerName, tokens)
 
     const customerType = stored.customerType || "individual"
-    const { user, created } = await upsertAuthUser({
-      email: profile.email,
-      password: cryptoRandomPassword(),
-      metadata: {
-        user_type: "client",
-        customer_type: customerType,
-        full_name: profile.name,
-        avatar_url: profile.avatarUrl || "",
-        phone: profile.phone || "",
-        email_verified: profile.provider !== "telegram",
-        email_is_placeholder: profile.provider === "telegram",
-        auth_provider: profile.provider,
-      },
+    const sessionUser = stored.linkUserId
+      ? await getCurrentUser(customerType)
+      : null
+    if (stored.linkUserId && sessionUser?.id !== stored.linkUserId) {
+      return errorRedirect("Сессия для привязки способа входа не найдена")
+    }
+
+    let user = sessionUser || await getUserBySocialIdentity(profile.provider, profile.providerId)
+    let created = false
+
+    if (!user) {
+      const result = await upsertAuthUser({
+        email: profile.email,
+        password: cryptoRandomPassword(),
+        metadata: {
+          user_type: "client",
+          customer_type: customerType,
+          full_name: profile.name,
+          avatar_url: profile.avatarUrl || "",
+          phone: profile.phone || "",
+          email_verified: profile.provider !== "telegram",
+          email_is_placeholder: profile.provider === "telegram",
+          auth_provider: profile.provider,
+        },
+      })
+      user = result.user
+      created = result.created
+    }
+
+    await linkSocialIdentity({
+      userId: user.id,
+      provider: profile.provider,
+      providerUserId: profile.providerId,
     })
 
     if (created) {
