@@ -68,15 +68,9 @@ export const ProductReviews: CollectionConfig = {
           type: "relationship",
           label: "Клиент",
           relationTo: "clients",
-          filterOptions: {
-            and: [
-              { salesChannel: { equals: "retail" } },
-              { customerType: { equals: "individual" } },
-            ],
-          },
           admin: {
             width: "50%",
-            description: "Выберите реального розничного клиента либо оставьте поле пустым и укажите другое имя.",
+            description: "Выберите клиента либо оставьте поле пустым и укажите другое имя.",
           },
         },
         {
