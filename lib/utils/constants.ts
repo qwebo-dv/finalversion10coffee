@@ -31,7 +31,6 @@ export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
   cdek: "СДЭК",
   cap_2000: "ЦАП 2000",
   sochi_delivery: "Доставка по Сочи",
-  yandex_delivery: "Яндекс Доставка",
 }
 
 export function getTagBgClass(color?: string): string {

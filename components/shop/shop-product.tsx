@@ -33,11 +33,7 @@ const DESCRIPTION_HTML_CLASSNAME = [
   "[&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-5",
   "[&_li]:mb-1.5",
   "[&_blockquote]:my-5 [&_blockquote]:border-l-4 [&_blockquote]:border-[#5b328a]/30 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-[#6e655e]",
-  // Контент описания приходит из редактора: исходные размеры медиа не должны
-  // увеличивать ширину страницы на узких экранах.
-  "[&_p]:break-words [&_li]:break-words [&_a]:break-all",
-  "[&_img]:my-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-2xl [&_img]:shadow-md",
-  "[&_iframe]:max-w-full",
+  "[&_img]:my-4 [&_img]:rounded-2xl [&_img]:shadow-md",
 ].join(" ")
 
 interface SpecRow {

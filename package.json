@@ -11,8 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "payload:migrate": "node scripts/payload-migrate.mjs migrate",
-    "payload:migrate:status": "node scripts/payload-migrate.mjs migrate:status",
-    "loyalty:e2e": "node --import tsx scripts/test-loyalty-flow.ts"
+    "payload:migrate:status": "node scripts/payload-migrate.mjs migrate:status"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

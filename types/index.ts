@@ -16,7 +16,7 @@ export type OrderStatus =
   | "returned"
   | "cancelled"
 
-export type DeliveryMethod = "self_pickup" | "cdek" | "cap_2000" | "sochi_delivery" | "yandex_delivery"
+export type DeliveryMethod = "self_pickup" | "cdek" | "cap_2000" | "sochi_delivery"
 
 export type ProductType = "coffee" | "tea" | "accessory" | (string & {})
 export type ProductDetailsSchema = "generic" | "coffee" | "tea"
@@ -233,10 +233,6 @@ export interface ProductVariant {
   moysklad_type?: "product" | "variant" | "service" | null
   price: number
   weight_grams: number | null
-  shipping_length_cm: number | null
-  shipping_width_cm: number | null
-  shipping_height_cm: number | null
-  shipping_weight_grams: number | null
   is_available: boolean
   sort_order: number
   grind_options: string[]
