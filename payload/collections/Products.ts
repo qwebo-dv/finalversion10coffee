@@ -258,6 +258,45 @@ export const Products: CollectionConfig = {
           label: "Вес (грамм)",
         },
         {
+          type: "row",
+          fields: [
+            {
+              name: "shippingLengthCm",
+              type: "number",
+              label: "Длина упаковки для доставки, см",
+              min: 1,
+              admin: {
+                width: "25%",
+                description: "Служебное поле для расчёта Яндекс Доставки. В витрине не показывается.",
+              },
+            },
+            {
+              name: "shippingWidthCm",
+              type: "number",
+              label: "Ширина упаковки, см",
+              min: 1,
+              admin: { width: "25%" },
+            },
+            {
+              name: "shippingHeightCm",
+              type: "number",
+              label: "Высота упаковки, см",
+              min: 1,
+              admin: { width: "25%" },
+            },
+            {
+              name: "shippingWeightGrams",
+              type: "number",
+              label: "Вес брутто, г",
+              min: 1,
+              admin: {
+                width: "25%",
+                description: "Товар вместе с транспортной упаковкой.",
+              },
+            },
+          ],
+        },
+        {
           name: "isAvailable",
           type: "checkbox",
           label: "В наличии",

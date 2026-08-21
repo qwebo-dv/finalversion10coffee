@@ -308,6 +308,32 @@ export async function listSocialIdentities(userId: string): Promise<string[]> {
   }
 }
 
+export type SocialIdentityRecord = {
+  provider: string
+  providerUserId: string
+}
+
+/**
+ * Server-only lookup used by opt-in service notifications. The provider ID is
+ * never exposed to the browser and is only used with the corresponding
+ * provider's server-side delivery token.
+ */
+export async function listSocialIdentityRecords(userId: string): Promise<SocialIdentityRecord[]> {
+  try {
+    const { rows } = await dbReadQuery<{ provider: string; provider_user_id: string }>(
+      `select provider, provider_user_id
+         from public.auth_social_identities
+        where user_id = $1
+        order by provider asc`,
+      [userId],
+    )
+    return rows.map((row) => ({ provider: row.provider, providerUserId: row.provider_user_id }))
+  } catch (error) {
+    if (isMissingSocialIdentitiesTable(error)) return []
+    throw error
+  }
+}
+
 export async function destroyCurrentSession(scope?: CustomerSessionScope) {
   const cookieStore = await cookies()
   const cookieName = SESSION_COOKIE_NAMES[await getCustomerSessionScope(scope)]
