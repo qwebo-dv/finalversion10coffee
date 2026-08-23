@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { BadgePercent, Loader2 } from "lucide-react"
 import { getMyLoyalty, type MyLoyaltyData } from "@/lib/actions/loyalty"
+import { LoyaltyProgramDescription } from "@/components/shop/loyalty-program-description"
 
 const typeLabel: Record<string, string> = {
   accrual: "Начисление",
@@ -56,38 +57,7 @@ export default function LoyaltyPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-neutral-100 bg-white p-5 sm:p-6">
-        <h2 className="text-xl font-black text-neutral-900">Как работают баллы</h2>
-        <div className="mt-5 space-y-5 text-sm leading-6 text-neutral-600">
-          <div>
-            <h3 className="font-black text-neutral-900">Баллы — это рубли</h3>
-            <p className="mt-1">1 балл = 1 ₽. Актуальный остаток и дату окончания срока действия всегда видно выше.</p>
-          </div>
-          <div>
-            <h3 className="font-black text-neutral-900">Когда начисляются</h3>
-            <p className="mt-1">Баллы начисляются после доставки розничного заказа. Чем больше сумма товаров в заказе, тем выше кэшбэк.</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {data.tiers.map((tier) => <span key={tier.minSubtotal} className="rounded-full bg-[#f4edfa] px-3 py-1.5 text-xs font-bold text-[#5b328a]">от {tier.minSubtotal.toLocaleString("ru-RU")} ₽ — {tier.percent}%</span>)}
-            </div>
-          </div>
-          <div>
-            <h3 className="font-black text-neutral-900">Как потратить</h3>
-            <p className="mt-1">Баллами можно оплатить кофе — до {data.maxRedemptionPercent}% его стоимости. При оформлении заказа выберите «Списать баллы» и укажите нужную сумму.</p>
-          </div>
-          <div>
-            <h3 className="font-black text-neutral-900">Что нельзя совмещать</h3>
-            <p className="mt-1">Баллы не суммируются с промокодом, персональной скидкой и другими скидками на заказ.</p>
-          </div>
-          <div>
-            <h3 className="font-black text-neutral-900">Срок действия</h3>
-            <p className="mt-1">Баллы действуют {data.expiresAt ? "до указанной даты" : "60 дней после начисления"}. Новый доставленный заказ продлевает срок действия накопленных баллов.</p>
-          </div>
-          <div>
-            <h3 className="font-black text-neutral-900">Если заказ отменён или возвращён</h3>
-            <p className="mt-1">Неиспользованные при отмене баллы возвращаются. При возврате заказа начисленные за него баллы отменяются, а использованные возвращаются на 60 дней.</p>
-          </div>
-        </div>
-      </section>
+      <LoyaltyProgramDescription rules={{ tiers: data.tiers, maxRedemptionPercent: data.maxRedemptionPercent, expiryDays: data.expiryDays }} />
 
       <section className="overflow-hidden rounded-3xl border border-neutral-100 bg-white">
         <div className="border-b border-neutral-100 px-5 py-5 sm:px-6"><h2 className="text-base font-black text-neutral-900">История операций</h2></div>

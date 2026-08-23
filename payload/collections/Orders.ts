@@ -137,6 +137,30 @@ export const Orders: CollectionConfig = {
         }
 
         if (data) {
+          const previousPaymentStatus = String(originalDoc?.paymentStatus || "")
+          const nextPaymentStatus = String(data.paymentStatus ?? previousPaymentStatus)
+          const nextOrderStatus = String(data.status ?? originalDoc?.status ?? "")
+
+          // Keep the business status consistent when an administrator closes
+          // an unpaid payment manually. A later authoritative YooKassa
+          // `succeeded` webhook may safely reopen it as paid below.
+          if (
+            ["cancelled", "failed"].includes(nextPaymentStatus)
+            && !["paid", "refunded"].includes(previousPaymentStatus)
+            && ["new", "confirmed", "invoiced"].includes(nextOrderStatus)
+          ) {
+            data.status = "cancelled"
+          }
+
+          // Do not leave an order cancelled if YooKassa subsequently confirms
+          // a payment that was still pending when it was closed locally.
+          if (
+            nextPaymentStatus === "paid"
+            && ["new", "confirmed", "invoiced", "cancelled"].includes(nextOrderStatus)
+          ) {
+            data.status = "paid"
+          }
+
           const subtotal = Number(data.subtotal ?? originalDoc?.subtotal) || 0
           const discountPercent = Number(data.discountPercent ?? originalDoc?.discountPercent) || 0
 

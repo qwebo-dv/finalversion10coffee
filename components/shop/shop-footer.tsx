@@ -10,20 +10,22 @@ const CATALOG_LINKS = [
 ]
 
 const COMPANY_LINKS = [
-  { label: "О нас", href: "/o-nas" },
-  { label: "Контакты", href: "/kontakty" },
-  { label: "Блог", href: "/blog" },
-  { label: "Обучение бариста", href: "/obuchenie" },
-  { label: "Оптовым клиентам", href: "/b2b-servis" },
+  { label: "О нас", href: "https://10coffee.ru/o-nas" },
+  { label: "Контакты", href: "https://10coffee.ru/kontakty" },
+  { label: "Новости", href: "https://10coffee.ru/news" },
+  { label: "Блог", href: "https://10coffee.ru/blog" },
+  { label: "Обучение бариста", href: "https://10coffee.ru/obuchenie" },
+  { label: "Оптовым клиентам", href: "https://10coffee.ru/b2b-servis" },
 ]
 
 const CUSTOMER_LINKS = [
-  { label: "Контакты", href: "/contacts" },
+  { label: "Контакты", href: "https://10coffee.ru/contacts" },
   { label: "Оформить заказ", href: "/checkout" },
-  { label: "Доставка и оплата", href: "/delivery" },
-  { label: "Возврат", href: "/return" },
-  { label: "Вопросы и ответы", href: "/faq" },
-  { label: "Публичная оферта", href: "/oferta" },
+  { label: "Доставка и оплата", href: "https://10coffee.ru/delivery" },
+  { label: "Возврат", href: "https://10coffee.ru/return" },
+  { label: "Вопросы и ответы", href: "https://10coffee.ru/faq" },
+  { label: "Бонусная программа", href: "https://10coffee.ru/loyalty" },
+  { label: "Публичная оферта", href: "https://10coffee.ru/oferta" },
 ]
 
 export function ShopFooter() {

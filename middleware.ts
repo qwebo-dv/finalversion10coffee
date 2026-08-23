@@ -37,12 +37,43 @@ function isShopPreviewAllowed(request: NextRequest) {
   return allowedIps.includes(getClientIp(request))
 }
 
+const MAIN_SITE_CONTENT_PATHS = [
+  "/news",
+  "/blog",
+  "/contacts",
+  "/delivery",
+  "/return",
+  "/faq",
+  "/oferta",
+  "/loyalty",
+  "/o-nas",
+  "/kontakty",
+  "/obuchenie",
+  "/b2b-servis",
+  "/vakansii",
+]
+
+function isMainSiteContentPath(pathname: string) {
+  return MAIN_SITE_CONTENT_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const hostname = getHostname(request)
   const isShopHost = hostname === "shop.10coffee.ru" || hostname.startsWith("shop.localhost")
   const isShopPath = pathname === "/shop" || pathname.startsWith("/shop/") || pathname === "/main" || pathname.startsWith("/main/") || pathname === "/checkout" || pathname.startsWith("/order/")
   const isPaymentWebhook = pathname === "/api/shop/payments/yookassa/webhook"
+
+  // Public editorial and reference pages have one canonical host. Keeping
+  // this at the host-routing layer prevents duplicate shop.* URLs regardless
+  // of which header, footer or external link the visitor used.
+  if (hostname === "shop.10coffee.ru" && isMainSiteContentPath(pathname)) {
+    const url = request.nextUrl.clone()
+    url.protocol = "https:"
+    url.hostname = "10coffee.ru"
+    url.port = ""
+    return NextResponse.redirect(url, 308)
+  }
 
   if ((isShopHost || isShopPath) && !isPaymentWebhook && !isShopPreviewAllowed(request)) {
     return new NextResponse("Страница временно недоступна", {

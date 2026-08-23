@@ -18,6 +18,7 @@ const FOOTER_LINKS = [
   { label: "Обучение бариста", href: "/obuchenie" },
   { label: "Сервис", href: "/b2b-servis" },
   { label: "Блог", href: "/blog" },
+  { label: "Вакансии", href: "/vakansii" },
   { label: "Оптовые поставки", href: "/?auth=login", isAuth: true },
 ];
 

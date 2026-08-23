@@ -20,17 +20,18 @@ const FALLBACK_TYPES = [
 ]
 
 const NAV_LINKS = [
-  { label: "Контакты", href: "/contacts" },
-  { label: "Доставка и оплата", href: "/delivery" },
-  { label: "Возврат", href: "/return" },
-  { label: "Вопросы и ответы", href: "/faq" },
+  { label: "Контакты", href: "https://10coffee.ru/contacts" },
+  { label: "Доставка и оплата", href: "https://10coffee.ru/delivery" },
+  { label: "Возврат", href: "https://10coffee.ru/return" },
+  { label: "Вопросы и ответы", href: "https://10coffee.ru/faq" },
+  { label: "Бонусная программа", href: "https://10coffee.ru/loyalty" },
 ]
 
 const COMPANY_LINKS = [
-  { label: "О нас", href: "/o-nas" },
-  { label: "Новости", href: "/news" },
-  { label: "Блог", href: "/blog" },
-  { label: "Контакты", href: "/kontakty" },
+  { label: "О нас", href: "https://10coffee.ru/o-nas" },
+  { label: "Новости", href: "https://10coffee.ru/news" },
+  { label: "Блог", href: "https://10coffee.ru/blog" },
+  { label: "Контакты", href: "https://10coffee.ru/kontakty" },
 ]
 
 export function ShopHeader({ products, productTypes }: { products: Product[]; productTypes?: ProductTypeOption[] }) {
@@ -123,8 +124,8 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
                 {typeLinks.map((type) => <Link key={type.slug} href={`/${type.slug}`} className="block rounded-xl px-4 py-3 text-sm font-bold text-[#554b43] transition hover:bg-[#f8f5f1] hover:text-[#5b328a]">{type.name}</Link>)}
               </div>
             </div>
-            <Link href="/news" className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Новости</Link>
-            <Link href="/blog" className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Блог</Link>
+            <Link href="https://10coffee.ru/news" className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Новости</Link>
+            <Link href="https://10coffee.ru/blog" className="rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Блог</Link>
             <div className="group relative">
               <button type="button" className="flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-bold text-[#554b43] transition hover:bg-black/[0.05] hover:text-[#5b328a]">Покупателю <ChevronDown className="h-4 w-4 transition group-hover:rotate-180" /></button>
               <div className="invisible absolute left-0 top-full z-50 w-64 translate-y-2 rounded-2xl border border-black/[0.06] bg-white p-2 opacity-0 shadow-[0_24px_70px_rgba(45,27,17,0.16)] transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">

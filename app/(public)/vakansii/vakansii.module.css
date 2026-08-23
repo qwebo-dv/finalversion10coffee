@@ -1,0 +1,121 @@
+.hero {
+  display: flex;
+  min-height: 52vh;
+  align-items: flex-end;
+  background:
+    radial-gradient(circle at 78% 20%, rgb(230 97 13 / 26%), transparent 32%),
+    linear-gradient(135deg, #1d1d1b 0%, #302117 100%);
+  padding: 9rem 2.5rem 4.5rem;
+}
+
+.heroInner {
+  width: min(100%, 1200px);
+  margin: 0 auto;
+}
+
+.eyebrow,
+.sectionLabel {
+  margin: 0 0 1.25rem;
+  color: #e6610d;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(4.5rem, 10vw, 9rem);
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  line-height: 0.9;
+}
+
+.lead {
+  max-width: 47rem;
+  margin: 2rem 0 0;
+  color: rgb(255 255 255 / 75%);
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  line-height: 1.5;
+}
+
+.content {
+  background: #f5f2ee;
+  padding: 7rem 2.5rem;
+}
+
+.layout {
+  display: grid;
+  width: min(100%, 1200px);
+  margin: 0 auto;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(3rem, 7vw, 7rem);
+  align-items: start;
+}
+
+.copy {
+  position: sticky;
+  top: 7rem;
+}
+
+.copy h2 {
+  max-width: 34rem;
+  margin: 0 0 1.5rem;
+  color: #1d1d1b;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.copy > p:not(.sectionLabel) {
+  margin: 0;
+  color: #655d56;
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+.note {
+  margin-top: 2rem;
+  border-top: 1px solid #d9d2cb;
+  padding-top: 1.25rem;
+}
+
+.note span {
+  color: #1d1d1b;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.note p {
+  margin: 0.5rem 0 0;
+  color: #827970;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.formCard {
+  min-width: 0;
+  border-radius: 1.5rem;
+  background: #fff;
+  box-shadow: 0 1.2rem 4rem rgb(52 37 26 / 8%);
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+
+@media (max-width: 900px) {
+  .hero { min-height: 42vh; padding: 8rem 1.5rem 3.5rem; }
+  .content { padding: 4.5rem 1.5rem; }
+  .layout { grid-template-columns: 1fr; gap: 2.5rem; }
+  .copy { position: static; }
+}
+
+@media (max-width: 600px) {
+  .hero { min-height: 36vh; padding: 7rem 1rem 2.75rem; }
+  .hero h1 { font-size: clamp(3.5rem, 18vw, 5rem); }
+  .lead { margin-top: 1.25rem; font-size: 1rem; }
+  .content { padding: 3.25rem 1rem; }
+  .formCard { border-radius: 1.1rem; padding: 1.25rem; }
+}

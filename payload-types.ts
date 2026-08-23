@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     orders: Order;
     'price-list-requests': PriceListRequest;
+    'job-applications': JobApplication;
     faqs: Faq;
     'promo-codes': PromoCode;
     clients: Client;
@@ -84,6 +85,7 @@ export interface Config {
     'map-locations': MapLocation;
     blog_posts: BlogPost;
     'coffee-brewing-guides': CoffeeBrewingGuide;
+    'job-application-files': JobApplicationFile;
     media: Media;
     admins: Admin;
     'payload-kv': PayloadKv;
@@ -99,6 +101,7 @@ export interface Config {
   collectionsSelect: {
     orders: OrdersSelect<false> | OrdersSelect<true>;
     'price-list-requests': PriceListRequestsSelect<false> | PriceListRequestsSelect<true>;
+    'job-applications': JobApplicationsSelect<false> | JobApplicationsSelect<true>;
     faqs: FaqsSelect<false> | FaqsSelect<true>;
     'promo-codes': PromoCodesSelect<false> | PromoCodesSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
@@ -114,6 +117,7 @@ export interface Config {
     'map-locations': MapLocationsSelect<false> | MapLocationsSelect<true>;
     blog_posts: BlogPostsSelect<false> | BlogPostsSelect<true>;
     'coffee-brewing-guides': CoffeeBrewingGuidesSelect<false> | CoffeeBrewingGuidesSelect<true>;
+    'job-application-files': JobApplicationFilesSelect<false> | JobApplicationFilesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     admins: AdminsSelect<false> | AdminsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -717,6 +721,47 @@ export interface PriceListRequest {
   createdAt: string;
 }
 /**
+ * Отклики и кадровый резерв 10coffee
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "job-applications".
+ */
+export interface JobApplication {
+  id: number;
+  name: string;
+  desiredPosition: string;
+  email: string;
+  phone: string;
+  resume: number | JobApplicationFile;
+  status: 'new' | 'contacted' | 'reserve' | 'rejected';
+  notes?: string | null;
+  consent: boolean;
+  source?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Закрытое хранилище резюме. Файлы доступны только сотрудникам.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "job-application-files".
+ */
+export interface JobApplicationFile {
+  id: number;
+  title: string;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
  * Вопросы с сайта и ответы для публичного раздела FAQ
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1047,6 +1092,10 @@ export interface PayloadLockedDocument {
         value: number | PriceListRequest;
       } | null)
     | ({
+        relationTo: 'job-applications';
+        value: number | JobApplication;
+      } | null)
+    | ({
         relationTo: 'faqs';
         value: number | Faq;
       } | null)
@@ -1105,6 +1154,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'coffee-brewing-guides';
         value: number | CoffeeBrewingGuide;
+      } | null)
+    | ({
+        relationTo: 'job-application-files';
+        value: number | JobApplicationFile;
       } | null)
     | ({
         relationTo: 'media';
@@ -1243,6 +1296,23 @@ export interface PriceListRequestsSelect<T extends boolean = true> {
   phone?: T;
   company?: T;
   emailSent?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "job-applications_select".
+ */
+export interface JobApplicationsSelect<T extends boolean = true> {
+  name?: T;
+  desiredPosition?: T;
+  email?: T;
+  phone?: T;
+  resume?: T;
+  status?: T;
+  notes?: T;
+  consent?: T;
+  source?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1574,6 +1644,24 @@ export interface CoffeeBrewingGuidesSelect<T extends boolean = true> {
   isVisible?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "job-application-files_select".
+ */
+export interface JobApplicationFilesSelect<T extends boolean = true> {
+  title?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

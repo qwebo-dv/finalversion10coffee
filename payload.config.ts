@@ -30,6 +30,8 @@ import { SiteSettings } from "./payload/globals/SiteSettings"
 import { PaymentSettings } from "./payload/globals/PaymentSettings"
 import { LoyaltySettings } from "./payload/globals/LoyaltySettings"
 import { LoyaltyOperations } from "./payload/collections/LoyaltyOperations"
+import { JobApplications } from "./payload/collections/JobApplications"
+import { JobApplicationFiles } from "./payload/collections/JobApplicationFiles"
 import { businessDashboardHandler } from "./payload/endpoints/businessDashboard"
 import { adminUnreadCountsHandler } from "./payload/endpoints/adminUnreadCounts"
 
@@ -83,6 +85,7 @@ export default buildConfig({
   collections: [
     Orders,
     PriceListRequests,
+    JobApplications,
     Faqs,
     PromoCodes,
     Clients,
@@ -98,6 +101,7 @@ export default buildConfig({
     MapLocations,
     BlogPosts,
     CoffeeBrewingGuides,
+    JobApplicationFiles,
     Media,
     Admins,
   ],
@@ -154,6 +158,7 @@ export default buildConfig({
     s3Storage({
       collections: {
         media: { prefix: "media/" },
+        "job-application-files": { prefix: "job-applications/" },
       },
       bucket: process.env.S3_BUCKET || "placeholder",
       config: {

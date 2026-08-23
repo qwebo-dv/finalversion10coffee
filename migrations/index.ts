@@ -25,6 +25,8 @@ import * as migration_20260821_130000_loyalty_notification_deliveries from './20
 import * as migration_20260821_140000_yandex_delivery from './20260821_140000_yandex_delivery.ts';
 import * as migration_20260821_150000_product_shipping_dimensions from './20260821_150000_product_shipping_dimensions.ts';
 import * as migration_20260823_160000_social_messaging_ids from './20260823_160000_social_messaging_ids.ts';
+import * as migration_20260823_220000_job_applications from './20260823_220000_job_applications.ts';
+import * as migration_20260823_230000_repair_order_payment_statuses from './20260823_230000_repair_order_payment_statuses.ts';
 
 export const migrations = [
   {
@@ -161,5 +163,15 @@ export const migrations = [
     up: migration_20260823_160000_social_messaging_ids.up,
     down: migration_20260823_160000_social_messaging_ids.down,
     name: '20260823_160000_social_messaging_ids'
+  },
+  {
+    up: migration_20260823_220000_job_applications.up,
+    down: migration_20260823_220000_job_applications.down,
+    name: '20260823_220000_job_applications'
+  },
+  {
+    up: migration_20260823_230000_repair_order_payment_statuses.up,
+    down: migration_20260823_230000_repair_order_payment_statuses.down,
+    name: '20260823_230000_repair_order_payment_statuses'
   },
 ];

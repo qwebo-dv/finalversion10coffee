@@ -137,6 +137,24 @@ export async function getNewsById(id: string): Promise<News | null> {
   return getCachedNewsById(id)
 }
 
+export async function getNewsBySlug(slug: string): Promise<News | null> {
+  let normalizedSlug = slug.trim().toLowerCase()
+  try { normalizedSlug = decodeURIComponent(normalizedSlug) } catch { return null }
+  if (!normalizedSlug) return null
+
+  const supabase = await createClient()
+  const { data: item } = await supabase
+    .from("news")
+    .select("*")
+    .eq("slug", normalizedSlug)
+    .eq("is_published", true)
+    .maybeSingle()
+
+  if (!item) return null
+  const [resolved] = await resolveMediaUrls([item as NewsItemRecord])
+  return resolved as unknown as News
+}
+
 async function getCachedNewsById(id: string): Promise<News | null> {
   const supabase = await createClient()
 

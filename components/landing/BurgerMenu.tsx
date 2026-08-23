@@ -24,6 +24,7 @@ const NAV_LINKS = [
   { label: "Обучение", href: "/obuchenie" },
   { label: "Сервис", href: "/b2b-servis" },
   { label: "Контакты", href: "/kontakty" },
+  { label: "Вакансии", href: "/vakansii" },
   { label: "Где попробовать", href: "#map", isMap: true },
   { label: "Вход для опта", href: "/?auth=login", isAuth: true },
 ];

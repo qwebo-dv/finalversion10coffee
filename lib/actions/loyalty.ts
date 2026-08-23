@@ -14,6 +14,7 @@ export type MyLoyaltyData = {
   reserved: number
   available: number
   expiresAt: string | null
+  expiryDays: number
   maxRedemptionPercent: number
   tiers: { minSubtotal: number; percent: number }[]
   operations: {
@@ -26,6 +27,24 @@ export type MyLoyaltyData = {
     note: string | null
     orderNumber: string | null
   }[]
+}
+
+export type PublicLoyaltyData = {
+  enabled: boolean
+  expiryDays: number
+  maxRedemptionPercent: number
+  tiers: { minSubtotal: number; percent: number }[]
+}
+
+export async function getPublicLoyalty(): Promise<PublicLoyaltyData> {
+  const payload = await getPayload({ config: configPromise })
+  const settings = await getLoyaltySettings(payload)
+  return {
+    enabled: settings.enabled,
+    expiryDays: settings.expiryDays,
+    maxRedemptionPercent: settings.maxRedemptionPercent,
+    tiers: settings.tiers,
+  }
 }
 
 function orderNumber(value: Relation): string | null {
@@ -45,6 +64,7 @@ export async function getMyLoyalty(): Promise<MyLoyaltyData> {
     reserved: 0,
     available: 0,
     expiresAt: null,
+    expiryDays: settings.expiryDays,
     maxRedemptionPercent: settings.maxRedemptionPercent,
     tiers: settings.tiers,
     operations: [],
@@ -89,6 +109,7 @@ export async function getMyLoyalty(): Promise<MyLoyaltyData> {
   return {
     authenticated: true,
     ...snapshot,
+    expiryDays: settings.expiryDays,
     tiers: settings.tiers,
     operations: (operationDocs as Array<{
       id: string | number
