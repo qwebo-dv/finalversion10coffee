@@ -1,0 +1,61 @@
+.panel {
+  padding: 1.5rem;
+  border: 1px solid #f5f5f5;
+  border-radius: 24px;
+  background: #fff;
+}
+
+.title {
+  margin: 0;
+  color: #171717;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.body {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+  color: #525252;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+.itemTitle {
+  margin: 0;
+  color: #171717;
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1.5rem;
+}
+
+.paragraph {
+  margin: 0.25rem 0 0;
+  color: #525252;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+.tiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.tier {
+  padding: 0.375rem 0.75rem;
+  border-radius: 999px;
+  background: #f4edfa;
+  color: #5b328a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .panel {
+    padding: 1.5rem;
+  }
+}
