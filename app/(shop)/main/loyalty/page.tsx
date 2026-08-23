@@ -38,7 +38,7 @@ export default function LoyaltyPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-[28px] font-black tracking-tight text-neutral-900">Мои баллы</h1>
+        <h1 className="text-[28px] font-black tracking-tight text-neutral-900">Мои бонусы</h1>
         <p className="mt-1 text-[12px] text-neutral-400">Баллы равны рублям и начисляются после доставки заказа.</p>
       </div>
 

@@ -64,13 +64,17 @@ function getPositiveEnvironmentNumber(name: string, fallback: number) {
 function getYandexDeliveryConfig(): YandexDeliveryConfig {
   const environment = process.env.YANDEX_DELIVERY_ENV === "production" ? "production" : "test"
   const isTest = environment === "test"
-  const token = process.env.YANDEX_DELIVERY_API_TOKEN?.trim() || ""
-  const sourceStationId = process.env.YANDEX_DELIVERY_SOURCE_STATION_ID || (isTest ? TEST_SOURCE_STATION_ID : "")
+  const token = isTest
+    ? process.env.YANDEX_DELIVERY_TEST_API_TOKEN?.trim() || ""
+    : process.env.YANDEX_DELIVERY_API_TOKEN?.trim() || ""
+  const sourceStationId = isTest
+    ? process.env.YANDEX_DELIVERY_TEST_SOURCE_STATION_ID?.trim() || TEST_SOURCE_STATION_ID
+    : process.env.YANDEX_DELIVERY_SOURCE_STATION_ID?.trim() || ""
 
   if (!token || !sourceStationId) {
     throw new Error(
       isTest
-        ? "Для тестовой Яндекс Доставки укажите YANDEX_DELIVERY_API_TOKEN и станцию отправления"
+        ? "Для тестовой Яндекс Доставки укажите YANDEX_DELIVERY_TEST_API_TOKEN"
         : "Для боевой Яндекс Доставки укажите токен и станцию отправления",
     )
   }
@@ -134,6 +138,13 @@ async function yandexRequest<T>(path: string, body: unknown): Promise<T> {
   const payload = await response.json().catch(() => null) as { message?: string; code?: string } | T | null
   if (!response.ok) {
     const error = payload as { message?: string; code?: string } | null
+    if (response.status === 401) {
+      throw new Error(
+        config.environment === "test"
+          ? "Яндекс Доставка отклонила тестовый токен. Проверьте, что тестовый API использует официальный тестовый токен, а не токен боевого кабинета."
+          : "Яндекс Доставка отклонила боевой токен. Проверьте YANDEX_DELIVERY_API_TOKEN в Coolify.",
+      )
+    }
     throw new Error(error?.message || `Яндекс Доставка вернула HTTP ${response.status}`)
   }
   return payload as T
