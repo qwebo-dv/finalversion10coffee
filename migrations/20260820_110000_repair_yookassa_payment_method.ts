@@ -7,7 +7,42 @@ import type { MigrateUpArgs } from '@payloadcms/db-postgres'
  */
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
-    ALTER TYPE "enum_orders_payment_method" ADD VALUE IF NOT EXISTS 'yookassa';
+    DO $$
+    DECLARE
+      enum_schema text;
+      enum_name text;
+    BEGIN
+      SELECT namespace.nspname, value_type.typname
+        INTO enum_schema, enum_name
+        FROM pg_attribute column_definition
+        JOIN pg_class table_definition
+          ON table_definition.oid = column_definition.attrelid
+        JOIN pg_namespace table_namespace
+          ON table_namespace.oid = table_definition.relnamespace
+        JOIN pg_type value_type
+          ON value_type.oid = column_definition.atttypid
+        JOIN pg_namespace namespace
+          ON namespace.oid = value_type.typnamespace
+       WHERE table_namespace.nspname = 'public'
+         AND table_definition.relname = 'orders'
+         AND column_definition.attname = 'payment_method'
+         AND column_definition.attnum > 0
+         AND NOT column_definition.attisdropped
+         AND value_type.typtype = 'e'
+       LIMIT 1;
+
+      -- Older production databases store payment_method as varchar, where the
+      -- YooKassa value needs no schema change. Fresher Payload schemas use an
+      -- enum whose generated name is not guaranteed to be identical.
+      IF enum_name IS NOT NULL THEN
+        EXECUTE format(
+          'ALTER TYPE %I.%I ADD VALUE IF NOT EXISTS %L',
+          enum_schema,
+          enum_name,
+          'yookassa'
+        );
+      END IF;
+    END $$;
   `)
 }
 
