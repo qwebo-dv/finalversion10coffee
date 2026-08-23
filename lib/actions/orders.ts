@@ -1,6 +1,6 @@
 "use server"
 
-import { getPayload, type Payload, type Where } from "payload"
+import { getPayload, type Payload, type RequiredDataFromCollectionSlug, type Where } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -540,7 +540,7 @@ export async function createOrder(params: {
   }, 0)
 
   // Recalculate the promo on the server. Never trust the amount sent by the browser.
-  let payloadPromoId: string | number | undefined
+  let payloadPromoId: number | undefined
   let promoDiscountAmount = 0
   let promoDiscountLines: { cartItemId: string; discountPercent: number; discountAmount: number }[] = []
 
@@ -552,7 +552,7 @@ export async function createOrder(params: {
       limit: 1,
       depth: 0,
     })
-    const promo = docs[0] as Record<string, unknown> | undefined
+    const promo = docs[0]
     if (!promo) return { error: "Промокод не найден" }
     if (!promo.isActive) return { error: "Промокод неактивен" }
     if (promo.startsAt && new Date(promo.startsAt as string) > new Date()) return { error: "Промокод ещё не активен" }
@@ -596,7 +596,7 @@ export async function createOrder(params: {
       ? Math.min(discountValue, eligibleSubtotal)
       : Math.round((eligibleSubtotal * discountValue) / 100)
     promoDiscountLines = buildProportionalDiscountLines(eligibleCartItems, promoDiscountAmount)
-    payloadPromoId = promo.id as string | number
+    payloadPromoId = promo.id
   }
 
   // Apply the greater of the personal discount and the validated promo.
@@ -730,12 +730,14 @@ export async function createOrder(params: {
 
   // Create order via Payload API
   const payload = await getPayloadClient()
-  const orderData: Record<string, unknown> = {
+  const orderData: RequiredDataFromCollectionSlug<"orders"> = {
     client: clientDocId,
     salesChannel: "wholesale",
     customerType: "business",
     checkoutMode: "account",
     paymentMethod: "invoice",
+    paymentStatus: "pending",
+    status: "new",
     customerFullName: clientDoc.fullName || "",
     customerEmail: clientDoc.email || user.email || "",
     customerPhone: clientDoc.phone || "",

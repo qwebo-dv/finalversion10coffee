@@ -16,6 +16,7 @@ interface AddressInputProps {
   placeholder?: string
   className?: string
   city?: string
+  region?: string
   name?: string
   required?: boolean
   autoComplete?: string
@@ -27,6 +28,7 @@ export default function AddressInput({
   placeholder,
   className,
   city,
+  region,
   name,
   required,
   autoComplete = "street-address",
@@ -54,7 +56,7 @@ export default function AddressInput({
       const res = await fetch("/api/dadata/address", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: normalized, city }),
+        body: JSON.stringify({ query: normalized, city, region }),
       })
       if (!res.ok) throw new Error("Address suggestions request failed")
       const data = await res.json() as { suggestions?: Suggestion[] }
@@ -71,7 +73,7 @@ export default function AddressInput({
     } finally {
       if (requestId === requestRef.current) setLoading(false)
     }
-  }, [city])
+  }, [city, region])
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value

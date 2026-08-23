@@ -79,7 +79,7 @@ async function incrementCartItem(params: {
 async function getCurrentUserId(sessionScope?: CustomerSessionScope): Promise<string | null> {
   const supabase = await createClient(sessionScope)
   const { data: { user }, error } = await supabase.auth.getUser()
-  if (error) throw new Error(error.message)
+  if (error) throw error
   return user?.id || null
 }
 
@@ -117,6 +117,10 @@ interface PayloadVariant {
   moyskladType?: "product" | "variant" | "service" | null
   price?: number
   weightGrams?: number | null
+  shippingLengthCm?: number | null
+  shippingWidthCm?: number | null
+  shippingHeightCm?: number | null
+  shippingWeightGrams?: number | null
   isAvailable?: boolean
   grindOptions?: string[]
 }
@@ -142,6 +146,7 @@ interface PayloadProductDoc {
   moyskladId?: string | null
   sortOrder?: number
   isVisible?: boolean
+  isPopular?: boolean | null
   stickers?: (PayloadTag | string | number | null)[]
   coffeeDetails?: {
     roaster?: string
@@ -151,6 +156,9 @@ interface PayloadProductDoc {
     processingMethod?: string
     tasteDescription?: string
     acidity?: number
+    bitterness?: number
+    sweetness?: number
+    body?: number
     brewGroup?: "espresso" | "filter" | "drip"
     growingHeight?: string
     qGraderRating?: number
@@ -281,6 +289,10 @@ function transformVariantFromPayload(v: PayloadVariant, productId: string): Prod
     moysklad_type: v.moyskladType || null,
     price: v.price || 0,
     weight_grams: v.weightGrams ?? null,
+    shipping_length_cm: v.shippingLengthCm ?? null,
+    shipping_width_cm: v.shippingWidthCm ?? null,
+    shipping_height_cm: v.shippingHeightCm ?? null,
+    shipping_weight_grams: v.shippingWeightGrams ?? null,
     is_available: v.isAvailable ?? true,
     sort_order: 0,
     grind_options: (v.grindOptions || []).map((g: string) => GRIND_MAP[g] || g),
@@ -310,6 +322,7 @@ function transformProductFromPayload(doc: PayloadProductDoc): Product {
     description_images: [],
     sort_order: doc.sortOrder || 0,
     is_visible: doc.isVisible ?? true,
+    is_popular: doc.isPopular ?? false,
     stickers: (doc.stickers || []).map(transformTag).filter(isDefined),
     roaster: coffee.roaster || null,
     roast_level: coffee.roastLevel || null,
@@ -318,6 +331,9 @@ function transformProductFromPayload(doc: PayloadProductDoc): Product {
     processing_method: coffee.processingMethod || null,
     taste_description: coffee.tasteDescription || null,
     acidity: typeof coffee.acidity === "number" ? coffee.acidity : null,
+    bitterness: typeof coffee.bitterness === "number" ? coffee.bitterness : null,
+    sweetness: typeof coffee.sweetness === "number" ? coffee.sweetness : null,
+    body: typeof coffee.body === "number" ? coffee.body : null,
     coffee_group: coffee.brewGroup || null,
     growing_height: coffee.growingHeight || null,
     q_grader_rating: coffee.qGraderRating || null,

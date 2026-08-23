@@ -5,16 +5,12 @@ import configPromise from "@payload-config"
 import { unstable_cache, revalidateTag } from "next/cache"
 import { resolveLexicalMedia } from "@/lib/lexical-media"
 import { getMediaUrl, type PayloadMediaRef } from "@/lib/media"
+import type { BlogPost } from "@/payload-types"
 
-interface BlogPostRecord {
-  id?: number
-  coverImage?: number | { id?: number } | null
-  content?: unknown
-  [key: string]: unknown
-}
+type BlogPostRecord = Omit<BlogPost, "coverImage"> & { coverImage?: string | null }
 
-async function resolveBlogCoverImages<T extends BlogPostRecord>(items: T[], payload: Awaited<ReturnType<typeof getPayload>>): Promise<T[]> {
-  if (!items.length) return items
+async function resolveBlogCoverImages(items: BlogPost[], payload: Awaited<ReturnType<typeof getPayload>>): Promise<BlogPostRecord[]> {
+  if (!items.length) return []
 
   const mediaIds = items
     .map((item) => {
@@ -25,7 +21,7 @@ async function resolveBlogCoverImages<T extends BlogPostRecord>(items: T[], payl
     })
     .filter((id): id is number => typeof id === "number")
 
-  if (mediaIds.length === 0) return items
+  if (mediaIds.length === 0) return items.map((item) => ({ ...item, coverImage: null }))
 
   const { docs } = await payload.find({
     collection: "media",
@@ -35,8 +31,8 @@ async function resolveBlogCoverImages<T extends BlogPostRecord>(items: T[], payl
   })
 
   const urlById = new Map<number, string>()
-  for (const media of docs as (PayloadMediaRef & { id?: number })[]) {
-    const url = getMediaUrl(media as PayloadMediaRef, ["card", "full", "thumbnail"])
+  for (const media of docs) {
+    const url = getMediaUrl(media, ["card", "full", "thumbnail"])
     if (url && typeof media.id === "number") urlById.set(media.id, url)
   }
 
@@ -48,7 +44,7 @@ async function resolveBlogCoverImages<T extends BlogPostRecord>(items: T[], payl
     } else if (v && typeof v === "object" && typeof (v as { id?: unknown }).id === "number") {
       resolvedUrl = urlById.get((v as { id: number }).id) || null
     }
-    return { ...item, coverImage: resolvedUrl } as T
+    return { ...item, coverImage: resolvedUrl }
   })
 }
 
@@ -146,6 +142,6 @@ export async function getBlogPostById(id: string): Promise<BlogPostRecord | null
 
 export async function revalidateBlogCache() {
   try {
-    revalidateTag("blog-posts-paginated")
+    revalidateTag("blog-posts-paginated", "max")
   } catch {}
 }

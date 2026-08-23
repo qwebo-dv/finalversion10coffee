@@ -18,46 +18,9 @@ import type {
   MoyskladVariant,
 } from "./types"
 import type { ProductDetailsSchema } from "@/types"
+import type { Category as PayloadCategoryDoc, Product as PayloadProductDoc, ProductType as PayloadProductTypeDoc } from "@/payload-types"
 
-type Id = string | number
-
-interface PayloadProductTypeDoc {
-  id: Id
-  name?: string
-  slug?: string
-  moyskladId?: string | null
-  isVisible?: boolean | null
-  sortOrder?: number | null
-}
-
-interface PayloadCategoryDoc {
-  id: Id
-  name?: string
-  slug?: string
-  moyskladId?: string | null
-  isVisible?: boolean | null
-  sortOrder?: number | null
-  parent?: Id | PayloadCategoryDoc | null
-}
-
-interface PayloadProductDoc {
-  id: Id
-  name?: string
-  slug?: string
-  moyskladId?: string | null
-  detailsSchema?: ProductDetailsSchema
-  isVisible?: boolean | null
-  sortOrder?: number | null
-}
-
-interface PayloadClientDoc {
-  id: Id
-  categoryDiscounts?: {
-    id?: Id
-    category?: Id | PayloadCategoryDoc | null
-    discountPercent?: number | null
-  }[] | null
-}
+type Id = number
 
 interface ImportStats {
   productTypesCreated: number
@@ -159,7 +122,7 @@ function inferWeightGrams(name: string) {
   return null
 }
 
-function inferGrindOptions(name: string) {
+function inferGrindOptions(name: string): ("beans" | "ground")[] {
   const lower = name.toLowerCase().replace(/ё/g, "е")
   if (lower.includes("молот")) return ["ground"]
   if (lower.includes("зерн")) return ["beans"]
@@ -201,7 +164,7 @@ async function findByMoyskladId<T extends { id: Id }>(
     limit: 1,
     depth: 0,
   })
-  return (result.docs[0] as T | undefined) || null
+  return (result.docs[0] as unknown as T | undefined) || null
 }
 
 async function findBySlug<T extends { id: Id }>(
@@ -215,7 +178,7 @@ async function findBySlug<T extends { id: Id }>(
     limit: 1,
     depth: 0,
   })
-  return (result.docs[0] as T | undefined) || null
+  return (result.docs[0] as unknown as T | undefined) || null
 }
 
 async function hideExcludedCatalogEntries(params: {
@@ -436,7 +399,7 @@ async function cleanupClientCategoryDiscounts(
     depth: 0,
   })
 
-  for (const client of result.docs as PayloadClientDoc[]) {
+  for (const client of result.docs) {
     const discounts = client.categoryDiscounts || []
     if (discounts.length === 0) continue
 
@@ -507,12 +470,13 @@ function variantPayloadFromMoysklad(
   const name = item.meta?.type === "variant"
     ? cleanVariantName(productName, item.name || "Вариант")
     : "1 шт"
+  const moyskladType: "variant" | "product" = item.meta?.type === "variant" ? "variant" : "product"
 
   return {
     name,
     sku: item.article || item.code || null,
     moyskladId,
-    moyskladType: item.meta?.type === "variant" ? "variant" : "product",
+    moyskladType,
     price: getPrimarySalePrice(item),
     weightGrams: inferWeightGrams(item.name || name),
     isAvailable: options.isAvailableOverride ?? (getAssortmentStock(item) > 0),

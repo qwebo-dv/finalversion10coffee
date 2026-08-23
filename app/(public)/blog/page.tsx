@@ -57,11 +57,11 @@ export default async function BlogPage({
         ) : (
           <>
             <div className={styles.grid}>
-              {posts.map((post: Record<string, unknown>) => {
+              {posts.map((post) => {
                 const imageUrl = getImageUrl(post.coverImage)
                 return (
                   <Link
-                    key={post.id as string}
+                    key={post.id}
                     href={`/blog/${post.slug}`}
                     className={styles.card}
                   >
@@ -69,7 +69,7 @@ export default async function BlogPage({
                       {imageUrl ? (
                         <Image
                           src={imageUrl}
-                          alt={post.title as string}
+                          alt={post.title}
                           fill
                           sizes="(min-width: 1200px) 30vw, (min-width: 700px) 50vw, 100vw"
                           className={styles.cardImg}
@@ -83,7 +83,7 @@ export default async function BlogPage({
                     <div className={styles.cardBody}>
                       {post.publishedAt ? (
                         <time className={styles.cardDate}>
-                          {formatDate(post.publishedAt as string)}
+                          {formatDate(post.publishedAt)}
                         </time>
                       ) : null}
                       <h3 className={styles.cardTitle}>{String(post.title)}</h3>

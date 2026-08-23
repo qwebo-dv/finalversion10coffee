@@ -67,6 +67,10 @@ interface PayloadVariant {
   sku?: string | null
   price?: number
   weightGrams?: number | null
+  shippingLengthCm?: number | null
+  shippingWidthCm?: number | null
+  shippingHeightCm?: number | null
+  shippingWeightGrams?: number | null
   isAvailable?: boolean
   grindOptions?: string[]
 }
@@ -97,6 +101,7 @@ interface PayloadProductDoc {
   description?: SerializedEditorState | string | null
   sortOrder?: number
   isVisible?: boolean
+  isPopular?: boolean | null
   stickers?: (PayloadTag | string | number | null)[]
   coffeeDetails?: {
     roaster?: string
@@ -257,6 +262,10 @@ function transformVariant(v: PayloadVariant, productId: string): ProductVariant 
     sku: v.sku || null,
     price: v.price || 0,
     weight_grams: v.weightGrams ?? null,
+    shipping_length_cm: v.shippingLengthCm ?? null,
+    shipping_width_cm: v.shippingWidthCm ?? null,
+    shipping_height_cm: v.shippingHeightCm ?? null,
+    shipping_weight_grams: v.shippingWeightGrams ?? null,
     is_available: v.isAvailable ?? true,
     sort_order: 0,
     grind_options: (v.grindOptions || []).map((g: string) => GRIND_MAP[g] || g),

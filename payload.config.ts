@@ -28,6 +28,8 @@ import { PriceListRequests } from "./payload/collections/PriceListRequests"
 import { Faqs } from "./payload/collections/Faqs"
 import { SiteSettings } from "./payload/globals/SiteSettings"
 import { PaymentSettings } from "./payload/globals/PaymentSettings"
+import { LoyaltySettings } from "./payload/globals/LoyaltySettings"
+import { LoyaltyOperations } from "./payload/collections/LoyaltyOperations"
 import { businessDashboardHandler } from "./payload/endpoints/businessDashboard"
 import { adminUnreadCountsHandler } from "./payload/endpoints/adminUnreadCounts"
 
@@ -84,6 +86,7 @@ export default buildConfig({
     Faqs,
     PromoCodes,
     Clients,
+    LoyaltyOperations,
     CartItems,
     Favorites,
     Tags,
@@ -99,7 +102,7 @@ export default buildConfig({
     Admins,
   ],
 
-  globals: [SiteSettings, PaymentSettings],
+  globals: [SiteSettings, PaymentSettings, LoyaltySettings],
 
   editor: lexicalEditor({
     admin: {

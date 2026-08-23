@@ -25,7 +25,12 @@ export async function GET(request: NextRequest) {
   }
 
   const payload = await getPayload({ config: configPromise })
-  const result = await retryFailedMoyskladOrders(payload)
+  const result = await retryFailedMoyskladOrders(payload, {
+    // Recover paid retail orders created while the integration was disabled or
+    // before the queue status was set explicitly. Pending/error orders remain
+    // part of the normal recurring sweep.
+    includePaidDisabledRetail: true,
+  })
 
   return NextResponse.json({ ok: result.failed === 0, ...result })
 }

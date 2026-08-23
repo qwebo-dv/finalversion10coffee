@@ -6,6 +6,7 @@ export type SocialProviderName = "yandex" | "vk" | "telegram"
 export interface SocialProfile {
   provider: SocialProviderName
   providerId: string
+  messagingId?: string
   email: string
   name: string
   avatarUrl: string
@@ -51,7 +52,7 @@ const PROVIDERS: Record<SocialProviderName, ProviderConfig> = {
     clientIdEnv: "TELEGRAM_CLIENT_ID",
     clientSecretEnv: "TELEGRAM_CLIENT_SECRET",
     requiresPkce: true,
-    scope: "openid profile phone",
+    scope: "openid profile phone telegram:bot_access",
     usesBasicTokenAuth: true,
   },
 }
@@ -336,6 +337,9 @@ async function fetchTelegramProfile(idToken: string): Promise<SocialProfile> {
   })
   const providerId = typeof payload.sub === "string" ? payload.sub : ""
   if (!providerId) throw new Error("OAuth Telegram: идентификатор пользователя не получен")
+  const messagingId = typeof payload.id === "number" || typeof payload.id === "string"
+    ? String(payload.id)
+    : ""
 
   const name = typeof payload.name === "string"
     ? payload.name
@@ -349,6 +353,7 @@ async function fetchTelegramProfile(idToken: string): Promise<SocialProfile> {
   return {
     provider: "telegram",
     providerId,
+    messagingId: messagingId || undefined,
     // Telegram OIDC does not return email. The value is an internal account
     // identifier, not a customer contact address, and is never prefilled at checkout.
     email: `telegram-${providerId}@auth.10coffee.local`,

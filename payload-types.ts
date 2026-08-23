@@ -63,20 +63,60 @@ export type SupportedTimezones =
 
 export interface Config {
   auth: {
-    users: UserAuthOperations;
+    admins: AdminAuthOperations;
   };
   blocks: {};
   collections: {
+    orders: Order;
+    'price-list-requests': PriceListRequest;
+    faqs: Faq;
+    'promo-codes': PromoCode;
+    clients: Client;
+    'loyalty-operations': LoyaltyOperation;
+    'cart-items': CartItem;
+    favorites: Favorite;
+    tags: Tag;
+    'product-types': ProductType;
+    products: Product;
+    'product-reviews': ProductReview;
+    categories: Category;
+    news: News;
+    'map-locations': MapLocation;
+    blog_posts: BlogPost;
+    'coffee-brewing-guides': CoffeeBrewingGuide;
+    media: Media;
+    admins: Admin;
     'payload-kv': PayloadKv;
-    users: User;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {};
+  collectionsJoins: {
+    clients: {
+      orders: 'orders';
+    };
+  };
   collectionsSelect: {
+    orders: OrdersSelect<false> | OrdersSelect<true>;
+    'price-list-requests': PriceListRequestsSelect<false> | PriceListRequestsSelect<true>;
+    faqs: FaqsSelect<false> | FaqsSelect<true>;
+    'promo-codes': PromoCodesSelect<false> | PromoCodesSelect<true>;
+    clients: ClientsSelect<false> | ClientsSelect<true>;
+    'loyalty-operations': LoyaltyOperationsSelect<false> | LoyaltyOperationsSelect<true>;
+    'cart-items': CartItemsSelect<false> | CartItemsSelect<true>;
+    favorites: FavoritesSelect<false> | FavoritesSelect<true>;
+    tags: TagsSelect<false> | TagsSelect<true>;
+    'product-types': ProductTypesSelect<false> | ProductTypesSelect<true>;
+    products: ProductsSelect<false> | ProductsSelect<true>;
+    'product-reviews': ProductReviewsSelect<false> | ProductReviewsSelect<true>;
+    categories: CategoriesSelect<false> | CategoriesSelect<true>;
+    news: NewsSelect<false> | NewsSelect<true>;
+    'map-locations': MapLocationsSelect<false> | MapLocationsSelect<true>;
+    blog_posts: BlogPostsSelect<false> | BlogPostsSelect<true>;
+    'coffee-brewing-guides': CoffeeBrewingGuidesSelect<false> | CoffeeBrewingGuidesSelect<true>;
+    media: MediaSelect<false> | MediaSelect<true>;
+    admins: AdminsSelect<false> | AdminsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
-    users: UsersSelect<false> | UsersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -84,20 +124,28 @@ export interface Config {
   db: {
     defaultIDType: number;
   };
-  fallbackLocale: null;
-  globals: {};
-  globalsSelect: {};
-  locale: null;
+  fallbackLocale: ('false' | 'none' | 'null') | false | null | 'ru' | 'ru'[];
+  globals: {
+    'site-settings': SiteSetting;
+    'payment-settings': PaymentSetting;
+    'loyalty-settings': LoyaltySetting;
+  };
+  globalsSelect: {
+    'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
+    'payment-settings': PaymentSettingsSelect<false> | PaymentSettingsSelect<true>;
+    'loyalty-settings': LoyaltySettingsSelect<false> | LoyaltySettingsSelect<true>;
+  };
+  locale: 'ru';
   widgets: {
     collections: CollectionsWidget;
   };
-  user: User;
+  user: Admin;
   jobs: {
     tasks: unknown;
     workflows: unknown;
   };
 }
-export interface UserAuthOperations {
+export interface AdminAuthOperations {
   forgotPassword: {
     email: string;
     password: string;
@@ -114,6 +162,857 @@ export interface UserAuthOperations {
     email: string;
     password: string;
   };
+}
+/**
+ * Заказы клиентов
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "orders".
+ */
+export interface Order {
+  id: number;
+  /**
+   * Определяет рабочее пространство, аналитику и политику синхронизации с МойСклад.
+   */
+  salesChannel: 'wholesale' | 'retail';
+  customerType: 'individual' | 'business';
+  checkoutMode: 'account' | 'guest';
+  paymentMethod: 'invoice' | 'yookassa' | 'sber_online';
+  paymentStatus: 'pending' | 'invoiced' | 'partial' | 'paid' | 'refunded' | 'cancelled' | 'failed';
+  paymentExternalId?: string | null;
+  paymentUrl?: string | null;
+  paymentUpdatedAt?: string | null;
+  /**
+   * Автоматически суммируется из позиций заказа (можно скорректировать вручную).
+   */
+  subtotal: number;
+  /**
+   * Процент скидки от суммы товаров
+   */
+  discountPercent?: number | null;
+  /**
+   * Рассчитывается автоматически
+   */
+  discountAmount?: number | null;
+  /**
+   * Баллы можно списать только с товаров категории «Кофе».
+   */
+  loyaltyPointsRedeemed?: number | null;
+  deliveryCost?: number | null;
+  vatRate?: ('none' | '0' | '5' | '10' | '20' | '22' | 'custom') | null;
+  vatCustomRate?: number | null;
+  /**
+   * Рассчитывается автоматически
+   */
+  vatAmount?: number | null;
+  /**
+   * Рассчитывается автоматически
+   */
+  total: number;
+  totalWeightGrams?: number | null;
+  moyskladSyncStatus?: ('pending' | 'synced' | 'error' | 'disabled') | null;
+  moyskladCounterpartyId?: string | null;
+  moyskladCustomerOrderId?: string | null;
+  moyskladInvoiceOutId?: string | null;
+  moyskladStockLossId?: string | null;
+  moyskladStockLossSyncedAt?: string | null;
+  moyskladStockLossError?: string | null;
+  moyskladSyncedAt?: string | null;
+  moyskladSyncError?: string | null;
+  /**
+   * Служебное поле: хэш состава заказа на момент успешной выгрузки в МойСклад.
+   */
+  moyskladSyncedHash?: string | null;
+  /**
+   * Генерируется автоматически
+   */
+  orderId?: string | null;
+  status:
+    | 'new'
+    | 'confirmed'
+    | 'invoiced'
+    | 'paid'
+    | 'in_production'
+    | 'ready'
+    | 'shipped'
+    | 'delivered'
+    | 'returned'
+    | 'cancelled';
+  client?: (number | null) | Client;
+  customerFullName?: string | null;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  companyName?: string | null;
+  companyInn?: string | null;
+  deliveryMethod: 'self_pickup' | 'cdek' | 'cap_2000' | 'sochi_delivery' | 'yandex_delivery';
+  deliveryAddress?: string | null;
+  cdekTrackingNumber?: string | null;
+  cap2000TrackingNumber?: string | null;
+  yandexDeliveryType?: ('pickup_point' | 'terminal' | 'courier') | null;
+  yandexPickupPointId?: string | null;
+  yandexPickupPointName?: string | null;
+  yandexRequestId?: string | null;
+  yandexDeliveryStatus?: string | null;
+  items?:
+    | {
+        productId?: string | null;
+        productName: string;
+        variantName: string;
+        grindOption?: string | null;
+        shippingLengthCm?: number | null;
+        shippingWidthCm?: number | null;
+        shippingHeightCm?: number | null;
+        shippingWeightGrams?: number | null;
+        quantity: number;
+        unitPrice: number;
+        totalPrice: number;
+        discountPercent?: number | null;
+        discountAmount?: number | null;
+        stockProductMoyskladId?: string | null;
+        stockQuantityKg?: number | null;
+        stockPricePerKg?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  promoCode?: (number | null) | PromoCode;
+  /**
+   * Оставлен клиентом при оформлении заказа
+   */
+  comment?: string | null;
+  /**
+   * Видны только в админ-панели
+   */
+  adminNotes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Клиенты платформы
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients".
+ */
+export interface Client {
+  id: number;
+  /**
+   * Используется для разделения клиентских кабинетов и административных списков.
+   */
+  salesChannel: 'wholesale' | 'retail';
+  /**
+   * Существующие клиенты считаются юридическими лицами. Розничная регистрация создаёт физлицо.
+   */
+  customerType: 'individual' | 'business';
+  supabaseId?: string | null;
+  /**
+   * Заполняется автоматически при первой синхронизации или вручную для привязки существующего контрагента.
+   */
+  moyskladCounterpartyId?: string | null;
+  isVerified?: boolean | null;
+  /**
+   * Персональная скидка клиента на все заказы
+   */
+  discountPercent?: number | null;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  /**
+   * Основной адрес физлица или контактный адрес представителя компании.
+   */
+  address?: string | null;
+  /**
+   * Видны только в админ-панели
+   */
+  notes?: string | null;
+  /**
+   * Доступно только для юридических лиц и оптовиков.
+   */
+  companies?:
+    | {
+        name?: string | null;
+        inn?: string | null;
+        kpp?: string | null;
+        ogrn?: string | null;
+        legalAddress?: string | null;
+        bankName?: string | null;
+        bik?: string | null;
+        settlementAccount?: string | null;
+        correspondentAccount?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Все заказы этого клиента
+   */
+  orders?: {
+    docs?: (number | Order)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * Работает только для выбранной категории. Подкатегории не наследуют скидку автоматически.
+   */
+  categoryDiscounts?:
+    | {
+        category: number | Category;
+        discountPercent: number;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Выберите один или несколько товаров из любых категорий. Товарная скидка имеет приоритет над скидкой категории и общей скидкой клиента.
+   */
+  productDiscounts?:
+    | {
+        /**
+         * Можно выбрать несколько товаров из разных категорий.
+         */
+        products: (number | Product)[];
+        discountPercent: number;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Категории товаров
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "categories".
+ */
+export interface Category {
+  id: number;
+  name: string;
+  /**
+   * URL-имя категории (латиница, дефисы)
+   */
+  slug: string;
+  /**
+   * Используется для сопоставления категории сайта с productfolder в МойСклад.
+   */
+  moyskladId?: string | null;
+  /**
+   * Основной тип для вкладок каталога.
+   */
+  productTypeRef: number | ProductType;
+  /**
+   * Фото для отображения в каталоге
+   */
+  image?: (number | null) | Media;
+  /**
+   * Оставьте пустым для корневой категории. Доступны только категории того же типа.
+   */
+  parent?: (number | null) | Category;
+  description?: string | null;
+  sortOrder?: number | null;
+  isVisible?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Управляемые типы товаров для вкладок каталога
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "product-types".
+ */
+export interface ProductType {
+  id: number;
+  name: string;
+  /**
+   * Латиница без пробелов, например coffee, tea, syrups
+   */
+  slug: string;
+  /**
+   * Опциональная связь с группой товаров в МойСклад.
+   */
+  moyskladId?: string | null;
+  /**
+   * На фронте иконка выводится размером 14x14 px
+   */
+  icon?: (number | null) | Media;
+  /**
+   * Определяет, какие блоки характеристик будут доступны у товаров этого типа.
+   */
+  detailsSchema: 'generic' | 'coffee' | 'tea';
+  sortOrder?: number | null;
+  isVisible?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Изображения и файлы
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "media".
+ */
+export interface Media {
+  id: number;
+  /**
+   * Описание изображения для доступности
+   */
+  alt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    card?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    full?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
+}
+/**
+ * Товары каталога
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "products".
+ */
+export interface Product {
+  id: number;
+  name: string;
+  slug: string;
+  /**
+   * Основной управляемый тип для вкладок каталога.
+   */
+  productTypeRef: number | ProductType;
+  detailsSchema?: ('generic' | 'coffee' | 'tea') | null;
+  /**
+   * Категории автоматически фильтруются по выбранному типу товара.
+   */
+  category: number | Category;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  images?:
+    | {
+        image: number | Media;
+        id?: string | null;
+      }[]
+    | null;
+  videoUrls?:
+    | {
+        url?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Выберите теги из списка или создайте новые в разделе «Теги»
+   */
+  stickers?: (number | Tag)[] | null;
+  sortOrder?: number | null;
+  isVisible?: boolean | null;
+  /**
+   * Показывать товар в блоке «Популярные товары» на главной странице магазина.
+   */
+  isPopular?: boolean | null;
+  /**
+   * Оставьте пустым, чтобы рейтинг считался автоматически из оценок в разделе «Отзывы». Укажите значение, чтобы зафиксировать рейтинг вручную (например, 4.9).
+   */
+  manualRating?: number | null;
+  /**
+   * Сколько оценок показывать рядом с рейтингом. Если пусто — используется реальное количество отзывов.
+   */
+  manualRatingCount?: number | null;
+  /**
+   * ID основного товара. Для заказов чаще используется ID модификации внутри варианта.
+   */
+  moyskladId?: string | null;
+  variants: {
+    name: string;
+    sku?: string | null;
+    /**
+     * ID модификации, товара или услуги, который уйдет в заказ МойСклад.
+     */
+    moyskladId?: string | null;
+    moyskladType?: ('variant' | 'product' | 'service') | null;
+    price: number;
+    weightGrams?: number | null;
+    /**
+     * Служебное поле для расчёта Яндекс Доставки. В витрине не показывается.
+     */
+    shippingLengthCm?: number | null;
+    shippingWidthCm?: number | null;
+    shippingHeightCm?: number | null;
+    /**
+     * Товар вместе с транспортной упаковкой.
+     */
+    shippingWeightGrams?: number | null;
+    isAvailable?: boolean | null;
+    grindOptions?: ('beans' | 'ground')[] | null;
+    id?: string | null;
+  }[];
+  coffeeDetails?: {
+    roaster?: string | null;
+    roastLevel?: string | null;
+    region?: string | null;
+    country?: string | null;
+    processingMethod?: string | null;
+    /**
+     * Дескрипторы вкуса из актуального прайс-листа или карточки производителя.
+     */
+    tasteDescription?: string | null;
+    /**
+     * Количество заполненных точек по семибалльной шкале.
+     */
+    acidity?: number | null;
+    /**
+     * Интенсивность горечи по семибалльной шкале.
+     */
+    bitterness?: number | null;
+    /**
+     * Интенсивность сладости по семибалльной шкале.
+     */
+    sweetness?: number | null;
+    /**
+     * Плотность напитка по семибалльной шкале.
+     */
+    body?: number | null;
+    brewGroup?: ('espresso' | 'filter' | 'drip') | null;
+    /**
+     * Например: 1200-1500 м
+     */
+    growingHeight?: string | null;
+    qGraderRating?: number | null;
+  };
+  teaDetails?: {
+    brewingInstructions?:
+      | {
+          title: string;
+          text: string;
+          image?: (number | null) | Media;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  attachedFiles?:
+    | {
+        file: number | Media;
+        label?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Теги товаров — создавайте и применяйте к товарам
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tags".
+ */
+export interface Tag {
+  id: number;
+  /**
+   * Например: Новинка, Хит продаж, Скидка месяца
+   */
+  name: string;
+  /**
+   * Только латиница, цифры, дефис. Например: new, popular, sale
+   */
+  slug: string;
+  color?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Промокоды и скидки
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "promo-codes".
+ */
+export interface PromoCode {
+  id: number;
+  isActive?: boolean | null;
+  currentUses?: number | null;
+  /**
+   * Заглавные буквы, без пробелов
+   */
+  code: string;
+  description?: string | null;
+  /**
+   * Существующие промокоды по умолчанию относятся к оптовому магазину.
+   */
+  audience: 'all' | 'individual' | 'business';
+  /**
+   * Оставьте пустым, чтобы промокод действовал на все товары выбранной аудитории.
+   */
+  applicableProducts?: (number | Product)[] | null;
+  discountType: 'percentage' | 'fixed_amount';
+  /**
+   * Процент или сумма в рублях
+   */
+  discountValue: number;
+  isSingleUse?: boolean | null;
+  /**
+   * Пусто = без лимита
+   */
+  maxUses?: number | null;
+  minOrderAmount?: number | null;
+  startsAt?: string | null;
+  /**
+   * Пусто = бессрочно
+   */
+  expiresAt?: string | null;
+  /**
+   * Только этот клиент сможет использовать
+   */
+  restrictedToEmail?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Заявки на прайс-лист с лендинга
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "price-list-requests".
+ */
+export interface PriceListRequest {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  company?: string | null;
+  emailSent?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Вопросы с сайта и ответы для публичного раздела FAQ
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "faqs".
+ */
+export interface Faq {
+  id: number;
+  question: string;
+  /**
+   * Для публикации вопроса с сайта заполните ответ и выберите статус «Опубликован».
+   */
+  answer?: string | null;
+  /**
+   * На сайте видны только опубликованные записи с заполненным ответом.
+   */
+  status: 'pending' | 'published' | 'rejected';
+  source: 'manual' | 'website';
+  name?: string | null;
+  email?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Неизменяемый журнал операций программы лояльности
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "loyalty-operations".
+ */
+export interface LoyaltyOperation {
+  id: number;
+  client: number | Client;
+  order?: (number | null) | Order;
+  type: 'accrual' | 'reservation' | 'redemption' | 'release' | 'refund' | 'reversal' | 'expiry';
+  /**
+   * Знаковое значение: начисление +, списание −.
+   */
+  amount: number;
+  status: 'pending' | 'active' | 'released' | 'reversed' | 'expired';
+  idempotencyKey: string;
+  expiresAt?: string | null;
+  note?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Корзины клиентов
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cart-items".
+ */
+export interface CartItem {
+  id: number;
+  clientId: string;
+  product: number | Product;
+  variantId: string;
+  quantity: number;
+  grindOption?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Избранные товары клиентов
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "favorites".
+ */
+export interface Favorite {
+  id: number;
+  clientId: string;
+  product: number | Product;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Оценки и отзывы на товары
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "product-reviews".
+ */
+export interface ProductReview {
+  id: number;
+  /**
+   * Товар, к которому относится оценка или отзыв.
+   */
+  product: number | Product;
+  /**
+   * Выберите клиента либо оставьте поле пустым и укажите другое имя.
+   */
+  authorClient?: (number | null) | Client;
+  /**
+   * Произвольное имя автора. Не заполняйте, если выбран клиент.
+   */
+  authorName?: string | null;
+  /**
+   * ID пользователя, оставившего отзыв (для личного кабинета).
+   */
+  clientId?: string | null;
+  /**
+   * 1–5 звёзд. Среднее значение всех оценок формирует рейтинг товара.
+   */
+  rating: number;
+  comment?: string | null;
+  /**
+   * Отзыв появляется на сайте только после публикации администратором.
+   */
+  status: 'pending' | 'approved' | 'rejected';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Новости и объявления для клиентов
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "news".
+ */
+export interface News {
+  id: number;
+  title: string;
+  slug: string;
+  /**
+   * Короткий текст для предпросмотра
+   */
+  excerpt?: string | null;
+  content: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  coverImage?: (number | null) | Media;
+  isPublished?: boolean | null;
+  publishedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Точки на карте — кофейни где можно попробовать наш кофе
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "map-locations".
+ */
+export interface MapLocation {
+  id: number;
+  /**
+   * Город для фильтрации на карте
+   */
+  city: string;
+  name: string;
+  /**
+   * Фото кофейни / точки продаж
+   */
+  image?: (number | null) | Media;
+  address: string;
+  /**
+   * Например: +7 (910) 145-72-78
+   */
+  phone?: string | null;
+  /**
+   * Например: Открыто до 22:00 или Пн-Пт 8:00-21:00
+   */
+  workingHours?: string | null;
+  /**
+   * Выберите подходящие теги
+   */
+  tags?:
+    | ('sells_bags' | 'filter_coffee' | 'decaf' | 'has_food' | 'dog_friendly' | 'wifi' | 'alt_milk' | 'desserts')[]
+    | null;
+  /**
+   * Скопируйте ссылку из Яндекс.Карт, например: https://yandex.com/maps/-/CPulnF33
+   */
+  yandexMapsUrl: string;
+  /**
+   * Вставьте из Яндекс.Карт: 43.582661, 39.718557 — автоматически разобьётся на широту и долготу
+   */
+  coordinates?: string | null;
+  /**
+   * Для пина на карте. Например: 43.585472
+   */
+  latitude: number;
+  /**
+   * Для пина на карте. Например: 39.723098
+   */
+  longitude: number;
+  isActive?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Статьи блога для публичной страницы /blog
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "blog_posts".
+ */
+export interface BlogPost {
+  id: number;
+  title: string;
+  slug: string;
+  /**
+   * Короткий текст для предпросмотра на странице блога
+   */
+  excerpt?: string | null;
+  content: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  coverImage?: (number | null) | Media;
+  isPublished?: boolean | null;
+  publishedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Общие способы приготовления, которые показываются у всех сортов кофе.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "coffee-brewing-guides".
+ */
+export interface CoffeeBrewingGuide {
+  id: number;
+  /**
+   * Например: Эспрессо, Турка или Френч-пресс.
+   */
+  title: string;
+  /**
+   * Текст этой статьи открывается в окне на карточке каждого кофе.
+   */
+  article: number | BlogPost;
+  sortOrder: number;
+  isVisible?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Администраторы и менеджеры платформы
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "admins".
+ */
+export interface Admin {
+  id: number;
+  fullName: string;
+  role:
+    | 'admin'
+    | 'manager'
+    | 'super_admin'
+    | 'content_manager'
+    | 'wholesale_manager'
+    | 'retail_manager'
+    | 'support'
+    | 'integration_operator';
+  /**
+   * Используется для фильтрации заказов, клиентов и аналитики.
+   */
+  canAccessWholesale?: boolean | null;
+  /**
+   * Используется для фильтрации заказов, покупателей и аналитики.
+   */
+  canAccessRetail?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+  email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiration?: string | null;
+  salt?: string | null;
+  hash?: string | null;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
+  sessions?:
+    | {
+        id: string;
+        createdAt?: string | null;
+        expiresAt: string;
+      }[]
+    | null;
+  password?: string | null;
+  collection: 'admins';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -134,43 +1033,91 @@ export interface PayloadKv {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
- */
-export interface User {
-  id: number;
-  updatedAt: string;
-  createdAt: string;
-  email: string;
-  resetPasswordToken?: string | null;
-  resetPasswordExpiration?: string | null;
-  salt?: string | null;
-  hash?: string | null;
-  loginAttempts?: number | null;
-  lockUntil?: string | null;
-  sessions?:
-    | {
-        id: string;
-        createdAt?: string | null;
-        expiresAt: string;
-      }[]
-    | null;
-  password?: string | null;
-  collection: 'users';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
   id: number;
-  document?: {
-    relationTo: 'users';
-    value: number | User;
-  } | null;
+  document?:
+    | ({
+        relationTo: 'orders';
+        value: number | Order;
+      } | null)
+    | ({
+        relationTo: 'price-list-requests';
+        value: number | PriceListRequest;
+      } | null)
+    | ({
+        relationTo: 'faqs';
+        value: number | Faq;
+      } | null)
+    | ({
+        relationTo: 'promo-codes';
+        value: number | PromoCode;
+      } | null)
+    | ({
+        relationTo: 'clients';
+        value: number | Client;
+      } | null)
+    | ({
+        relationTo: 'loyalty-operations';
+        value: number | LoyaltyOperation;
+      } | null)
+    | ({
+        relationTo: 'cart-items';
+        value: number | CartItem;
+      } | null)
+    | ({
+        relationTo: 'favorites';
+        value: number | Favorite;
+      } | null)
+    | ({
+        relationTo: 'tags';
+        value: number | Tag;
+      } | null)
+    | ({
+        relationTo: 'product-types';
+        value: number | ProductType;
+      } | null)
+    | ({
+        relationTo: 'products';
+        value: number | Product;
+      } | null)
+    | ({
+        relationTo: 'product-reviews';
+        value: number | ProductReview;
+      } | null)
+    | ({
+        relationTo: 'categories';
+        value: number | Category;
+      } | null)
+    | ({
+        relationTo: 'news';
+        value: number | News;
+      } | null)
+    | ({
+        relationTo: 'map-locations';
+        value: number | MapLocation;
+      } | null)
+    | ({
+        relationTo: 'blog_posts';
+        value: number | BlogPost;
+      } | null)
+    | ({
+        relationTo: 'coffee-brewing-guides';
+        value: number | CoffeeBrewingGuide;
+      } | null)
+    | ({
+        relationTo: 'media';
+        value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'admins';
+        value: number | Admin;
+      } | null);
   globalSlug?: string | null;
   user: {
-    relationTo: 'users';
-    value: number | User;
+    relationTo: 'admins';
+    value: number | Admin;
   };
   updatedAt: string;
   createdAt: string;
@@ -182,8 +1129,8 @@ export interface PayloadLockedDocument {
 export interface PayloadPreference {
   id: number;
   user: {
-    relationTo: 'users';
-    value: number | User;
+    relationTo: 'admins';
+    value: number | Admin;
   };
   key?: string | null;
   value?:
@@ -211,17 +1158,484 @@ export interface PayloadMigration {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "payload-kv_select".
+ * via the `definition` "orders_select".
  */
-export interface PayloadKvSelect<T extends boolean = true> {
-  key?: T;
-  data?: T;
+export interface OrdersSelect<T extends boolean = true> {
+  salesChannel?: T;
+  customerType?: T;
+  checkoutMode?: T;
+  paymentMethod?: T;
+  paymentStatus?: T;
+  paymentExternalId?: T;
+  paymentUrl?: T;
+  paymentUpdatedAt?: T;
+  subtotal?: T;
+  discountPercent?: T;
+  discountAmount?: T;
+  loyaltyPointsRedeemed?: T;
+  deliveryCost?: T;
+  vatRate?: T;
+  vatCustomRate?: T;
+  vatAmount?: T;
+  total?: T;
+  totalWeightGrams?: T;
+  moyskladSyncStatus?: T;
+  moyskladCounterpartyId?: T;
+  moyskladCustomerOrderId?: T;
+  moyskladInvoiceOutId?: T;
+  moyskladStockLossId?: T;
+  moyskladStockLossSyncedAt?: T;
+  moyskladStockLossError?: T;
+  moyskladSyncedAt?: T;
+  moyskladSyncError?: T;
+  moyskladSyncedHash?: T;
+  orderId?: T;
+  status?: T;
+  client?: T;
+  customerFullName?: T;
+  customerEmail?: T;
+  customerPhone?: T;
+  companyName?: T;
+  companyInn?: T;
+  deliveryMethod?: T;
+  deliveryAddress?: T;
+  cdekTrackingNumber?: T;
+  cap2000TrackingNumber?: T;
+  yandexDeliveryType?: T;
+  yandexPickupPointId?: T;
+  yandexPickupPointName?: T;
+  yandexRequestId?: T;
+  yandexDeliveryStatus?: T;
+  items?:
+    | T
+    | {
+        productId?: T;
+        productName?: T;
+        variantName?: T;
+        grindOption?: T;
+        shippingLengthCm?: T;
+        shippingWidthCm?: T;
+        shippingHeightCm?: T;
+        shippingWeightGrams?: T;
+        quantity?: T;
+        unitPrice?: T;
+        totalPrice?: T;
+        discountPercent?: T;
+        discountAmount?: T;
+        stockProductMoyskladId?: T;
+        stockQuantityKg?: T;
+        stockPricePerKg?: T;
+        id?: T;
+      };
+  promoCode?: T;
+  comment?: T;
+  adminNotes?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users_select".
+ * via the `definition` "price-list-requests_select".
  */
-export interface UsersSelect<T extends boolean = true> {
+export interface PriceListRequestsSelect<T extends boolean = true> {
+  name?: T;
+  email?: T;
+  phone?: T;
+  company?: T;
+  emailSent?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "faqs_select".
+ */
+export interface FaqsSelect<T extends boolean = true> {
+  question?: T;
+  answer?: T;
+  status?: T;
+  source?: T;
+  name?: T;
+  email?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "promo-codes_select".
+ */
+export interface PromoCodesSelect<T extends boolean = true> {
+  isActive?: T;
+  currentUses?: T;
+  code?: T;
+  description?: T;
+  audience?: T;
+  applicableProducts?: T;
+  discountType?: T;
+  discountValue?: T;
+  isSingleUse?: T;
+  maxUses?: T;
+  minOrderAmount?: T;
+  startsAt?: T;
+  expiresAt?: T;
+  restrictedToEmail?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients_select".
+ */
+export interface ClientsSelect<T extends boolean = true> {
+  salesChannel?: T;
+  customerType?: T;
+  supabaseId?: T;
+  moyskladCounterpartyId?: T;
+  isVerified?: T;
+  discountPercent?: T;
+  fullName?: T;
+  email?: T;
+  phone?: T;
+  address?: T;
+  notes?: T;
+  companies?:
+    | T
+    | {
+        name?: T;
+        inn?: T;
+        kpp?: T;
+        ogrn?: T;
+        legalAddress?: T;
+        bankName?: T;
+        bik?: T;
+        settlementAccount?: T;
+        correspondentAccount?: T;
+        id?: T;
+      };
+  orders?: T;
+  categoryDiscounts?:
+    | T
+    | {
+        category?: T;
+        discountPercent?: T;
+        id?: T;
+      };
+  productDiscounts?:
+    | T
+    | {
+        products?: T;
+        discountPercent?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "loyalty-operations_select".
+ */
+export interface LoyaltyOperationsSelect<T extends boolean = true> {
+  client?: T;
+  order?: T;
+  type?: T;
+  amount?: T;
+  status?: T;
+  idempotencyKey?: T;
+  expiresAt?: T;
+  note?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cart-items_select".
+ */
+export interface CartItemsSelect<T extends boolean = true> {
+  clientId?: T;
+  product?: T;
+  variantId?: T;
+  quantity?: T;
+  grindOption?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "favorites_select".
+ */
+export interface FavoritesSelect<T extends boolean = true> {
+  clientId?: T;
+  product?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tags_select".
+ */
+export interface TagsSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  color?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "product-types_select".
+ */
+export interface ProductTypesSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  moyskladId?: T;
+  icon?: T;
+  detailsSchema?: T;
+  sortOrder?: T;
+  isVisible?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "products_select".
+ */
+export interface ProductsSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  productTypeRef?: T;
+  detailsSchema?: T;
+  category?: T;
+  description?: T;
+  images?:
+    | T
+    | {
+        image?: T;
+        id?: T;
+      };
+  videoUrls?:
+    | T
+    | {
+        url?: T;
+        id?: T;
+      };
+  stickers?: T;
+  sortOrder?: T;
+  isVisible?: T;
+  isPopular?: T;
+  manualRating?: T;
+  manualRatingCount?: T;
+  moyskladId?: T;
+  variants?:
+    | T
+    | {
+        name?: T;
+        sku?: T;
+        moyskladId?: T;
+        moyskladType?: T;
+        price?: T;
+        weightGrams?: T;
+        shippingLengthCm?: T;
+        shippingWidthCm?: T;
+        shippingHeightCm?: T;
+        shippingWeightGrams?: T;
+        isAvailable?: T;
+        grindOptions?: T;
+        id?: T;
+      };
+  coffeeDetails?:
+    | T
+    | {
+        roaster?: T;
+        roastLevel?: T;
+        region?: T;
+        country?: T;
+        processingMethod?: T;
+        tasteDescription?: T;
+        acidity?: T;
+        bitterness?: T;
+        sweetness?: T;
+        body?: T;
+        brewGroup?: T;
+        growingHeight?: T;
+        qGraderRating?: T;
+      };
+  teaDetails?:
+    | T
+    | {
+        brewingInstructions?:
+          | T
+          | {
+              title?: T;
+              text?: T;
+              image?: T;
+              id?: T;
+            };
+      };
+  attachedFiles?:
+    | T
+    | {
+        file?: T;
+        label?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "product-reviews_select".
+ */
+export interface ProductReviewsSelect<T extends boolean = true> {
+  product?: T;
+  authorClient?: T;
+  authorName?: T;
+  clientId?: T;
+  rating?: T;
+  comment?: T;
+  status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "categories_select".
+ */
+export interface CategoriesSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  moyskladId?: T;
+  productTypeRef?: T;
+  image?: T;
+  parent?: T;
+  description?: T;
+  sortOrder?: T;
+  isVisible?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "news_select".
+ */
+export interface NewsSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  excerpt?: T;
+  content?: T;
+  coverImage?: T;
+  isPublished?: T;
+  publishedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "map-locations_select".
+ */
+export interface MapLocationsSelect<T extends boolean = true> {
+  city?: T;
+  name?: T;
+  image?: T;
+  address?: T;
+  phone?: T;
+  workingHours?: T;
+  tags?: T;
+  yandexMapsUrl?: T;
+  coordinates?: T;
+  latitude?: T;
+  longitude?: T;
+  isActive?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "blog_posts_select".
+ */
+export interface BlogPostsSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  excerpt?: T;
+  content?: T;
+  coverImage?: T;
+  isPublished?: T;
+  publishedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "coffee-brewing-guides_select".
+ */
+export interface CoffeeBrewingGuidesSelect<T extends boolean = true> {
+  title?: T;
+  article?: T;
+  sortOrder?: T;
+  isVisible?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "media_select".
+ */
+export interface MediaSelect<T extends boolean = true> {
+  alt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumbnail?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        card?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        full?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "admins_select".
+ */
+export interface AdminsSelect<T extends boolean = true> {
+  fullName?: T;
+  role?: T;
+  canAccessWholesale?: T;
+  canAccessRetail?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -238,6 +1652,14 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-kv_select".
+ */
+export interface PayloadKvSelect<T extends boolean = true> {
+  key?: T;
+  data?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -270,6 +1692,133 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   batch?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-settings".
+ */
+export interface SiteSetting {
+  id: number;
+  priceListForm?: {
+    /**
+     * Единый файл для скачивания на сайте и вложения в письма. Его публичная ссылка создаётся автоматически.
+     */
+    emailFile?: (number | null) | Media;
+    senderName?: string | null;
+    senderPosition?: string | null;
+    senderPhone?: string | null;
+    senderTelegram?: string | null;
+  };
+  /**
+   * Глобальная ставка НДС, применяется ко всем новым заказам и счетам. 0 = без НДС.
+   */
+  vatPercent?: number | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payment-settings".
+ */
+export interface PaymentSetting {
+  id: number;
+  /**
+   * Включайте только после проверки тестового платежа.
+   */
+  enabled?: boolean | null;
+  /**
+   * Идентификатор магазина из личного кабинета YooKassa.
+   */
+  shopId?: string | null;
+  /**
+   * Секретный ключ YooKassa. Не публикуйте его и не передавайте третьим лицам.
+   */
+  secretKey?: string | null;
+  /**
+   * Рекомендуемый адрес: https://shop.10coffee.ru/order/success. ID заказа добавляется автоматически.
+   */
+  returnUrl?: string | null;
+  /**
+   * Укажите этот HTTPS-адрес в YooKassa для событий payment.succeeded и payment.canceled.
+   */
+  webhookUrl?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * Правила начисления и списания баллов для розницы.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "loyalty-settings".
+ */
+export interface LoyaltySetting {
+  id: number;
+  enabled?: boolean | null;
+  expiryDays?: number | null;
+  balanceCap?: number | null;
+  maxRedemptionPercent?: number | null;
+  tiers?:
+    | {
+        minSubtotal: number;
+        percent: number;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-settings_select".
+ */
+export interface SiteSettingsSelect<T extends boolean = true> {
+  priceListForm?:
+    | T
+    | {
+        emailFile?: T;
+        senderName?: T;
+        senderPosition?: T;
+        senderPhone?: T;
+        senderTelegram?: T;
+      };
+  vatPercent?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payment-settings_select".
+ */
+export interface PaymentSettingsSelect<T extends boolean = true> {
+  enabled?: T;
+  shopId?: T;
+  secretKey?: T;
+  returnUrl?: T;
+  webhookUrl?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "loyalty-settings_select".
+ */
+export interface LoyaltySettingsSelect<T extends boolean = true> {
+  enabled?: T;
+  expiryDays?: T;
+  balanceCap?: T;
+  maxRedemptionPercent?: T;
+  tiers?:
+    | T
+    | {
+        minSubtotal?: T;
+        percent?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

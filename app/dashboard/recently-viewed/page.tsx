@@ -17,15 +17,19 @@ export default function RecentlyViewedPage() {
   const { addItem } = useGuestCart()
 
   useEffect(() => {
-    const entries = getRecentlyViewed()
-    if (entries.length === 0) {
-      setLoading(false)
-      return
+    let cancelled = false
+    async function loadProducts() {
+      const entries = getRecentlyViewed()
+      const items = entries.length > 0
+        ? await getProductsByIds(entries.map((entry) => entry.productId))
+        : await Promise.resolve([])
+      if (!cancelled) {
+        setProducts(items)
+        setLoading(false)
+      }
     }
-    getProductsByIds(entries.map((entry) => entry.productId)).then((items) => {
-      setProducts(items)
-      setLoading(false)
-    })
+    void loadProducts()
+    return () => { cancelled = true }
   }, [])
 
   function handleAdd(product: Product) {

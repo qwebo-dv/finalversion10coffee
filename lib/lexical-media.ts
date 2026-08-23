@@ -70,8 +70,8 @@ export async function resolveLexicalMedia<T extends { content?: unknown }>(
   })
 
   const urlById = new Map<number, string>()
-  for (const media of docs as (PayloadMediaRef & { id?: number })[]) {
-    const url = getMediaUrl(media as PayloadMediaRef, ["full", "card", "thumbnail"])
+  for (const media of docs) {
+    const url = getMediaUrl(media, ["full", "card", "thumbnail"])
     if (url && typeof media.id === "number") urlById.set(media.id, url)
   }
 

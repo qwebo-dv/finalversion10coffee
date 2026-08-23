@@ -100,7 +100,7 @@ export const BlogPosts: CollectionConfig = {
         try {
           revalidatePath("/dashboard/blog")
           revalidatePath(`/dashboard/blog/${doc.id}`)
-          revalidateTag("blog-posts-paginated")
+          revalidateTag("blog-posts-paginated", "max")
         } catch {}
       },
     ],

@@ -266,19 +266,21 @@ export async function linkSocialIdentity(params: {
   userId: string
   provider: string
   providerUserId: string
+  messagingId?: string
   allowTransfer?: boolean
 }) {
   try {
     const { rows } = await dbQuery<{ user_id: string }>(
       `insert into public.auth_social_identities (
-          user_id, provider, provider_user_id, created_at, updated_at
+          user_id, provider, provider_user_id, messaging_id, created_at, updated_at
         )
-        values ($1, $2, $3, now(), now())
+        values ($1, $2, $3, $4, now(), now())
         on conflict (provider, provider_user_id) do update
           set user_id = ${params.allowTransfer ? "excluded.user_id" : "auth_social_identities.user_id"},
+              messaging_id = coalesce(excluded.messaging_id, auth_social_identities.messaging_id),
               updated_at = now()
         returning user_id`,
-      [params.userId, params.provider, params.providerUserId]
+      [params.userId, params.provider, params.providerUserId, params.messagingId || null]
     )
 
     if (rows[0]?.user_id !== params.userId) {
@@ -302,6 +304,33 @@ export async function listSocialIdentities(userId: string): Promise<string[]> {
       [userId]
     )
     return rows.map((row) => row.provider)
+  } catch (error) {
+    if (isMissingSocialIdentitiesTable(error)) return []
+    throw error
+  }
+}
+
+export type SocialIdentityRecord = {
+  provider: string
+  providerUserId: string
+  messagingId: string | null
+}
+
+/**
+ * Server-only lookup used by opt-in service notifications. The provider ID is
+ * never exposed to the browser and is only used with the corresponding
+ * provider's server-side delivery token.
+ */
+export async function listSocialIdentityRecords(userId: string): Promise<SocialIdentityRecord[]> {
+  try {
+    const { rows } = await dbReadQuery<{ provider: string; provider_user_id: string; messaging_id: string | null }>(
+      `select provider, provider_user_id, messaging_id
+         from public.auth_social_identities
+        where user_id = $1
+        order by provider asc`,
+      [userId],
+    )
+    return rows.map((row) => ({ provider: row.provider, providerUserId: row.provider_user_id, messagingId: row.messaging_id }))
   } catch (error) {
     if (isMissingSocialIdentitiesTable(error)) return []
     throw error

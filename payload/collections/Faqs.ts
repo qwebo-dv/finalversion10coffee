@@ -34,7 +34,8 @@ export const Faqs: CollectionConfig = {
       label: "Ответ",
       maxLength: 5000,
       validate: (value, { siblingData }) => {
-        if (siblingData?.status === "published" && !String(value || "").trim()) {
+        const status = (siblingData as { status?: unknown } | undefined)?.status
+        if (status === "published" && !String(value || "").trim()) {
           return "Для публикации FAQ заполните ответ."
         }
         return true

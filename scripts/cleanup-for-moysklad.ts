@@ -1,14 +1,8 @@
 import { dbQuery } from "../lib/db"
 import { preparePayloadRuntime } from "./payload-runtime"
+import type { BasePayload } from "payload"
 
-interface PayloadLike {
-  find: (params: {
-    collection: string
-    limit: number
-    depth: number
-  }) => Promise<{ docs: { id: string | number }[] }>
-  delete: (params: { collection: string; id: string | number }) => Promise<unknown>
-}
+type CleanupCollection = "orders" | "clients" | "products" | "categories" | "product-types"
 
 async function getPayloadClient() {
   preparePayloadRuntime()
@@ -19,7 +13,7 @@ async function getPayloadClient() {
   return getPayload({ config: configModule.default })
 }
 
-async function deleteCollection(payload: PayloadLike, collection: string) {
+async function deleteCollection(payload: BasePayload, collection: CleanupCollection) {
   let deleted = 0
 
   while (true) {

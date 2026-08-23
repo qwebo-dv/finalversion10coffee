@@ -104,7 +104,7 @@ export const News: CollectionConfig = {
           try {
             revalidatePath(`/dashboard/news`)
             revalidatePath(`/dashboard/news/${doc.id}`)
-            revalidateTag("news-paginated")
+            revalidateTag("news-paginated", "max")
           } catch {}
         }
       },

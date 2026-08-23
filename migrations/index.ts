@@ -17,6 +17,14 @@ import * as migration_20260813_090000_faqs from './20260813_090000_faqs.ts';
 import * as migration_20260813_100000_repair_faqs_locked_documents from './20260813_100000_repair_faqs_locked_documents.ts';
 import * as migration_20260814_150000_brewing_method_articles from './20260814_150000_brewing_method_articles.ts';
 import * as migration_20260814_160000_global_coffee_brewing_guides from './20260814_160000_global_coffee_brewing_guides.ts';
+import * as migration_20260820_090000_loyalty_program from './20260820_090000_loyalty_program.ts';
+import * as migration_20260820_100000_repair_loyalty_locked_documents from './20260820_100000_repair_loyalty_locked_documents.ts';
+import * as migration_20260820_110000_repair_yookassa_payment_method from './20260820_110000_repair_yookassa_payment_method.ts';
+import * as migration_20260821_120000_social_identities from './20260821_120000_social_identities.ts';
+import * as migration_20260821_130000_loyalty_notification_deliveries from './20260821_130000_loyalty_notification_deliveries.ts';
+import * as migration_20260821_140000_yandex_delivery from './20260821_140000_yandex_delivery.ts';
+import * as migration_20260821_150000_product_shipping_dimensions from './20260821_150000_product_shipping_dimensions.ts';
+import * as migration_20260823_160000_social_messaging_ids from './20260823_160000_social_messaging_ids.ts';
 
 export const migrations = [
   {
@@ -113,5 +121,45 @@ export const migrations = [
     up: migration_20260814_160000_global_coffee_brewing_guides.up,
     down: migration_20260814_160000_global_coffee_brewing_guides.down,
     name: '20260814_160000_global_coffee_brewing_guides'
+  },
+  {
+    up: migration_20260820_090000_loyalty_program.up,
+    down: migration_20260820_090000_loyalty_program.down,
+    name: '20260820_090000_loyalty_program'
+  },
+  {
+    up: migration_20260820_100000_repair_loyalty_locked_documents.up,
+    down: migration_20260820_100000_repair_loyalty_locked_documents.down,
+    name: '20260820_100000_repair_loyalty_locked_documents'
+  },
+  {
+    up: migration_20260820_110000_repair_yookassa_payment_method.up,
+    down: migration_20260820_110000_repair_yookassa_payment_method.down,
+    name: '20260820_110000_repair_yookassa_payment_method'
+  },
+  {
+    up: migration_20260821_120000_social_identities.up,
+    down: migration_20260821_120000_social_identities.down,
+    name: '20260821_120000_social_identities'
+  },
+  {
+    up: migration_20260821_130000_loyalty_notification_deliveries.up,
+    down: migration_20260821_130000_loyalty_notification_deliveries.down,
+    name: '20260821_130000_loyalty_notification_deliveries'
+  },
+  {
+    up: migration_20260821_140000_yandex_delivery.up,
+    down: migration_20260821_140000_yandex_delivery.down,
+    name: '20260821_140000_yandex_delivery'
+  },
+  {
+    up: migration_20260821_150000_product_shipping_dimensions.up,
+    down: migration_20260821_150000_product_shipping_dimensions.down,
+    name: '20260821_150000_product_shipping_dimensions'
+  },
+  {
+    up: migration_20260823_160000_social_messaging_ids.up,
+    down: migration_20260823_160000_social_messaging_ids.down,
+    name: '20260823_160000_social_messaging_ids'
   },
 ];

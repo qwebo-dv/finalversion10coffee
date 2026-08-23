@@ -33,7 +33,11 @@ const DESCRIPTION_HTML_CLASSNAME = [
   "[&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-5",
   "[&_li]:mb-1.5",
   "[&_blockquote]:my-5 [&_blockquote]:border-l-4 [&_blockquote]:border-[#5b328a]/30 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-[#6e655e]",
-  "[&_img]:my-4 [&_img]:rounded-2xl [&_img]:shadow-md",
+  // Контент описания приходит из редактора: исходные размеры медиа не должны
+  // увеличивать ширину страницы на узких экранах.
+  "[&_p]:break-words [&_li]:break-words [&_a]:break-all",
+  "[&_img]:my-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-2xl [&_img]:shadow-md",
+  "[&_iframe]:max-w-full",
 ].join(" ")
 
 interface SpecRow {
@@ -254,7 +258,7 @@ export function ShopProduct({
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8d827a]">Фасовка</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {weights.map((weight) => (
-                        <button key={weight} type="button" onClick={() => { setVariant(findVariantForSelection(variants, weight, selectedGrind)); setQuantity(1) }} className={`min-w-[88px] rounded-2xl border-2 px-4 py-3 text-sm font-black transition ${selectedWeight === weight ? "border-[#5b328a] bg-white text-[#5b328a] shadow-[0_10px_30px_rgba(91,50,138,0.12)]" : "border-black/10 bg-white/60 text-[#1d1d1b] hover:border-black/25"}`}>
+                        <button key={weight} type="button" onClick={() => { const nextVariant = findVariantForSelection(variants, weight, selectedGrind); if (nextVariant) setVariant(nextVariant); setQuantity(1) }} className={`min-w-[88px] rounded-2xl border-2 px-4 py-3 text-sm font-black transition ${selectedWeight === weight ? "border-[#5b328a] bg-white text-[#5b328a] shadow-[0_10px_30px_rgba(91,50,138,0.12)]" : "border-black/10 bg-white/60 text-[#1d1d1b] hover:border-black/25"}`}>
                           {formatWeight(weight)}
                         </button>
                       ))}
@@ -264,7 +268,7 @@ export function ShopProduct({
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8d827a]">Формат</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {grindOptions.map((option) => (
-                        <button key={option} type="button" onClick={() => { setVariant(findVariantForSelection(variants, selectedWeight, option)); setQuantity(1) }} className={`rounded-2xl border-2 px-4 py-3 text-sm font-black transition ${selectedGrind === option ? "border-[#1d1d1b] bg-[#1d1d1b] text-white shadow-lg" : "border-black/10 bg-white/60 text-[#1d1d1b] hover:border-black/25"}`}>
+                        <button key={option} type="button" onClick={() => { const nextVariant = findVariantForSelection(variants, selectedWeight, option); if (nextVariant) setVariant(nextVariant); setQuantity(1) }} className={`rounded-2xl border-2 px-4 py-3 text-sm font-black transition ${selectedGrind === option ? "border-[#1d1d1b] bg-[#1d1d1b] text-white shadow-lg" : "border-black/10 bg-white/60 text-[#1d1d1b] hover:border-black/25"}`}>
                           {GRIND_OPTION_LABELS[option] || option}
                         </button>
                       ))}

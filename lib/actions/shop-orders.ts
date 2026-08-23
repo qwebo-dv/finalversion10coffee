@@ -1,17 +1,22 @@
 "use server"
 
-import { getPayload } from "payload"
+import { getPayload, type RequiredDataFromCollectionSlug } from "payload"
 import configPromise from "@payload-config"
 import { getClientDiscountConfig, getShopProducts } from "@/lib/actions/products"
 import { calculateClientDiscount, type ClientDiscountLine } from "@/lib/discounts"
 import { signUp } from "@/lib/actions/auth"
 import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad/sync"
+import { getMoyskladConfig } from "@/lib/moysklad/config"
 import { createYooKassaPayment } from "@/lib/payments/yookassa"
 import { buildYooKassaReceiptItems } from "@/lib/payments/yookassa-receipt"
 import { createOrderPaymentToken } from "@/lib/payments/order-payment-token"
 import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
 import { calculateTariff } from "@/lib/cdek"
 import { createClient } from "@/lib/supabase/server"
+import { getLoyaltySnapshot, releaseLoyaltyReservation, reserveLoyaltyPoints } from "@/lib/loyalty"
+import { quoteSochiDeliveryByCoordinates, type SochiDeliveryQuote } from "@/lib/sochi-delivery"
+import { createYandexDeliveryOffer, type YandexDeliveryMode } from "@/lib/yandex-delivery"
+import { assertYandexDeliveryPreviewAccess } from "@/lib/yandex-delivery-preview"
 import type { CartItem, DeliveryMethod, Product } from "@/types"
 
 export interface ShopOrderInput {
@@ -29,9 +34,14 @@ export interface ShopOrderInput {
   deliveryMethod: DeliveryMethod
   comment?: string
   promoCode?: string
+  loyaltyPoints?: number
   deliveryCost?: number
   cdekCityCode?: number
   cdekDeliveryType?: "pickup" | "courier"
+  yandexDeliveryType?: YandexDeliveryMode
+  yandexPickupPointId?: string
+  yandexPickupPointName?: string
+  yandexDestinationGeoId?: number
   createAccount?: boolean
   acceptTerms?: boolean
 }
@@ -252,6 +262,128 @@ export interface ShopOrderResult {
   paymentPendingSetup?: boolean
 }
 
+export interface ShopYandexDeliveryQuote {
+  available: boolean
+  cost: number
+  offerId?: string
+  expiresAt?: string
+  deliveryFrom?: string
+  deliveryTo?: string
+  message?: string
+}
+
+interface DadataAddressSuggestion {
+  data?: {
+    geo_lat?: string | null
+    geo_lon?: string | null
+  }
+}
+
+export async function quoteShopSochiDelivery({
+  address,
+  goodsAmount,
+}: {
+  address: string
+  goodsAmount: number
+}): Promise<SochiDeliveryQuote> {
+  const normalizedAddress = address.trim().slice(0, 300)
+  if (normalizedAddress.length < 4) {
+    return { available: false, cost: 0, zone: null, message: "Введите адрес доставки с улицей и домом" }
+  }
+
+  const apiKey = process.env.DADATA_API_KEY
+  if (!apiKey) {
+    console.error("[shop-orders] DADATA_API_KEY is not configured for Sochi delivery quote")
+    return { available: false, cost: 0, zone: null, message: "Расчёт доставки временно недоступен" }
+  }
+
+  try {
+    const response = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Token ${apiKey}`,
+      },
+      body: JSON.stringify({
+        query: /краснодарск/i.test(normalizedAddress)
+          ? normalizedAddress
+          : `Краснодарский край, ${normalizedAddress}`,
+        count: 5,
+        from_bound: { value: "street" },
+        to_bound: { value: "house" },
+        locations: [{ region: "Краснодарский" }],
+      }),
+      cache: "no-store",
+    })
+    if (!response.ok) {
+      console.error("[shop-orders] DaData quote request failed:", response.status)
+      return { available: false, cost: 0, zone: null, message: "Не удалось проверить адрес доставки" }
+    }
+
+    const body = await response.json() as { suggestions?: DadataAddressSuggestion[] }
+    const quotes = (body.suggestions || []).map((suggestion) => {
+      const latitude = Number(suggestion?.data?.geo_lat)
+      const longitude = Number(suggestion?.data?.geo_lon)
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+      return quoteSochiDeliveryByCoordinates({ longitude, latitude, goodsAmount })
+    }).filter((quote): quote is SochiDeliveryQuote => quote !== null)
+
+    const availableQuote = quotes.find((quote) => quote.available)
+    if (availableQuote) return availableQuote
+    if (quotes.length > 0) {
+      return { available: false, cost: 0, zone: null, message: "Адрес находится вне зоны доставки по Сочи" }
+    }
+    if (!body.suggestions?.length) {
+      return { available: false, cost: 0, zone: null, message: "Укажите адрес с улицей и номером дома" }
+    }
+    return { available: false, cost: 0, zone: null, message: "Не удалось определить координаты адреса" }
+  } catch (error) {
+    console.error("[shop-orders] Sochi delivery quote failed", error)
+    return { available: false, cost: 0, zone: null, message: "Не удалось рассчитать доставку. Попробуйте ещё раз." }
+  }
+}
+
+export async function quoteShopYandexDelivery(input: {
+  items: ShopOrderInput["items"]
+  deliveryType: YandexDeliveryMode
+  pickupPointId?: string
+  destinationAddress?: string
+  destinationGeoId?: number
+  fullName: string
+  email: string
+  phone: string
+}): Promise<ShopYandexDeliveryQuote> {
+  try {
+    await assertYandexDeliveryPreviewAccess()
+    const products = await getShopProducts()
+    const cartItems = buildValidatedCart(products, input.items)
+    if (cartItems.length === 0) return { available: false, cost: 0, message: "Корзина пуста или товары больше недоступны" }
+    const offer = await createYandexDeliveryOffer({
+      operatorRequestId: `quote-${crypto.randomUUID()}`,
+      mode: input.deliveryType,
+      pickupPointId: input.pickupPointId,
+      destinationAddress: input.destinationAddress?.trim(),
+      destinationGeoId: Number(input.destinationGeoId),
+      lines: cartItems.map((item) => ({
+        name: item.product?.name || "Товар 10coffee",
+        article: item.variant?.sku || undefined,
+        quantity: item.quantity,
+        unitPriceRubles: item.variant?.price || 0,
+        lengthCm: item.variant?.shipping_length_cm ?? null,
+        widthCm: item.variant?.shipping_width_cm ?? null,
+        heightCm: item.variant?.shipping_height_cm ?? null,
+        weightGrams: item.variant?.shipping_weight_grams ?? item.variant?.weight_grams ?? null,
+      })),
+      recipient: { fullName: input.fullName.trim(), phone: normalizeRussianPhone(input.phone), email: input.email.trim().toLowerCase() },
+    })
+    return { available: true, cost: offer.cost, offerId: offer.offerId, expiresAt: offer.expiresAt, deliveryFrom: offer.deliveryFrom, deliveryTo: offer.deliveryTo }
+  } catch (error) {
+    console.error("[shop-orders] Yandex Delivery quote failed", error)
+    return { available: false, cost: 0, message: error instanceof Error ? error.message : "Не удалось рассчитать Яндекс Доставку" }
+  }
+}
+
 async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrderResult> {
   const fullName = input.fullName.trim()
   const email = input.email.trim().toLowerCase()
@@ -263,6 +395,14 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
   if (!isValidRussianPhone(phone)) return { error: "Введите корректный телефон" }
   if (input.deliveryMethod !== "self_pickup" && !address) return { error: "Введите адрес доставки" }
   if (!input.acceptTerms) return { error: "Примите условия публичной оферты и доставки" }
+  if (Number(input.loyaltyPoints) > 0 && input.promoCode?.trim()) return { error: "Баллы и промокод нельзя использовать в одном заказе" }
+  if (input.deliveryMethod === "yandex_delivery") {
+    try {
+      await assertYandexDeliveryPreviewAccess()
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Яндекс Доставка временно недоступна" }
+    }
+  }
 
   const [payload, products] = await Promise.all([
     getPayload({ config: configPromise }),
@@ -276,6 +416,13 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
 
   let clientId: string | number | undefined
   let warning: string | undefined
+  let clientForMoysklad: {
+    id?: string | number
+    fullName: string
+    email: string
+    phone: string | null
+    moyskladCounterpartyId?: string | null
+  } = { fullName, email, phone }
   const auth = await createClient("individual")
   const { data: { user: currentUser } } = await auth.auth.getUser()
 
@@ -297,9 +444,16 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
       limit: 1,
       depth: 0,
     })
-    const existingClient = clients.docs[0] as { id?: string | number; supabaseId?: string | null } | undefined
+    const existingClient = clients.docs[0]
     if (existingClient?.id) {
       clientId = existingClient.id
+      clientForMoysklad = {
+        id: existingClient.id,
+        fullName: existingClient.fullName || fullName,
+        email: existingClient.email || currentUser.email || email,
+        phone: existingClient.phone || phone,
+        moyskladCounterpartyId: existingClient.moyskladCounterpartyId || null,
+      }
       if (existingClient.supabaseId !== currentUser.id) {
         await payload.update({
           collection: "clients",
@@ -325,6 +479,13 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
         },
       })
       clientId = createdClient.id
+      clientForMoysklad = {
+        id: createdClient.id,
+        fullName: createdClient.fullName || fullName,
+        email: createdClient.email || currentUser.email || email,
+        phone: createdClient.phone || phone,
+        moyskladCounterpartyId: createdClient.moyskladCounterpartyId || null,
+      }
     }
   }
 
@@ -345,7 +506,17 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
         limit: 1,
         depth: 0,
       })
-      clientId = clients.docs[0]?.id
+      const createdClient = clients.docs[0]
+      clientId = createdClient?.id
+      if (createdClient) {
+        clientForMoysklad = {
+          id: createdClient.id,
+          fullName: createdClient.fullName || fullName,
+          email: createdClient.email || email,
+          phone: createdClient.phone || phone,
+          moyskladCounterpartyId: createdClient.moyskladCounterpartyId || null,
+        }
+      }
     }
   }
 
@@ -379,13 +550,29 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     && promoResult.discountAmount >= personalDiscount.amount
     && promoResult.discountAmount > 0
   )
-  const discountAmount = promoWins ? promoResult.discountAmount : personalDiscount.amount
+  const appliedDiscountAmount = promoWins ? promoResult.discountAmount : personalDiscount.amount
   const appliedDiscountLines = promoWins
     ? promoResult.discountLines
     : personalDiscount.lines.map((line) => ({
         cartItemId: line.cartItemId,
         discountPercent: line.discountPercent,
       }))
+
+  const requestedLoyaltyPoints = Math.floor(Number(input.loyaltyPoints) || 0)
+  if (requestedLoyaltyPoints < 0) return { error: "Количество списываемых баллов не может быть отрицательным" }
+  const coffeeSubtotal = cartItems
+    .filter((item) => item.product?.product_type_schema === "coffee")
+    .reduce((sum, item) => sum + (item.variant?.price || 0) * item.quantity, 0)
+  if (requestedLoyaltyPoints > 0) {
+    if (promoResult.promo) return { error: "Баллы и промокод нельзя использовать в одном заказе" }
+    if (personalDiscount.amount > 0) return { error: "Баллы и персональную скидку нельзя использовать в одном заказе" }
+    if (!clientId) return { error: "Чтобы списать баллы, войдите в личный кабинет" }
+    const snapshot = await getLoyaltySnapshot(payload, clientId)
+    const maximum = Math.floor(coffeeSubtotal * snapshot.maxRedemptionPercent / 100)
+    if (!snapshot.enabled) return { error: "Программа лояльности пока не подключена" }
+    if (requestedLoyaltyPoints > snapshot.available) return { error: "Недостаточно доступных баллов" }
+    if (requestedLoyaltyPoints > maximum) return { error: `Максимум для этого заказа: ${maximum} Б (не более ${snapshot.maxRedemptionPercent}% от кофе)` }
+  }
 
   let deliveryCost = 0
   if (input.deliveryMethod === "cdek") {
@@ -406,7 +593,29 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
       console.error("[shop-orders] Не удалось проверить тариф СДЭК", error)
       return { error: "Не удалось подтвердить стоимость доставки СДЭК. Попробуйте ещё раз." }
     }
+  } else if (input.deliveryMethod === "sochi_delivery") {
+    const quote = await quoteShopSochiDelivery({
+      address,
+      goodsAmount: Math.max(0, subtotal - appliedDiscountAmount - requestedLoyaltyPoints),
+    })
+    if (!quote.available) return { error: quote.message || "Не удалось рассчитать доставку по Сочи" }
+    deliveryCost = quote.cost
+  } else if (input.deliveryMethod === "yandex_delivery") {
+    if (!input.yandexDeliveryType) return { error: "Выберите способ получения Яндекс Доставки" }
+    const quote = await quoteShopYandexDelivery({
+      items: input.items,
+      deliveryType: input.yandexDeliveryType,
+      pickupPointId: input.yandexPickupPointId,
+      destinationAddress: address,
+      destinationGeoId: input.yandexDestinationGeoId,
+      fullName,
+      email,
+      phone,
+    })
+    if (!quote.available) return { error: quote.message || "Не удалось подтвердить стоимость Яндекс Доставки" }
+    deliveryCost = quote.cost
   }
+  const discountAmount = appliedDiscountAmount + requestedLoyaltyPoints
   const total = Math.max(0, subtotal - discountAmount) + deliveryCost
   const items = cartItems.map((item) => {
     const stockLossLine = buildMoyskladStockLossLines([item])[0]
@@ -433,30 +642,45 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
       stockProductMoyskladId: stockLossLine?.productMoyskladId || "",
       stockQuantityKg: stockLossLine?.quantityKg || 0,
       stockPricePerKg: stockLossLine?.pricePerKg || 0,
+      shippingLengthCm: item.variant?.shipping_length_cm ?? null,
+      shippingWidthCm: item.variant?.shipping_width_cm ?? null,
+      shippingHeightCm: item.variant?.shipping_height_cm ?? null,
+      shippingWeightGrams: item.variant?.shipping_weight_grams ?? item.variant?.weight_grams ?? null,
     }
   })
 
-  const orderData: Record<string, unknown> = {
+  const retailMoyskladConfig = getMoyskladConfig("retail")
+  const shouldSyncRetailOrder = retailMoyskladConfig.enabled && retailMoyskladConfig.syncOrdersOnCreate
+  const orderData: RequiredDataFromCollectionSlug<"orders"> = {
     salesChannel: "retail",
     customerType: "individual",
     checkoutMode: clientId ? "account" : "guest",
     paymentMethod: "yookassa",
     paymentStatus: "pending",
+    status: "new",
+    moyskladSyncStatus: shouldSyncRetailOrder ? "pending" : "disabled",
     customerFullName: fullName,
     customerEmail: email,
     customerPhone: phone,
     deliveryMethod: input.deliveryMethod,
     deliveryAddress: address,
+    ...(input.deliveryMethod === "yandex_delivery" ? {
+      yandexDeliveryType: input.yandexDeliveryType,
+      yandexPickupPointId: input.yandexPickupPointId?.trim() || "",
+      yandexPickupPointName: input.yandexPickupPointName?.trim() || "",
+      yandexDeliveryStatus: "Ожидает оплаты",
+    } : {}),
     subtotal,
     discountAmount,
+    loyaltyPointsRedeemed: requestedLoyaltyPoints,
     deliveryCost,
     total,
     totalWeightGrams: totalWeight,
     comment: input.comment?.trim() || "",
     items,
   }
-  if (clientId) orderData.client = clientId
-  if (promoWins && promoResult.promo) orderData.promoCode = promoResult.promo.id
+  if (clientId) orderData.client = Number(clientId)
+  if (promoWins && promoResult.promo) orderData.promoCode = Number(promoResult.promo.id)
 
   const order = await payload.create({ collection: "orders", data: orderData }) as {
     id: string | number
@@ -466,7 +690,16 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     vatCustomRate?: number | null
   }
 
-  await syncOrderToMoysklad({
+  if (requestedLoyaltyPoints > 0 && clientId) {
+    try {
+      await reserveLoyaltyPoints(payload, { clientId, orderId: order.id, amount: requestedLoyaltyPoints, coffeeSubtotal })
+    } catch (error) {
+      await payload.update({ collection: "orders", id: order.id, data: { status: "cancelled", paymentStatus: "failed" } })
+      return { error: error instanceof Error ? error.message : "Не удалось зарезервировать баллы" }
+    }
+  }
+
+  const moyskladSyncResult = await syncOrderToMoysklad({
     payload,
     order: {
       id: order.id,
@@ -482,11 +715,14 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
       deliveryAddress: address,
       comment: input.comment,
     },
-    client: { fullName, email, phone },
+    client: clientForMoysklad,
     company: null,
     cartItems,
     discountLines: appliedDiscountLines,
   })
+  if ("error" in moyskladSyncResult && moyskladSyncResult.error) {
+    console.error(`[Order ${order.orderId || order.id}] Первичная выгрузка розничного заказа в МойСклад завершилась ошибкой: ${moyskladSyncResult.error}`)
+  }
 
   if (promoWins && promoResult.promo) {
     await payload.update({
@@ -521,6 +757,16 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
         paymentUpdatedAt: new Date().toISOString(),
       },
     })
+  } else if (requestedLoyaltyPoints > 0) {
+    // A reservation must never survive a payment that could not even be
+    // created. Otherwise the customer loses available points indefinitely.
+    await releaseLoyaltyReservation(payload, order.id)
+    await payload.update({
+      collection: "orders",
+      id: order.id,
+      data: { status: "cancelled", paymentStatus: "failed" },
+    })
+    return { error: `Не удалось создать платёж. Баллы не списаны и снова доступны. ${payment.error}` }
   } else if (payment.code !== "not_configured") {
     console.error("Не удалось создать платёж YooKassa", {
       orderId: String(order.id),
@@ -545,6 +791,9 @@ export async function createShopOrder(input: ShopOrderInput): Promise<ShopOrderR
     return await createShopOrderInternal(input)
   } catch (error) {
     console.error("[shop-orders] Не удалось оформить розничный заказ", error)
+    if (process.env.NODE_ENV !== "production" && error instanceof Error) {
+      return { error: `Локальная ошибка оформления: ${error.message}` }
+    }
     return {
       error: "Не удалось оформить заказ из-за временной ошибки сервера. Товары сохранены в корзине — попробуйте ещё раз.",
     }

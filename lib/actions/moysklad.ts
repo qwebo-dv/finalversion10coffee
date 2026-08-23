@@ -11,7 +11,7 @@ import { fetchMoyskladAssortment, fetchMoyskladProductFolders, getPrimarySalePri
 import type { MoyskladAssortment, MoyskladEntity } from "@/lib/moysklad/types"
 
 interface PayloadVariantForSync {
-  id?: string | number
+  id?: string | null
   name?: string
   sku?: string | null
   moyskladId?: string | null
@@ -19,7 +19,7 @@ interface PayloadVariantForSync {
   price?: number
   weightGrams?: number | null
   isAvailable?: boolean
-  grindOptions?: string[]
+  grindOptions?: ("beans" | "ground")[] | null
 }
 
 interface PayloadProductForSync {

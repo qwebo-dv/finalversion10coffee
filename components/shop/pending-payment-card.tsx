@@ -21,6 +21,9 @@ export function PendingPaymentCard() {
       clearCart()
       setPendingPayment(null)
       window.location.assign(`/order/success?orderId=${encodeURIComponent(pendingPayment.orderId)}`)
+    } else if (response.ok && result.ok && ["cancelled", "failed", "refunded"].includes(result.status || "")) {
+      setPendingPayment(null)
+      window.alert("Платёж отменён. Товары остались в корзине, можно оформить новый заказ.")
     }
   }, [clearCart, pendingPayment, setPendingPayment])
 
@@ -37,6 +40,7 @@ export function PendingPaymentCard() {
 
   async function retry() {
     const payment = pendingPayment
+    if (!payment) return
     setLoading(true)
     setError(null)
     try {
@@ -65,9 +69,26 @@ export function PendingPaymentCard() {
     }
   }
 
-  function abandonPayment() {
+  async function abandonPayment() {
     if (!window.confirm(`Не оплачивать заказ ${pendingPayment?.orderNumber}? Товары останутся в корзине, и вы сможете оформить новый заказ.`)) return
-    setPendingPayment(null)
+    const payment = pendingPayment
+    if (!payment) return
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch("/api/shop/payments/yookassa/abandon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: payment.token }),
+      })
+      const result = await response.json() as { ok?: boolean; error?: string }
+      if (!response.ok || !result.ok) throw new Error(result.error || "Не удалось отменить заказ")
+      setPendingPayment(null)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Не удалось отменить заказ")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -82,7 +103,7 @@ export function PendingPaymentCard() {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
             {loading ? "Проверяем…" : "Повторить оплату"}
           </button>
-          <button type="button" onClick={abandonPayment} disabled={loading} className="mt-2 block text-xs font-bold text-[#756b63] underline decoration-[#756b63]/30 underline-offset-4 hover:text-red-600">
+          <button type="button" onClick={() => void abandonPayment()} disabled={loading} className="mt-2 block text-xs font-bold text-[#756b63] underline decoration-[#756b63]/30 underline-offset-4 hover:text-red-600">
             Не оплачивать этот заказ
           </button>
         </div>

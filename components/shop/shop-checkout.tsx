@@ -3,7 +3,9 @@
 import Link from "next/link"
 import { FormEvent, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, CheckCircle2, ChevronDown, Loader2, LockKeyhole, MapPin, ShoppingBag, Tag, X } from "lucide-react"
-import { createShopOrder, previewShopPersonalDiscount, previewShopPromo } from "@/lib/actions/shop-orders"
+import { createShopOrder, previewShopPersonalDiscount, previewShopPromo, quoteShopSochiDelivery } from "@/lib/actions/shop-orders"
+import { getMyLoyalty, type MyLoyaltyData } from "@/lib/actions/loyalty"
+import type { SochiDeliveryQuote } from "@/lib/sochi-delivery"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 import { useAuth } from "@/providers/auth-provider"
 import PhoneInput from "@/components/shared/phone-input"
@@ -12,6 +14,7 @@ import { PendingPaymentCard } from "@/components/shop/pending-payment-card"
 import { formatPrice } from "@/lib/utils/format"
 import type { DeliveryMethod, Product } from "@/types"
 import { CdekDeliverySelector, type ShopCdekSelection } from "./cdek-delivery-selector"
+import { YandexDeliverySelector, type ShopYandexDeliverySelection } from "./yandex-delivery-selector"
 
 function withCity(city: string, address: string): string {
   const trimmedAddress = address.trim()
@@ -25,9 +28,11 @@ function withCity(city: string, address: string): string {
 export function ShopCheckout({
   products,
   onlinePaymentReady,
+  yandexDeliveryPreviewEnabled,
 }: {
   products: Product[]
   onlinePaymentReady: boolean
+  yandexDeliveryPreviewEnabled: boolean
 }) {
   const { items, clearCart, hydrated, pendingPayment, setPendingPayment } = useGuestCart()
   const { user } = useAuth()
@@ -39,10 +44,13 @@ export function ShopCheckout({
     (user?.user_metadata?.delivery_method as DeliveryMethod) || "cdek"
   )
   const [cdekSelection, setCdekSelection] = useState<ShopCdekSelection | null>(null)
+  const [yandexSelection, setYandexSelection] = useState<ShopYandexDeliverySelection | null>(null)
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
   const [deliveryAddress, setDeliveryAddress] = useState("")
+  const [sochiDeliveryQuote, setSochiDeliveryQuote] = useState<SochiDeliveryQuote | null>(null)
+  const [sochiDeliveryQuoteLoading, setSochiDeliveryQuoteLoading] = useState(false)
   const [promoCode, setPromoCode] = useState("")
   const [promoLoading, setPromoLoading] = useState(false)
   const [promoError, setPromoError] = useState<string | null>(null)
@@ -65,6 +73,9 @@ export function ShopCheckout({
   } | null>(null)
   const [hasExclusivePersonalRules, setHasExclusivePersonalRules] = useState(false)
   const [discountRulesResolvedForUserId, setDiscountRulesResolvedForUserId] = useState<string | null>(null)
+  const [loyalty, setLoyalty] = useState<MyLoyaltyData | null>(null)
+  const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false)
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0)
 
   const defaultAddress = (user?.user_metadata?.address as string) || ""
   const isRetailAccountCheckout = user?.user_metadata?.customer_type === "individual"
@@ -73,8 +84,9 @@ export function ShopCheckout({
   useEffect(() => {
     const saved = user?.user_metadata?.delivery_method as DeliveryMethod | undefined
     // Auth state is hydrated asynchronously, so the saved delivery method must be applied after login data arrives.
-    if (saved) setDeliveryMethod(saved)
-  }, [user])
+    if (saved && (saved !== "yandex_delivery" || yandexDeliveryPreviewEnabled)) setDeliveryMethod(saved)
+    if (saved === "yandex_delivery" && !yandexDeliveryPreviewEnabled) setDeliveryMethod("cdek")
+  }, [user, yandexDeliveryPreviewEnabled])
 
   useEffect(() => {
     if (!user || user.user_metadata?.customer_type !== "individual") return
@@ -89,6 +101,20 @@ export function ShopCheckout({
     if (defaultAddress) setDeliveryAddress((current) => current || defaultAddress)
   }, [defaultAddress])
 
+  useEffect(() => {
+    let cancelled = false
+    if (!isRetailAccountCheckout) {
+      setLoyalty(null)
+      return
+    }
+    void getMyLoyalty().then((response) => {
+      if (!cancelled) setLoyalty(response)
+    }).catch(() => {
+      if (!cancelled) setLoyalty(null)
+    })
+    return () => { cancelled = true }
+  }, [isRetailAccountCheckout, user?.id])
+
   const lines = useMemo(() => items.map((item) => {
     const product = products.find((entry) => entry.id === item.productId)
     const variant = product?.variants?.find((entry) => entry.id === item.variantId)
@@ -96,12 +122,32 @@ export function ShopCheckout({
   }).filter((line) => line.product && line.variant), [items, products])
   const subtotal = lines.reduce((sum, line) => sum + (line.variant?.price || 0) * line.item.quantity, 0)
   const totalWeight = lines.reduce((sum, line) => sum + (line.variant?.weight_grams || 0) * line.item.quantity, 0)
-  const deliveryCost = deliveryMethod === "cdek" ? cdekSelection?.deliveryCost || 0 : 0
   const personalDiscountAmount = personalDiscount?.discountAmount || 0
   const promoIsApplied = Boolean(appliedPromo && appliedPromo.discountAmount >= personalDiscountAmount)
   const personalDiscountIsApplied = personalDiscountAmount > 0 && !promoIsApplied
-  const discountAmount = promoIsApplied ? appliedPromo?.discountAmount || 0 : personalDiscountAmount
+  const appliedDiscountAmount = promoIsApplied ? appliedPromo?.discountAmount || 0 : personalDiscountAmount
+  const coffeeSubtotal = lines.filter((line) => line.product?.product_type_schema === "coffee").reduce((sum, line) => sum + (line.variant?.price || 0) * line.item.quantity, 0)
+  // Наличие персонального правила само по себе не должно запрещать списание.
+  // Баллы несовместимы только со скидкой, которая действительно применена
+  // к текущей корзине, либо с применённым промокодом.
+  const loyaltyBlocked = promoIsApplied || personalDiscountIsApplied
+  const loyaltyMaximum = loyalty?.enabled && !loyaltyBlocked
+    ? Math.min(loyalty.available, Math.floor(coffeeSubtotal * loyalty.maxRedemptionPercent / 100))
+    : 0
+  const loyaltyDiscount = useLoyaltyPoints && !loyaltyBlocked ? Math.min(loyaltyPoints, loyaltyMaximum) : 0
+  const discountAmount = appliedDiscountAmount + loyaltyDiscount
+  const goodsTotal = Math.max(0, subtotal - discountAmount)
+  const deliveryCost = deliveryMethod === "cdek"
+    ? cdekSelection?.deliveryCost || 0
+    : deliveryMethod === "sochi_delivery"
+      ? sochiDeliveryQuote?.available ? sochiDeliveryQuote.cost : 0
+      : deliveryMethod === "yandex_delivery"
+        ? yandexSelection?.deliveryCost || 0
+      : 0
   const total = Math.max(0, subtotal - discountAmount) + deliveryCost
+  const cashbackBase = Math.max(0, subtotal - discountAmount)
+  const cashbackTier = loyalty?.tiers.filter((tier) => cashbackBase >= tier.minSubtotal).at(-1)
+  const expectedCashback = loyalty?.enabled ? Math.floor(cashbackBase * (cashbackTier?.percent || 0) / 100) : 0
 
   useEffect(() => {
     let cancelled = false
@@ -137,6 +183,49 @@ export function ShopCheckout({
     }
   }, [items, user])
 
+  useEffect(() => {
+    if (loyaltyBlocked) {
+      setUseLoyaltyPoints(false)
+      setLoyaltyPoints(0)
+    }
+  }, [loyaltyBlocked])
+
+  useEffect(() => {
+    setLoyaltyPoints((current) => Math.min(current, loyaltyMaximum))
+  }, [loyaltyMaximum])
+
+  useEffect(() => {
+    if (deliveryMethod !== "sochi_delivery") {
+      setSochiDeliveryQuote(null)
+      setSochiDeliveryQuoteLoading(false)
+      return
+    }
+
+    const address = deliveryAddress.trim()
+    if (address.length < 4) {
+      setSochiDeliveryQuote(null)
+      setSochiDeliveryQuoteLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setSochiDeliveryQuoteLoading(true)
+    const timeout = window.setTimeout(() => {
+      void quoteShopSochiDelivery({ address, goodsAmount: goodsTotal }).then((quote) => {
+        if (!cancelled) setSochiDeliveryQuote(quote)
+      }).catch(() => {
+        if (!cancelled) setSochiDeliveryQuote({ available: false, cost: 0, zone: null, message: "Не удалось рассчитать доставку. Попробуйте ещё раз." })
+      }).finally(() => {
+        if (!cancelled) setSochiDeliveryQuoteLoading(false)
+      })
+    }, 350)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+    }
+  }, [deliveryAddress, deliveryMethod, goodsTotal])
+
   function resetPromo() {
     setAppliedPromo(null)
     setPromoError(null)
@@ -147,6 +236,11 @@ export function ShopCheckout({
     if (!normalized) {
       setPromoError("Введите промокод")
       return
+    }
+
+    if (useLoyaltyPoints) {
+      setUseLoyaltyPoints(false)
+      setLoyaltyPoints(0)
     }
 
     setPromoLoading(true)
@@ -188,6 +282,16 @@ export function ShopCheckout({
       setError("Выберите город, способ и пункт выдачи СДЭК либо адрес курьерской доставки")
       return
     }
+    if (deliveryMethod === "sochi_delivery" && (!sochiDeliveryQuote || !sochiDeliveryQuote.available)) {
+      setLoading(false)
+      setError(sochiDeliveryQuote?.message || "Дождитесь расчёта доставки по Сочи")
+      return
+    }
+    if (deliveryMethod === "yandex_delivery" && !yandexSelection) {
+      setLoading(false)
+      setError("Выберите город, способ и точку получения Яндекс Доставки, затем дождитесь расчёта тарифа")
+      return
+    }
     try {
       const response = await createShopOrder({
         items,
@@ -200,15 +304,24 @@ export function ShopCheckout({
             ? withCity(cdekSelection.cityName, String(data.get("address") || ""))
             : deliveryMethod === "sochi_delivery"
               ? withCity("Сочи", String(data.get("address") || ""))
+              : deliveryMethod === "yandex_delivery"
+                ? yandexSelection?.address || ""
               : String(data.get("address") || ""),
         deliveryMethod,
         comment: String(data.get("comment") || ""),
         promoCode: appliedPromo?.code || "",
+        loyaltyPoints: loyaltyDiscount,
         createAccount: !isRetailAccountCheckout && data.get("createAccount") === "on",
         acceptTerms: data.get("acceptTerms") === "on",
         deliveryCost,
         cdekCityCode: cdekSelection?.cityCode,
         cdekDeliveryType: cdekSelection?.deliveryType,
+        yandexDeliveryType: yandexSelection?.deliveryType,
+        yandexPickupPointId: yandexSelection?.pickupPoint?.id,
+        yandexPickupPointName: yandexSelection?.pickupPoint
+          ? `${yandexSelection.pickupPoint.name} — ${yandexSelection.pickupPoint.address}`
+          : undefined,
+        yandexDestinationGeoId: yandexSelection?.destinationGeoId,
       })
 
       if (response.error) {
@@ -303,10 +416,11 @@ export function ShopCheckout({
               <label><span className="mb-2 block text-xs font-bold text-[#655c55]">Email</span><input name="email" type="email" required autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); if (appliedPromo) resetPromo() }} className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="mail@example.ru" /></label>
             </div>
 
-            <fieldset className="mt-8"><legend className="text-sm font-black">Способ получения</legend><div className="mt-3 grid gap-3 sm:grid-cols-3">{([['cdek','СДЭК'],['sochi_delivery','По Сочи'],['self_pickup','Самовывоз']] as [DeliveryMethod,string][]).map(([value,label]) => <button key={value} type="button" onClick={() => { setDeliveryMethod(value); setCdekSelection(null) }} className={`rounded-2xl border px-4 py-4 text-sm font-bold ${deliveryMethod === value ? "border-[#5b328a] bg-[#f4edfa] text-[#5b328a]" : "border-black/10"}`}>{label}</button>)}</div></fieldset>
+            <fieldset className="mt-8"><legend className="text-sm font-black">Способ получения</legend><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{([['cdek','СДЭК'], ...(yandexDeliveryPreviewEnabled ? [['yandex_delivery','Яндекс Доставка'] as [DeliveryMethod, string]] : []), ['sochi_delivery','По Сочи'],['self_pickup','Самовывоз']] as [DeliveryMethod,string][]).map(([value,label]) => <button key={value} type="button" onClick={() => { setDeliveryMethod(value); setCdekSelection(null); setYandexSelection(null) }} className={`rounded-2xl border px-4 py-4 text-sm font-bold ${deliveryMethod === value ? "border-[#5b328a] bg-[#f4edfa] text-[#5b328a]" : "border-black/10"}`}>{label}</button>)}</div></fieldset>
 
             {deliveryMethod === "cdek" && <CdekDeliverySelector weightGrams={totalWeight} defaultAddress={defaultAddress} onChange={setCdekSelection} />}
-            {deliveryMethod === "sochi_delivery" && <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><AddressInput name="address" required value={deliveryAddress} onChange={setDeliveryAddress} city="Сочи" className="h-12 rounded-2xl border-black/10 px-4 focus-visible:border-[#5b328a] focus-visible:ring-0" placeholder="Начните вводить улицу и дом" /></label>}
+            {deliveryMethod === "yandex_delivery" && <YandexDeliverySelector items={items} fullName={fullName} email={email} phone={phone} defaultAddress={defaultAddress} onChange={setYandexSelection} />}
+            {deliveryMethod === "sochi_delivery" && <div className="mt-5"><label className="block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><AddressInput name="address" required value={deliveryAddress} onChange={setDeliveryAddress} region="Краснодарский" className="h-12 rounded-2xl border-black/10 px-4 focus-visible:border-[#5b328a] focus-visible:ring-0" placeholder="Начните вводить улицу и дом" /></label>{sochiDeliveryQuoteLoading && <p className="mt-2 text-xs text-[#756b63]">Рассчитываем доставку по адресу…</p>}{!sochiDeliveryQuoteLoading && sochiDeliveryQuote?.available && <p className="mt-2 text-xs font-medium text-emerald-700">{sochiDeliveryQuote.cost > 0 ? `Доставка по этой зоне — ${formatPrice(sochiDeliveryQuote.cost)}` : "Доставка бесплатная"}{goodsTotal >= 3000 && " для заказа от 3 000 ₽"}</p>}{!sochiDeliveryQuoteLoading && sochiDeliveryQuote && !sochiDeliveryQuote.available && <p className="mt-2 text-xs font-medium text-red-700">{sochiDeliveryQuote.message}</p>}</div>}
             {deliveryMethod === "self_pickup" && (
               <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#5b328a]/20 bg-[#f4edfa] p-4 text-[#5b328a]">
                 <MapPin className="mt-0.5 h-5 w-5 shrink-0" />
@@ -369,6 +483,47 @@ export function ShopCheckout({
               </div>
             </details>}
 
+            {isRetailAccountCheckout && loyalty?.enabled && (
+              <section className="mt-5 rounded-2xl border border-[#5b328a]/20 bg-[#f8f4fb] p-4">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={useLoyaltyPoints}
+                    disabled={loyaltyBlocked || loyaltyMaximum < 1}
+                    onChange={(event) => {
+                      const checked = event.target.checked
+                      if (checked) {
+                        setAppliedPromo(null)
+                        setPromoCode("")
+                        setPromoError(null)
+                      }
+                      setUseLoyaltyPoints(checked)
+                      if (!checked) setLoyaltyPoints(0)
+                      else setLoyaltyPoints(loyaltyMaximum)
+                    }}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#5b328a]"
+                  />
+                  <span>
+                    <b className="block text-sm text-[#5b328a]">Списать баллы</b>
+                    <span className="mt-1 block text-xs leading-5 text-[#655c55]">
+                      Доступно {loyalty.available.toLocaleString("ru-RU")} Б. За кофе можно списать до {loyalty.maxRedemptionPercent}% — максимум {loyaltyMaximum.toLocaleString("ru-RU")} Б.
+                    </span>
+                  </span>
+                </label>
+                {loyaltyBlocked && <p className="mt-3 text-xs leading-5 text-[#8a4b1c]">Баллы не суммируются с применённым промокодом или персональной скидкой.</p>}
+                {useLoyaltyPoints && !loyaltyBlocked && (
+                  <div className="mt-4">
+                    <label className="text-xs font-bold text-[#655c55]" htmlFor="loyalty-points">Списать баллов</label>
+                    <div className="mt-2 flex items-center gap-3">
+                      <input id="loyalty-points" type="number" min={1} max={loyaltyMaximum} value={loyaltyPoints || ""} onChange={(event) => setLoyaltyPoints(Math.max(0, Math.min(loyaltyMaximum, Math.floor(Number(event.target.value) || 0))))} className="h-11 w-28 rounded-xl border border-black/10 bg-white px-3 text-sm font-bold outline-none focus:border-[#5b328a]" />
+                      <input aria-label="Количество списываемых баллов" type="range" min={0} max={loyaltyMaximum} value={loyaltyPoints} onChange={(event) => setLoyaltyPoints(Number(event.target.value))} className="min-w-0 flex-1 accent-[#5b328a]" />
+                    </div>
+                  </div>
+                )}
+                <p className="mt-3 text-xs leading-5 text-[#655c55]">После доставки ожидаемое начисление: {expectedCashback.toLocaleString("ru-RU")} Б.</p>
+              </section>
+            )}
+
             {!isRetailAccountCheckout && <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl bg-[#f8f5f1] p-4"><input name="createAccount" type="checkbox" className="mt-1 h-4 w-4 accent-[#5b328a]" /><span><b className="block text-sm">Создать личный кабинет</b><span className="mt-1 block text-xs leading-5 text-[#7d736b]">Необязательно. Пароль будет отправлен на email, а заказ появится в истории.</span></span></label>}
 
             <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-black/10 p-4">
@@ -388,14 +543,14 @@ export function ShopCheckout({
                 )}
               </div>
             </div>
-            <button disabled={loading || !hydrated || (deliveryMethod === "cdek" && !cdekSelection)} className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#5b328a] text-sm font-black text-white hover:bg-[#47256e] disabled:opacity-60">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{loading ? "Оформляем…" : `Оформить заказ · ${formatPrice(total)}`}</button>
+            <button disabled={loading || !hydrated || (deliveryMethod === "cdek" && !cdekSelection) || (deliveryMethod === "yandex_delivery" && !yandexSelection)} className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#5b328a] text-sm font-black text-white hover:bg-[#47256e] disabled:opacity-60">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{loading ? "Оформляем…" : `Оформить заказ · ${formatPrice(total)}`}</button>
           </form>
 
           <aside className="h-fit rounded-[32px] bg-[#1d1d1b] p-6 text-white lg:sticky lg:top-8">
             <h2 className="text-xl font-black">Ваш заказ</h2>
             <div className="mt-5 space-y-4">{lines.map(({ item, product, variant }) => <div key={item.id} className="flex gap-3 border-b border-white/10 pb-4"><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{product?.name}</p><p className="mt-1 text-xs text-white/50">{variant?.name} · {item.quantity} шт.</p></div><b className="text-sm">{formatPrice((variant?.price || 0) * item.quantity)}</b></div>)}</div>
-            {discountAmount > 0 && <div className="mt-5 flex items-center gap-2 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-emerald-300"><Tag className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate text-xs font-bold">{promoIsApplied ? `Промокод ${appliedPromo?.code}` : "Персональная скидка"}</span><strong className="text-sm">−{formatPrice(discountAmount)}</strong></div>}
-            <div className="mt-6 space-y-2 border-t border-white/10 pt-5"><div className="flex items-end justify-between"><span className="text-sm text-white/55">Товары</span><strong>{formatPrice(subtotal)}</strong></div>{discountAmount > 0 && <div className="flex items-end justify-between text-emerald-300"><span className="text-sm">{promoIsApplied ? "Скидка по промокоду" : "Персональная скидка"}</span><strong>−{formatPrice(discountAmount)}</strong></div>}{deliveryCost > 0 && <div className="flex items-end justify-between"><span className="text-sm text-white/55">Доставка СДЭК</span><strong>{formatPrice(deliveryCost)}</strong></div>}<div className="flex items-end justify-between pt-2"><span className="text-sm text-white/55">Итого</span><strong className="text-2xl">{formatPrice(total)}</strong></div></div>
+            {discountAmount > 0 && <div className="mt-5 flex items-center gap-2 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-emerald-300"><Tag className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate text-xs font-bold">{loyaltyDiscount > 0 ? "Списание баллов" : promoIsApplied ? `Промокод ${appliedPromo?.code}` : "Персональная скидка"}</span><strong className="text-sm">−{formatPrice(discountAmount)}</strong></div>}
+            <div className="mt-6 space-y-2 border-t border-white/10 pt-5"><div className="flex items-end justify-between"><span className="text-sm text-white/55">Товары</span><strong>{formatPrice(subtotal)}</strong></div>{appliedDiscountAmount > 0 && <div className="flex items-end justify-between text-emerald-300"><span className="text-sm">{promoIsApplied ? "Скидка по промокоду" : "Персональная скидка"}</span><strong>−{formatPrice(appliedDiscountAmount)}</strong></div>}{loyaltyDiscount > 0 && <div className="flex items-end justify-between text-emerald-300"><span className="text-sm">Списание баллов</span><strong>−{formatPrice(loyaltyDiscount)}</strong></div>}{(deliveryCost > 0 || (deliveryMethod === "sochi_delivery" && sochiDeliveryQuote?.available)) && <div className="flex items-end justify-between"><span className="text-sm text-white/55">{deliveryMethod === "sochi_delivery" ? "Доставка по Сочи" : deliveryMethod === "yandex_delivery" ? "Яндекс Доставка" : "Доставка СДЭК"}</span><strong>{deliveryCost > 0 ? formatPrice(deliveryCost) : "Бесплатно"}</strong></div>}<div className="flex items-end justify-between pt-2"><span className="text-sm text-white/55">Итого</span><strong className="text-2xl">{formatPrice(total)}</strong></div></div>
           </aside>
         </div>
       </div>

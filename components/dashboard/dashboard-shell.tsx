@@ -169,6 +169,7 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
                     ? [
                         { href: "/main", label: "Статистика", icon: LayoutDashboard },
                         { href: "/main/orders", label: "Заказы", icon: Package },
+                        { href: "/main/loyalty", label: "Мои баллы", icon: BadgePercent },
                         { href: "/main/recently-viewed", label: "Просмотренные товары", icon: History },
                         { href: "/main/favorites", label: "Избранные", icon: Heart },
                         { href: "/main/reviews", label: "Мои отзывы", icon: Star },

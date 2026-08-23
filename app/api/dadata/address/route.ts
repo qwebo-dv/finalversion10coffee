@@ -29,9 +29,10 @@ function localAddress(suggestion: DadataSuggestion): string {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null) as { query?: unknown; city?: unknown } | null
+  const body = await request.json().catch(() => null) as { query?: unknown; city?: unknown; region?: unknown } | null
   const query = typeof body?.query === "string" ? body.query.trim().slice(0, 200) : ""
   const city = typeof body?.city === "string" ? body.city.trim().slice(0, 100) : ""
+  const region = typeof body?.region === "string" ? body.region.trim().slice(0, 100) : ""
 
   if (query.length < 2) {
     return NextResponse.json({ suggestions: [] })
@@ -55,10 +56,10 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           query,
           count: 5,
-          ...(city ? {
+          ...(city || region ? {
             from_bound: { value: "street" },
             to_bound: { value: "house" },
-            locations: [{ city }],
+            locations: [city ? { city } : { region }],
           } : {}),
         }),
       }

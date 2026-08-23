@@ -45,7 +45,7 @@ export async function validatePromoCode(
 
   if (!docs.length) return { valid: false, error: "Промокод не найден" }
 
-  const promo = docs[0] as Record<string, unknown>
+  const promo = docs[0]
 
   const clientResult = await payload.find({
     collection: "clients",

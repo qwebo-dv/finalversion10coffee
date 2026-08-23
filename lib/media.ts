@@ -9,7 +9,6 @@ export interface PayloadMediaRef {
   url?: string | null
   filename?: string | null
   sizes?: Partial<Record<MediaSizeName, MediaSizeRef | null>> | null
-  [key: string]: unknown
 }
 
 function fileUrl(filename: string | null | undefined) {
@@ -49,7 +48,7 @@ export function normalizeMediaUrl(url: string | null | undefined) {
 }
 
 function stringField(media: PayloadMediaRef, key: string) {
-  const value = media[key]
+  const value = (media as unknown as Record<string, unknown>)[key]
   return typeof value === "string" && value.length > 0 ? value : null
 }
 

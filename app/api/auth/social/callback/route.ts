@@ -192,6 +192,7 @@ export async function GET(request: NextRequest) {
       userId: user.id,
       provider: profile.provider,
       providerUserId: profile.providerId,
+      messagingId: profile.messagingId,
       allowTransfer: stored.allowTransfer === true,
     })
 

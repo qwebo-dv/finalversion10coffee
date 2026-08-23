@@ -5,6 +5,7 @@ import { getMoyskladConfig } from "@/lib/moysklad/config"
 import { retryFailedMoyskladOrders } from "@/lib/moysklad/order-retry"
 import { canReadOperations, canRunIntegrations, getAllowedSalesChannels, operationsCreateAccess, operationsDeleteAccess, operationsUpdateAccess } from "../access/adminRoles"
 import { orderWorkspaceBaseFilter } from "../admin/workspace"
+import { accrueLoyaltyForDeliveredOrder, releaseLoyaltyReservation, reverseLoyaltyForReturnedOrder } from "@/lib/loyalty"
 
 async function generateSequentialOrderId() {
   const nextResult = await dbQuery<{ next_number: number }>(
@@ -32,11 +33,18 @@ export const Orders: CollectionConfig = {
     group: "Заказы и продажи",
     description: "Заказы клиентов",
     baseFilter: orderWorkspaceBaseFilter,
-    listSearchableFields: ["orderId", "companyName", "companyInn"],
+    listSearchableFields: [
+      "orderId",
+      "customerFullName",
+      "customerEmail",
+      "customerPhone",
+      "companyName",
+      "companyInn",
+    ],
     defaultColumns: [
       "orderId",
       "salesChannel",
-      "client",
+      "customerFullName",
       "status",
       "paymentMethod",
       "paymentStatus",
@@ -90,7 +98,7 @@ export const Orders: CollectionConfig = {
                 includeExisting: true,
                 minAgeMs: 0,
                 orderIds,
-                onProgress: (event) => send(event),
+                onProgress: (event) => send({ ...event }),
               })
               send({ type: "final", ok: result.failed === 0, ...result })
             } catch (error) {
@@ -186,9 +194,18 @@ export const Orders: CollectionConfig = {
       },
     ],
     afterChange: [
-      async ({ doc, previousDoc }) => {
+      async ({ doc, previousDoc, req }) => {
         if (previousDoc && doc.status !== previousDoc.status) {
           console.log(`[Order ${doc.orderId}] Status: ${previousDoc.status} → ${doc.status}`)
+        }
+        if (doc.status === "delivered") {
+          await accrueLoyaltyForDeliveredOrder(req.payload, doc as Record<string, unknown>)
+        }
+        if (["cancelled", "returned"].includes(doc.status) || ["cancelled", "failed", "refunded"].includes(doc.paymentStatus)) {
+          await releaseLoyaltyReservation(req.payload, doc.id)
+        }
+        if (["cancelled", "returned"].includes(doc.status) || doc.paymentStatus === "refunded") {
+          await reverseLoyaltyForReturnedOrder(req.payload, doc as Record<string, unknown>)
         }
       },
     ],
@@ -311,6 +328,14 @@ export const Orders: CollectionConfig = {
       label: "Сумма скидки",
       defaultValue: 0,
       admin: { position: "sidebar", readOnly: true, description: "Рассчитывается автоматически" },
+    },
+    {
+      name: "loyaltyPointsRedeemed",
+      type: "number",
+      label: "Списано баллов",
+      defaultValue: 0,
+      min: 0,
+      admin: { position: "sidebar", readOnly: true, description: "Баллы можно списать только с товаров категории «Кофе»." },
     },
     {
       name: "deliveryCost",
@@ -575,6 +600,7 @@ export const Orders: CollectionConfig = {
                         { label: "СДЭК", value: "cdek" },
                         { label: "ЦАП 2000", value: "cap_2000" },
                         { label: "Доставка по Сочи", value: "sochi_delivery" },
+                        { label: "Яндекс Доставка", value: "yandex_delivery" },
                       ],
                       admin: { width: "40%" },
                     },
@@ -601,6 +627,41 @@ export const Orders: CollectionConfig = {
                   admin: {
                     condition: (data) => data?.deliveryMethod === "cap_2000",
                   },
+                },
+                {
+                  name: "yandexDeliveryType",
+                  type: "select",
+                  label: "Получение Яндекс Доставки",
+                  options: [
+                    { label: "Пункт выдачи", value: "pickup_point" },
+                    { label: "Постамат", value: "terminal" },
+                    { label: "Курьер до двери", value: "courier" },
+                  ],
+                  admin: { condition: (data) => data?.deliveryMethod === "yandex_delivery" },
+                },
+                {
+                  name: "yandexPickupPointId",
+                  type: "text",
+                  label: "ID пункта Яндекс Доставки",
+                  admin: { readOnly: true, condition: (data) => data?.deliveryMethod === "yandex_delivery" },
+                },
+                {
+                  name: "yandexPickupPointName",
+                  type: "text",
+                  label: "Пункт Яндекс Доставки",
+                  admin: { readOnly: true, condition: (data) => data?.deliveryMethod === "yandex_delivery" },
+                },
+                {
+                  name: "yandexRequestId",
+                  type: "text",
+                  label: "Номер заявки Яндекс Доставки",
+                  admin: { readOnly: true, condition: (data) => data?.deliveryMethod === "yandex_delivery" },
+                },
+                {
+                  name: "yandexDeliveryStatus",
+                  type: "text",
+                  label: "Статус Яндекс Доставки",
+                  admin: { readOnly: true, condition: (data) => data?.deliveryMethod === "yandex_delivery" },
                 },
               ],
             },
@@ -631,6 +692,16 @@ export const Orders: CollectionConfig = {
                     { name: "productName", type: "text", label: "Товар", required: true, admin: { width: "40%" } },
                     { name: "variantName", type: "text", label: "Фасовка", required: true, admin: { width: "30%" } },
                     { name: "grindOption", type: "text", label: "Помол", admin: { width: "30%" } },
+                  ],
+                },
+                {
+                  type: "row",
+                  admin: { hidden: true },
+                  fields: [
+                    { name: "shippingLengthCm", type: "number", admin: { hidden: true } },
+                    { name: "shippingWidthCm", type: "number", admin: { hidden: true } },
+                    { name: "shippingHeightCm", type: "number", admin: { hidden: true } },
+                    { name: "shippingWeightGrams", type: "number", admin: { hidden: true } },
                   ],
                 },
                 {

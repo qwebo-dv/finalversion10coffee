@@ -1,4 +1,4 @@
-import type { Payload } from "payload"
+import type { Payload, Where } from "payload"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { normalizeProductDetailsSchema } from "@/lib/product-types"
 import { calculateClientDiscount, normalizeCategoryDiscounts, normalizeDiscountPercent, normalizeProductDiscounts, type CategoryDiscountRule, type ProductDiscountRule } from "@/lib/discounts"
@@ -29,6 +29,7 @@ interface RetryOptions {
   limit?: number
   includeExisting?: boolean
   includeAllUnexported?: boolean
+  includePaidDisabledRetail?: boolean
   minAgeMs?: number
   onProgress?: (event: RetryProgressEvent) => void
   // Explicit set of order IDs to retry (checkbox bulk action in the admin
@@ -102,6 +103,7 @@ interface PayloadOrderDoc {
   createdAt?: string
   salesChannel?: "wholesale" | "retail" | null
   customerType?: "individual" | "business" | null
+  paymentStatus?: "pending" | "invoiced" | "paid" | "failed" | "cancelled" | "refunded" | null
   client?: PayloadClientDoc | string | number | null
   customerFullName?: string | null
   customerEmail?: string | null
@@ -149,6 +151,10 @@ interface PayloadVariantDoc {
   moyskladType?: "product" | "variant" | "service" | null
   price?: number
   weightGrams?: number | null
+  shippingLengthCm?: number | null
+  shippingWidthCm?: number | null
+  shippingHeightCm?: number | null
+  shippingWeightGrams?: number | null
   isAvailable?: boolean
   grindOptions?: string[]
 }
@@ -168,6 +174,7 @@ interface PayloadProductDoc {
   moyskladId?: string | null
   sortOrder?: number
   isVisible?: boolean
+  isPopular?: boolean | null
   variants?: PayloadVariantDoc[]
   createdAt?: string
   updatedAt?: string
@@ -310,10 +317,6 @@ function resolveRetryVariant(product: Product | null, row: OrderItemRow, unitPri
   return bestWithMoysklad || direct
 }
 
-function hasMoyskladError(order: PayloadOrderDoc) {
-  return Boolean(order.moyskladSyncError?.trim())
-}
-
 function isUnexportedMoyskladOrder(order: PayloadOrderDoc) {
   return !order.moyskladCustomerOrderId?.trim()
 }
@@ -321,24 +324,34 @@ function isUnexportedMoyskladOrder(order: PayloadOrderDoc) {
 function isRetryableMoyskladOrder(
   order: PayloadOrderDoc,
   includeAllUnexported = false,
-  includeExisting = false
+  includeExisting = false,
+  includePaidDisabledRetail = false,
 ) {
   if (!isUnexportedMoyskladOrder(order)) return includeExisting
   if (includeAllUnexported) return true
   if (order.moyskladSyncStatus === "error") return true
 
-  // Some failed creates were left as "pending" with a filled error field,
-  // so treat them as stuck failed orders and keep retrying them too.
-  return order.moyskladSyncStatus === "pending" && hasMoyskladError(order)
+  if (
+    includePaidDisabledRetail
+    && order.moyskladSyncStatus === "disabled"
+    && order.salesChannel === "retail"
+    && order.paymentStatus === "paid"
+  ) return true
+
+  // A new order is queued as pending before the immediate attempt. If the
+  // process stops between those steps, there may be no error text yet, but the
+  // background sweep still has to finish the export.
+  return order.moyskladSyncStatus === "pending"
 }
 
 function isRetryDue(
   order: PayloadOrderDoc,
   minAgeMs: number,
   includeAllUnexported = false,
-  includeExisting = false
+  includeExisting = false,
+  includePaidDisabledRetail = false,
 ) {
-  if (!isRetryableMoyskladOrder(order, includeAllUnexported, includeExisting)) return false
+  if (!isRetryableMoyskladOrder(order, includeAllUnexported, includeExisting, includePaidDisabledRetail)) return false
 
   const updatedAt = order.updatedAt ? Date.parse(order.updatedAt) : 0
   if (!updatedAt) return true
@@ -355,6 +368,10 @@ function transformVariant(doc: PayloadVariantDoc, productId: string): ProductVar
     moysklad_type: doc.moyskladType || null,
     price: numberValue(doc.price),
     weight_grams: doc.weightGrams ?? null,
+    shipping_length_cm: doc.shippingLengthCm ?? null,
+    shipping_width_cm: doc.shippingWidthCm ?? null,
+    shipping_height_cm: doc.shippingHeightCm ?? null,
+    shipping_weight_grams: doc.shippingWeightGrams ?? null,
     is_available: doc.isAvailable ?? true,
     sort_order: 0,
     grind_options: doc.grindOptions || [],
@@ -383,6 +400,7 @@ function transformProduct(doc: PayloadProductDoc): Product {
     description_images: [],
     sort_order: doc.sortOrder || 0,
     is_visible: doc.isVisible ?? true,
+    is_popular: doc.isPopular ?? false,
     stickers: [],
     roaster: null,
     roast_level: null,
@@ -391,6 +409,9 @@ function transformProduct(doc: PayloadProductDoc): Product {
     processing_method: null,
     taste_description: null,
     acidity: null,
+    bitterness: null,
+    sweetness: null,
+    body: null,
     coffee_group: null,
     growing_height: null,
     q_grader_rating: null,
@@ -514,6 +535,10 @@ function buildCartItemFromStoredOrderItem(
         sku: null,
         moysklad_id: null,
         moysklad_type: null,
+        shipping_length_cm: null,
+        shipping_width_cm: null,
+        shipping_height_cm: null,
+        shipping_weight_grams: null,
         is_available: true,
         sort_order: 0,
         grind_options: [],
@@ -586,6 +611,10 @@ async function getRetryCartItems(payload: Payload, order: PayloadOrderDoc): Prom
         sku: null,
         moysklad_id: null,
         moysklad_type: null,
+        shipping_length_cm: null,
+        shipping_width_cm: null,
+        shipping_height_cm: null,
+        shipping_weight_grams: null,
         is_available: true,
         sort_order: 0,
         grind_options: [],
@@ -881,13 +910,14 @@ function isOrderUpToDateInMoysklad(
 
 export async function retryFailedMoyskladOrders(payload: Payload, options: RetryOptions = {}) {
   const orderIds = options.orderIds && options.orderIds.length > 0
-    ? Array.from(new Set(options.orderIds.map(String)))
+    ? Array.from(new Set(options.orderIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)))
     : null
   const limit = options.limit || (options.includeAllUnexported ? 100 : 25)
   const minAgeMs = options.minAgeMs ?? RETRY_INTERVAL_MS
   const includeAllUnexported = options.includeAllUnexported || false
   const includeExisting = options.includeExisting || false
-  const where = orderIds
+  const includePaidDisabledRetail = options.includePaidDisabledRetail || false
+  const where: Where | undefined = orderIds
     ? { id: { in: orderIds } }
     : includeAllUnexported || includeExisting
       ? undefined
@@ -895,6 +925,13 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
           or: [
             { moyskladSyncStatus: { equals: "error" } },
             { moyskladSyncStatus: { equals: "pending" } },
+            ...(includePaidDisabledRetail ? [{
+              and: [
+                { moyskladSyncStatus: { equals: "disabled" } },
+                { salesChannel: { equals: "retail" } },
+                { paymentStatus: { equals: "paid" } },
+              ],
+            }] : []),
           ],
         }
 
@@ -923,10 +960,10 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
   // skip the automatic status/age filtering used by the background sweep.
   const retryable = orderIds
     ? orders
-    : orders.filter((order) => isRetryableMoyskladOrder(order, includeAllUnexported, includeExisting))
+    : orders.filter((order) => isRetryableMoyskladOrder(order, includeAllUnexported, includeExisting, includePaidDisabledRetail))
   const candidates = orderIds
     ? orders
-    : retryable.filter((order) => isRetryDue(order, minAgeMs, includeAllUnexported, includeExisting))
+    : retryable.filter((order) => isRetryDue(order, minAgeMs, includeAllUnexported, includeExisting, includePaidDisabledRetail))
 
   // Compare-first: for the manual "Повторить/обновить выгрузку" action (and
   // for an explicit selection) we fetch the set of orders already present in
