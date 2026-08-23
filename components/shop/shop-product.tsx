@@ -196,9 +196,9 @@ export function ShopProduct({
         </nav>
 
         {/* Hero: gallery + buy panel */}
-        <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:gap-12 2xl:mt-10 2xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)] 2xl:gap-16">
+        <div className="mt-8 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:gap-12 2xl:mt-10 2xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)] 2xl:gap-16">
           {/* Gallery */}
-          <div className="lg:sticky lg:top-28 lg:self-start">
+          <div className="min-w-0 lg:sticky lg:top-28 lg:self-start">
             <div className="relative aspect-[4/3] overflow-hidden rounded-[32px] bg-[#faead5] shadow-[0_30px_90px_rgba(45,27,17,0.12)]">
               {images[imageIndex] ? (
                 <Image src={images[imageIndex]} alt={product.name} fill className="object-cover" sizes="(min-width: 1024px) 55vw, 100vw" priority />
@@ -218,7 +218,7 @@ export function ShopProduct({
           </div>
 
           {/* Buy panel */}
-          <div>
+          <div className="min-w-0">
             <div className="mb-4 flex justify-end"><AdminEditProductLink productId={product.id} /></div>
             {product.stickers.length > 0 && (
               <div className="flex flex-wrap gap-2">
