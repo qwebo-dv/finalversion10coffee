@@ -74,6 +74,28 @@ function parseStoredItems(value: string): GuestCartItem[] {
   return Array.from(items.values())
 }
 
+function parsePendingPayment(value: string): PendingShopPayment | null {
+  const parsed: unknown = JSON.parse(value)
+  if (!parsed || typeof parsed !== "object") return null
+
+  const payment = parsed as Partial<PendingShopPayment>
+  if (
+    typeof payment.orderId !== "string" || !payment.orderId.trim()
+    || typeof payment.orderNumber !== "string" || !payment.orderNumber.trim()
+    || typeof payment.token !== "string" || !payment.token.trim()
+    || typeof payment.paymentUrl !== "string" || !payment.paymentUrl.trim()
+  ) {
+    return null
+  }
+
+  return {
+    orderId: payment.orderId,
+    orderNumber: payment.orderNumber,
+    token: payment.token,
+    paymentUrl: payment.paymentUrl,
+  }
+}
+
 function fromServerItem(item: CartItem): GuestCartItem {
   return {
     id: item.id,
@@ -103,7 +125,11 @@ export function GuestCartProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       const pending = window.localStorage.getItem(PENDING_PAYMENT_STORAGE_KEY)
-      if (pending) setPendingPaymentState(JSON.parse(pending) as PendingShopPayment)
+      if (pending) {
+        const parsedPending = parsePendingPayment(pending)
+        if (parsedPending) setPendingPaymentState(parsedPending)
+        else window.localStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY)
+      }
     } catch {
       window.localStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY)
     }

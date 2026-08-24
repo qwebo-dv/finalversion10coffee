@@ -28,22 +28,36 @@ export function PendingPaymentCard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: pendingPayment.token }),
     })
-    const result = await readResponse<{ ok?: boolean; status?: string }>(response)
-    if (response.ok && result.ok && result.status === "paid") {
+    const result = await readResponse<{ ok?: boolean; status?: string; error?: string }>(response)
+    // A pending-payment marker lives in localStorage and can outlive the order
+    // itself (for example after a database restore or an old test checkout).
+    // Such a marker must never block a new checkout forever.
+    if ([401, 404, 410].includes(response.status)) {
+      setPendingPayment(null)
+      setError(null)
+      return
+    }
+    if (!response.ok || !result.ok) {
+      throw new Error(result.error || `Не удалось проверить платёж (HTTP ${response.status})`)
+    }
+    if (result.status === "paid") {
       clearCart()
       setPendingPayment(null)
       window.location.assign(`/order/success?orderId=${encodeURIComponent(pendingPayment.orderId)}`)
-    } else if (response.ok && result.ok && ["cancelled", "failed", "refunded"].includes(result.status || "")) {
+    } else if (["cancelled", "failed", "refunded"].includes(result.status || "")) {
       setPendingPayment(null)
-      window.alert("Платёж отменён. Товары остались в корзине, можно оформить новый заказ.")
+      setError(null)
     }
   }, [clearCart, pendingPayment, setPendingPayment])
 
   useEffect(() => {
     if (!pendingPayment) return
-    void checkPaymentStatus().catch(() => undefined)
+    const check = () => void checkPaymentStatus().catch((caught) => {
+      setError(caught instanceof Error ? caught.message : "Не удалось проверить платёж")
+    })
+    check()
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void checkPaymentStatus().catch(() => undefined)
+      if (document.visibilityState === "visible") check()
     }, 10_000)
     return () => window.clearInterval(timer)
   }, [checkPaymentStatus, pendingPayment])

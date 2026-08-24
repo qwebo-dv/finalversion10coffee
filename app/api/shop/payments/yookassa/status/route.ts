@@ -15,6 +15,11 @@ export async function POST(request: NextRequest) {
   const order = await payload.findByID({ collection: "orders", id: orderId, depth: 0, overrideAccess: true })
   if (!order || order.paymentMethod !== "yookassa") return NextResponse.json({ ok: false, error: "Заказ не найден" }, { status: 404 })
   if (order.paymentStatus === "paid") return NextResponse.json({ ok: true, status: "paid" })
+  // An administrator may close an unpaid order by its business status while
+  // the remote payment is still pending. The cart must be released locally;
+  // a later authoritative YooKassa webhook can still restore a successful
+  // payment without keeping the customer's checkout locked in the meantime.
+  if (order.status === "cancelled") return NextResponse.json({ ok: true, status: "cancelled" })
   // A terminal status set by an administrator is the local signal that the
   // pending-order card may be removed. Do not immediately overwrite it with
   // the still-pending remote status. YooKassa webhooks remain authoritative
