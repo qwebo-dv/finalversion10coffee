@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useId, useState } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, Map, X } from "lucide-react"
 import type { YandexDeliveryPickupPoint } from "@/lib/yandex-delivery"
 
 type WidgetMode = "pickup_point" | "terminal"
@@ -100,10 +100,12 @@ export function YandexPickupWidget({
 }) {
   const reactId = useId()
   const containerId = `yandex-delivery-widget-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`
-  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
+    if (!open) return
     let cancelled = false
 
     const onPointSelected = (event: Event) => {
@@ -119,6 +121,7 @@ export function YandexPickupWidget({
         address,
         instruction: detail.address?.comment || undefined,
       })
+      setOpen(false)
     }
 
     document.addEventListener("YaNddWidgetPointSelected", onPointSelected)
@@ -129,7 +132,7 @@ export function YandexPickupWidget({
         containerId,
         params: {
           city,
-          size: { height: "450px", width: "100%" },
+          size: { height: "100%", width: "100%" },
           show_select_button: true,
           filter: {
             type: [mode],
@@ -150,14 +153,50 @@ export function YandexPickupWidget({
       cancelled = true
       document.removeEventListener("YaNddWidgetPointSelected", onPointSelected)
     }
-  }, [city, containerId, mode, onSelect])
+  }, [city, containerId, mode, onSelect, open])
 
-  if (failed) {
-    return <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">Не удалось загрузить карту пунктов Яндекс Доставки. Обновите страницу и попробуйте ещё раз.</p>
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false)
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    window.addEventListener("keydown", onKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener("keydown", onKeyDown)
+    }
+  }, [open])
+
+  function openMap() {
+    setFailed(false)
+    setLoading(true)
+    setOpen(true)
   }
 
-  return <div className="relative min-h-[450px] overflow-hidden rounded-2xl border border-black/10 bg-white">
-    {loading && <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white text-sm text-[#7d736b]"><Loader2 className="h-4 w-4 animate-spin" />Загружаем карту…</div>}
-    <div id={containerId} className="h-[450px] w-full" />
-  </div>
+  return <>
+    <button type="button" onClick={openMap} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#1d1d1b] px-5 text-sm font-bold text-white transition hover:bg-black">
+      <Map className="h-4 w-4" />
+      {mode === "terminal" ? "Открыть карту постаматов" : "Открыть карту пунктов Яндекс Доставки"}
+    </button>
+
+    {open && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-label={mode === "terminal" ? "Карта постаматов Яндекс Доставки" : "Карта пунктов выдачи Яндекс Доставки"}>
+      <div className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl">
+        <div className="flex items-center gap-3 border-b border-black/10 px-5 py-4 sm:px-6">
+          <Map className="h-5 w-5 text-[#5b328a]" />
+          <div className="min-w-0 flex-1">
+            <p className="font-black">{mode === "terminal" ? "Выберите постамат Яндекс Доставки" : "Выберите пункт выдачи Яндекс Доставки"}</p>
+            <p className="truncate text-xs text-[#7d736b]">{city}</p>
+          </div>
+          <button type="button" onClick={() => setOpen(false)} className="rounded-full p-2 hover:bg-black/5" aria-label="Закрыть карту"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="relative min-h-0 flex-1">
+          {loading && <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white/90 text-sm text-[#7d736b]"><Loader2 className="h-5 w-5 animate-spin" />Загружаем карту…</div>}
+          {failed && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white p-8 text-center text-sm text-red-700">Не удалось загрузить карту пунктов Яндекс Доставки. Закройте окно, обновите страницу и попробуйте ещё раз.</div>}
+          <div id={containerId} className="h-full w-full" />
+        </div>
+      </div>
+    </div>}
+  </>
 }

@@ -16,7 +16,6 @@ import { createClient } from "@/lib/supabase/server"
 import { getLoyaltySnapshot, releaseLoyaltyReservation, reserveLoyaltyPoints } from "@/lib/loyalty"
 import { quoteSochiDeliveryByCoordinates, type SochiDeliveryQuote } from "@/lib/sochi-delivery"
 import { createYandexDeliveryOffer, type YandexDeliveryMode } from "@/lib/yandex-delivery"
-import { assertYandexDeliveryPreviewAccess } from "@/lib/yandex-delivery-preview"
 import type { CartItem, DeliveryMethod, Product } from "@/types"
 
 export interface ShopOrderInput {
@@ -355,7 +354,6 @@ export async function quoteShopYandexDelivery(input: {
   phone: string
 }): Promise<ShopYandexDeliveryQuote> {
   try {
-    await assertYandexDeliveryPreviewAccess()
     const products = await getShopProducts()
     const cartItems = buildValidatedCart(products, input.items)
     if (cartItems.length === 0) return { available: false, cost: 0, message: "Корзина пуста или товары больше недоступны" }
@@ -396,14 +394,6 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
   if (input.deliveryMethod !== "self_pickup" && !address) return { error: "Введите адрес доставки" }
   if (!input.acceptTerms) return { error: "Примите условия публичной оферты и доставки" }
   if (Number(input.loyaltyPoints) > 0 && input.promoCode?.trim()) return { error: "Баллы и промокод нельзя использовать в одном заказе" }
-  if (input.deliveryMethod === "yandex_delivery") {
-    try {
-      await assertYandexDeliveryPreviewAccess()
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : "Яндекс Доставка временно недоступна" }
-    }
-  }
-
   const [payload, products] = await Promise.all([
     getPayload({ config: configPromise }),
     getShopProducts(),

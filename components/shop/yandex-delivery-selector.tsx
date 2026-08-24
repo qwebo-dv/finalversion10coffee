@@ -59,7 +59,7 @@ export function YandexDeliverySelector({
   const [loadingPoints, setLoadingPoints] = useState(false)
   const [loadingQuote, setLoadingQuote] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [testMode, setTestMode] = useState(true)
+  const [testMode, setTestMode] = useState(false)
   const timer = useRef<number | null>(null)
 
   useEffect(() => {

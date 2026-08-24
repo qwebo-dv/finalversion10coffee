@@ -38,11 +38,9 @@ function withCity(city: string, address: string): string {
 export function ShopCheckout({
   products,
   onlinePaymentReady,
-  yandexDeliveryPreviewEnabled,
 }: {
   products: Product[]
   onlinePaymentReady: boolean
-  yandexDeliveryPreviewEnabled: boolean
 }) {
   const { items, clearCart, hydrated, pendingPayment, setPendingPayment } = useGuestCart()
   const { user } = useAuth()
@@ -94,9 +92,8 @@ export function ShopCheckout({
   useEffect(() => {
     const saved = user?.user_metadata?.delivery_method as DeliveryMethod | undefined
     // Auth state is hydrated asynchronously, so the saved delivery method must be applied after login data arrives.
-    if (saved && (saved !== "yandex_delivery" || yandexDeliveryPreviewEnabled)) setDeliveryMethod(saved)
-    if (saved === "yandex_delivery" && !yandexDeliveryPreviewEnabled) setDeliveryMethod("cdek")
-  }, [user, yandexDeliveryPreviewEnabled])
+    if (saved) setDeliveryMethod(saved)
+  }, [user])
 
   useEffect(() => {
     if (!user || user.user_metadata?.customer_type !== "individual") return
@@ -435,10 +432,10 @@ export function ShopCheckout({
                   <CdekLogo />
                   <span className="mt-4 block text-xs font-medium text-[#655c55]">{cdekEstimate ? `${cdekEstimate} · ${formatPrice(cdekSelection?.deliveryCost || 0)}` : "ПВЗ или курьер"}</span>
                 </button>
-                {yandexDeliveryPreviewEnabled && <button type="button" aria-pressed={deliveryMethod === "yandex_delivery"} onClick={() => { setDeliveryMethod("yandex_delivery"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "yandex_delivery" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
+                <button type="button" aria-pressed={deliveryMethod === "yandex_delivery"} onClick={() => { setDeliveryMethod("yandex_delivery"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "yandex_delivery" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
                   <YandexDeliveryLogo />
                   <span className="mt-3 block text-xs font-medium text-[#655c55]">{yandexEstimate ? `${yandexEstimate} · ${formatPrice(yandexSelection?.deliveryCost || 0)}` : "ПВЗ, постамат или курьер"}</span>
-                </button>}
+                </button>
                 <button type="button" aria-pressed={deliveryMethod === "sochi_delivery"} onClick={() => { setDeliveryMethod("sochi_delivery"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "sochi_delivery" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
                   <span className="flex items-center gap-2 text-sm font-black"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#5b328a] text-white"><Car className="h-4 w-4" /></span>По Сочи</span>
                   <span className="mt-3 block text-xs font-medium text-[#655c55]">{sochiDeliveryQuote?.available ? (sochiDeliveryQuote.cost > 0 ? formatPrice(sochiDeliveryQuote.cost) : "Бесплатно") : "По зонам города"}</span>
