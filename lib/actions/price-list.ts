@@ -10,6 +10,7 @@ const priceListSchema = z.object({
   email: z.string().email("Введите корректный email"),
   phone: z.string().min(5, "Введите номер телефона"),
   company: z.string().optional(),
+  consent: z.literal("on", { error: "Подтвердите согласие на обработку персональных данных" }),
 });
 
 export type PriceListState = {
@@ -35,6 +36,7 @@ export async function submitPriceListRequest(
     email: formData.get("email"),
     phone: formData.get("phone"),
     company: formData.get("company"),
+    consent: formData.get("consent"),
   });
 
   if (!parsed.success) {

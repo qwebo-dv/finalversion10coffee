@@ -87,6 +87,8 @@ export function LoginForm({ onSwitchToRegister, onSwitchToForgot, onAuthenticate
           <label className="flex items-start gap-2 cursor-pointer">
             <input
               type="checkbox"
+              name="consent"
+              required
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               className="mt-0.5 accent-[#5b328a] w-4 h-4 shrink-0"
@@ -110,7 +112,7 @@ export function LoginForm({ onSwitchToRegister, onSwitchToForgot, onAuthenticate
         </form>
       </Form>
 
-      <SocialAuthButtons customerType={customerType} />
+      <SocialAuthButtons customerType={customerType} disabled={!agreed} />
 
       <div className="flex flex-col gap-2 text-center text-[12px]">
         <button

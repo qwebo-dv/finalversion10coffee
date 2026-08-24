@@ -85,6 +85,8 @@ export function ForgotPasswordForm({ onSwitchToLogin }: ForgotPasswordFormProps)
           <label className="flex items-start gap-2 cursor-pointer">
             <input
               type="checkbox"
+              name="consent"
+              required
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               className="mt-0.5 accent-[#5b328a] w-4 h-4 shrink-0"

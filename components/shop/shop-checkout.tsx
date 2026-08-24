@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { FormEvent, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CheckCircle2, ChevronDown, Loader2, LockKeyhole, MapPin, ShoppingBag, Tag, X } from "lucide-react"
+import { ArrowLeft, Bike, CheckCircle2, ChevronDown, Loader2, LockKeyhole, MapPin, ShoppingBag, Store, Tag, X } from "lucide-react"
 import { createShopOrder, previewShopPersonalDiscount, previewShopPromo, quoteShopSochiDelivery } from "@/lib/actions/shop-orders"
 import { getMyLoyalty, type MyLoyaltyData } from "@/lib/actions/loyalty"
 import type { SochiDeliveryQuote } from "@/lib/sochi-delivery"
@@ -12,9 +13,18 @@ import PhoneInput from "@/components/shared/phone-input"
 import AddressInput from "@/components/shared/address-input"
 import { PendingPaymentCard } from "@/components/shop/pending-payment-card"
 import { formatPrice } from "@/lib/utils/format"
+import { formatDeliveryDateRange, formatDeliveryDays } from "@/lib/utils/delivery-estimate"
 import type { DeliveryMethod, Product } from "@/types"
 import { CdekDeliverySelector, type ShopCdekSelection } from "./cdek-delivery-selector"
 import { YandexDeliverySelector, type ShopYandexDeliverySelection } from "./yandex-delivery-selector"
+
+function CdekLogo() {
+  return <Image src="/brands/cdek.svg" alt="СДЭК" width={71} height={20} className="h-5 w-auto" />
+}
+
+function YandexDeliveryLogo() {
+  return <span className="flex items-center gap-2 text-left leading-none"><Image src="/brands/yandex.svg" alt="Яндекс" width={78} height={19} className="h-[18px] w-auto" /><span className="text-[13px] font-black text-[#1d1d1b]">Доставка</span></span>
+}
 
 function withCity(city: string, address: string): string {
   const trimmedAddress = address.trim()
@@ -148,6 +158,8 @@ export function ShopCheckout({
   const cashbackBase = Math.max(0, subtotal - discountAmount)
   const cashbackTier = loyalty?.tiers.filter((tier) => cashbackBase >= tier.minSubtotal).at(-1)
   const expectedCashback = loyalty?.enabled ? Math.floor(cashbackBase * (cashbackTier?.percent || 0) / 100) : 0
+  const cdekEstimate = cdekSelection ? formatDeliveryDays(cdekSelection.minDays, cdekSelection.maxDays) : null
+  const yandexEstimate = yandexSelection ? formatDeliveryDateRange(yandexSelection.deliveryFrom, yandexSelection.deliveryTo) : null
 
   useEffect(() => {
     let cancelled = false
@@ -416,7 +428,27 @@ export function ShopCheckout({
               <label><span className="mb-2 block text-xs font-bold text-[#655c55]">Email</span><input name="email" type="email" required autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); if (appliedPromo) resetPromo() }} className="h-12 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-[#5b328a]" placeholder="mail@example.ru" /></label>
             </div>
 
-            <fieldset className="mt-8"><legend className="text-sm font-black">Способ получения</legend><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{([['cdek','СДЭК'], ...(yandexDeliveryPreviewEnabled ? [['yandex_delivery','Яндекс Доставка'] as [DeliveryMethod, string]] : []), ['sochi_delivery','По Сочи'],['self_pickup','Самовывоз']] as [DeliveryMethod,string][]).map(([value,label]) => <button key={value} type="button" onClick={() => { setDeliveryMethod(value); setCdekSelection(null); setYandexSelection(null) }} className={`rounded-2xl border px-4 py-4 text-sm font-bold ${deliveryMethod === value ? "border-[#5b328a] bg-[#f4edfa] text-[#5b328a]" : "border-black/10"}`}>{label}</button>)}</div></fieldset>
+            <fieldset className="mt-8">
+              <legend className="text-sm font-black">Способ получения</legend>
+              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <button type="button" aria-pressed={deliveryMethod === "cdek"} onClick={() => { setDeliveryMethod("cdek"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "cdek" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
+                  <CdekLogo />
+                  <span className="mt-4 block text-xs font-medium text-[#655c55]">{cdekEstimate ? `${cdekEstimate} · ${formatPrice(cdekSelection?.deliveryCost || 0)}` : "ПВЗ или курьер"}</span>
+                </button>
+                {yandexDeliveryPreviewEnabled && <button type="button" aria-pressed={deliveryMethod === "yandex_delivery"} onClick={() => { setDeliveryMethod("yandex_delivery"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "yandex_delivery" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
+                  <YandexDeliveryLogo />
+                  <span className="mt-3 block text-xs font-medium text-[#655c55]">{yandexEstimate ? `${yandexEstimate} · ${formatPrice(yandexSelection?.deliveryCost || 0)}` : "ПВЗ, постамат или курьер"}</span>
+                </button>}
+                <button type="button" aria-pressed={deliveryMethod === "sochi_delivery"} onClick={() => { setDeliveryMethod("sochi_delivery"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "sochi_delivery" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
+                  <span className="flex items-center gap-2 text-sm font-black"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#5b328a] text-white"><Bike className="h-4 w-4" /></span>По Сочи</span>
+                  <span className="mt-3 block text-xs font-medium text-[#655c55]">{sochiDeliveryQuote?.available ? (sochiDeliveryQuote.cost > 0 ? formatPrice(sochiDeliveryQuote.cost) : "Бесплатно") : "По зонам города"}</span>
+                </button>
+                <button type="button" aria-pressed={deliveryMethod === "self_pickup"} onClick={() => { setDeliveryMethod("self_pickup"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "self_pickup" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
+                  <span className="flex items-center gap-2 text-sm font-black"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#1d1d1b] text-white"><Store className="h-4 w-4" /></span>Самовывоз</span>
+                  <span className="mt-3 block text-xs font-medium text-[#655c55]">Бесплатно · Сочи</span>
+                </button>
+              </div>
+            </fieldset>
 
             {deliveryMethod === "cdek" && <CdekDeliverySelector weightGrams={totalWeight} defaultAddress={defaultAddress} onChange={setCdekSelection} />}
             {deliveryMethod === "yandex_delivery" && <YandexDeliverySelector items={items} fullName={fullName} email={email} phone={phone} defaultAddress={defaultAddress} onChange={setYandexSelection} />}
@@ -529,7 +561,7 @@ export function ShopCheckout({
             <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-black/10 p-4">
               <input name="acceptTerms" type="checkbox" required className="mt-1 h-4 w-4 shrink-0 accent-[#5b328a]" />
               <span className="text-xs leading-5 text-[#655c55]">
-                Я принимаю условия <Link href="/oferta" target="_blank" className="font-bold text-[#5b328a] underline underline-offset-2">публичной оферты</Link>, ознакомлен с <Link href="/delivery" target="_blank" className="font-bold text-[#5b328a] underline underline-offset-2">условиями доставки</Link> и <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer" className="font-bold text-[#5b328a] underline underline-offset-2">политикой конфиденциальности</a>.
+                Я принимаю условия <Link href="/oferta" target="_blank" className="font-bold text-[#5b328a] underline underline-offset-2">публичной оферты</Link>, ознакомлен с <Link href="/delivery" target="_blank" className="font-bold text-[#5b328a] underline underline-offset-2">условиями доставки</Link>, <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer" className="font-bold text-[#5b328a] underline underline-offset-2">политикой конфиденциальности</a> и <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer" className="font-bold text-[#5b328a] underline underline-offset-2">правилами обработки персональных данных</a>.
               </span>
             </label>
 

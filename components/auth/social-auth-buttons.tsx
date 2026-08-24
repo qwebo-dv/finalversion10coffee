@@ -41,7 +41,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   unknown_provider: "Неизвестный провайдер авторизации.",
 }
 
-export function SocialAuthButtons({ customerType }: { customerType?: "individual" | "business" }) {
+export function SocialAuthButtons({ customerType, disabled = false }: { customerType?: "individual" | "business"; disabled?: boolean }) {
   const searchParams = useSearchParams()
   const [loadingProvider, setLoadingProvider] = useState<SocialProvider | null>(null)
 
@@ -51,6 +51,7 @@ export function SocialAuthButtons({ customerType }: { customerType?: "individual
     : null
 
   function startAuth(provider: SocialProvider) {
+    if (disabled) return
     setLoadingProvider(provider)
     const query = customerType ? `?customer_type=${customerType}` : ""
     window.location.assign(`/api/auth/social/${provider}${query}`)
@@ -80,7 +81,7 @@ export function SocialAuthButtons({ customerType }: { customerType?: "individual
               key={provider.id}
               type="button"
               onClick={() => startAuth(provider.id)}
-              disabled={loadingProvider !== null}
+              disabled={disabled || loadingProvider !== null}
               className={`flex h-11 items-center justify-center gap-1.5 rounded-xl border border-neutral-200 bg-white text-[12px] font-semibold text-neutral-700 transition-all ${provider.hover} disabled:opacity-60`}
             >
               {loading ? (

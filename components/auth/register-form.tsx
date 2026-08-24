@@ -134,6 +134,8 @@ export function RegisterForm({ onSwitchToLogin, onAuthenticated, customerType }:
           <label className="flex items-start gap-2 cursor-pointer">
             <input
               type="checkbox"
+              name="consent"
+              required
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               className="mt-0.5 accent-[#5b328a] w-4 h-4 shrink-0"
@@ -157,7 +159,7 @@ export function RegisterForm({ onSwitchToLogin, onAuthenticated, customerType }:
         </form>
       </Form>
 
-      {customerType === "individual" && <SocialAuthButtons />}
+      {customerType === "individual" && <SocialAuthButtons disabled={!agreed} />}
 
       <p className="text-center text-[12px] text-neutral-400">
         Уже есть аккаунт?{" "}

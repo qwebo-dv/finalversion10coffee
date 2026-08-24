@@ -23,6 +23,8 @@ function requestClientIps(requestHeaders: Headers): string[] {
 }
 
 export async function canUseYandexDeliveryPreview(): Promise<boolean> {
+  if (process.env.NODE_ENV !== "production") return true
+
   const allowedIps = new Set(
     (process.env.YANDEX_DELIVERY_PREVIEW_ALLOWED_IPS || "")
       .split(",")

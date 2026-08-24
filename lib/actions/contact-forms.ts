@@ -16,12 +16,14 @@ const serviceSchema = z.object({
   phone: z.string().min(5, "Введите номер телефона"),
   email: z.string().email("Введите корректный email").optional().or(z.literal("")),
   address: z.string().optional(),
+  consent: z.literal("on", { error: "Подтвердите согласие на обработку персональных данных" }),
 });
 
 const trainingSchema = z.object({
   name: z.string().min(2, "Введите имя"),
   phone: z.string().min(5, "Введите номер телефона"),
   email: z.string().email("Введите корректный email").optional().or(z.literal("")),
+  consent: z.literal("on", { error: "Подтвердите согласие на обработку персональных данных" }),
 });
 
 export type ContactFormState = {
@@ -59,6 +61,7 @@ export async function submitServiceRequest(
     phone: formData.get("phone"),
     email: formData.get("email"),
     address: formData.get("address"),
+    consent: formData.get("consent"),
   });
 
   if (!parsed.success) {
@@ -111,6 +114,7 @@ export async function submitTrainingRequest(
     name: formData.get("name"),
     phone: formData.get("phone"),
     email: formData.get("email"),
+    consent: formData.get("consent"),
   });
 
   if (!parsed.success) {

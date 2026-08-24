@@ -56,6 +56,8 @@ export default function PriceListForm() {
           <label className={styles.privacy}>
             <input
               type="checkbox"
+              name="consent"
+              required
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               className={styles.privacyCheck}

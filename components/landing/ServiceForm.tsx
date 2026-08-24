@@ -31,19 +31,13 @@ export default function ServiceForm({ className, inputClassName, buttonClassName
       <input type="email" name="email" placeholder="Email" className={inputClassName} />
       <input type="text" name="address" placeholder="Адрес" className={inputClassName} />
       {state.error && <p style={{ color: "#e6610d", fontSize: "0.9rem" }}>{state.error}</p>}
+      <label className={disclaimerClassName} style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", cursor: "pointer" }}>
+        <input name="consent" type="checkbox" required style={{ width: "1rem", height: "1rem", marginTop: "0.1rem", flexShrink: 0, accentColor: "#5b328a" }} />
+        <span>Я принимаю <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer">политику конфиденциальности</a> и даю согласие на обработку персональных данных в соответствии с <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer">правилами обработки персональных данных</a>.</span>
+      </label>
       <button type="submit" className={buttonClassName} disabled={isPending}>
         {isPending ? "Отправка..." : "Отправить"}
       </button>
-      <p className={disclaimerClassName}>
-        Нажимая на кнопку, вы принимаете{" "}
-        <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer">
-          политику конфиденциальности
-        </a>{" "}
-        и{" "}
-        <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer">
-          правила обработки персональных данных
-        </a>
-      </p>
     </form>
   );
 }

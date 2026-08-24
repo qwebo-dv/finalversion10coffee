@@ -37,6 +37,7 @@ export function CompanyForm({ mode, companyId, defaultValues }: CompanyFormProps
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [searchingInn, setSearchingInn] = useState(false)
+  const [consentAccepted, setConsentAccepted] = useState(false)
 
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -377,8 +378,13 @@ export function CompanyForm({ mode, companyId, defaultValues }: CompanyFormProps
             </CardContent>
           </Card>
 
+          <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-border p-3">
+            <input name="consent" type="checkbox" required checked={consentAccepted} onChange={(event) => setConsentAccepted(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#5b328a]" />
+            <span className="text-xs leading-5 text-muted-foreground">Я принимаю <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">политику конфиденциальности</a> и даю согласие на обработку персональных данных в соответствии с <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">правилами обработки персональных данных</a>.</span>
+          </label>
+
           <div className="flex gap-3">
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || !consentAccepted}>
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {mode === "edit" ? "Сохранить" : "Добавить компанию"}
             </Button>

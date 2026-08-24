@@ -837,6 +837,8 @@ export default function CheckoutPage() {
           <label className="flex items-start gap-2 cursor-pointer">
             <input
               type="checkbox"
+              name="consent"
+              required
               checked={privacyAgreed}
               onChange={(e) => setPrivacyAgreed(e.target.checked)}
               className="mt-0.5 accent-[#5b328a] w-4 h-4 shrink-0"
@@ -849,6 +851,10 @@ export default function CheckoutPage() {
               и{" "}
               <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">
                 правила обработки персональных данных
+              </a>
+              , а также ознакомлен с{" "}
+              <a href="/delivery" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">
+                условиями доставки
               </a>
             </span>
           </label>

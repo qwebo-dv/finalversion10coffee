@@ -25,6 +25,7 @@ export function FaqQuestionForm() {
         question: form.get("question"),
         name: form.get("name"),
         email: form.get("email"),
+        consent: form.get("consent") === "on",
       }),
     }).catch(() => null)
 
@@ -55,6 +56,10 @@ export function FaqQuestionForm() {
             <input name="name" maxLength={120} placeholder="Имя (необязательно)" className="min-w-0 rounded-xl border border-black/[0.12] bg-[#f8f5f1] px-3 py-2.5 text-sm outline-none transition focus:border-[#5b328a]" />
             <input name="email" type="email" maxLength={254} placeholder="Email для ответа (необязательно)" className="min-w-0 rounded-xl border border-black/[0.12] bg-[#f8f5f1] px-3 py-2.5 text-sm outline-none transition focus:border-[#5b328a]" />
           </div>
+          <label className="flex cursor-pointer items-start gap-2 rounded-xl bg-[#f8f5f1] p-3">
+            <input name="consent" type="checkbox" required className="mt-0.5 h-4 w-4 shrink-0 accent-[#5b328a]" />
+            <span className="text-xs leading-5 text-[#6e655e]">Я принимаю <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer" className="font-bold text-[#5b328a] underline">политику конфиденциальности</a> и даю согласие на обработку персональных данных в соответствии с <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer" className="font-bold text-[#5b328a] underline">правилами обработки персональных данных</a>.</span>
+          </label>
           <button disabled={isSubmitting} className="inline-flex w-fit items-center gap-2 rounded-xl bg-[#5b328a] px-4 py-2.5 text-sm font-black text-white disabled:cursor-wait disabled:opacity-60">
             {isSubmitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
             Отправить вопрос
