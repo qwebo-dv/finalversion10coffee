@@ -86,33 +86,7 @@ export function ShopProduct({
   const [submitting, setSubmitting] = useState(false)
   const [voteError, setVoteError] = useState<string | null>(null)
   const [voteDone, setVoteDone] = useState(false)
-  const [reviewEligibility, setReviewEligibility] = useState<"checking" | "eligible" | "not-eligible" | "failed">("checking")
-
-  useEffect(() => {
-    if (authLoading) {
-      setReviewEligibility("checking")
-      return
-    }
-    if (!user) return
-
-    let cancelled = false
-    setReviewEligibility("checking")
-    fetch(`/api/shop/product-reviews?product=${encodeURIComponent(product.id)}`)
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Review eligibility request failed")
-        return response.json() as Promise<{ canReview?: boolean }>
-      })
-      .then((data) => {
-        if (!cancelled) setReviewEligibility(data.canReview ? "eligible" : "not-eligible")
-      })
-      .catch(() => {
-        if (!cancelled) setReviewEligibility("failed")
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [authLoading, product.id, user])
+  const isRetailBuyer = user?.user_metadata?.customer_type === "individual"
 
   const images = product.images.length > 0 ? product.images : []
   const subtitle = [product.region, product.processing_method].filter(Boolean).join(" · ")
@@ -385,23 +359,18 @@ export function ShopProduct({
             {reviews.length > 0 && <p className="mt-3 text-sm text-[#8d827a]">Средняя оценка из {reviews.length} отзывов</p>}
 
             <div id="shop-review-form" className="mt-9 rounded-[28px] bg-white p-7 shadow-[0_20px_60px_rgba(45,27,17,0.07)]">
-              {authLoading || (user && reviewEligibility === "checking") ? (
-                <div className="py-6 text-center text-sm font-semibold text-[#766d66]">Проверяем историю заказов...</div>
+              {authLoading ? (
+                <div className="py-6 text-center text-sm font-semibold text-[#766d66]">Проверяем авторизацию...</div>
               ) : !user ? (
                 <div className="text-center">
                   <h3 className="text-lg font-black">Хотите оставить отзыв?</h3>
                   <p className="mt-2 text-sm leading-6 text-[#766d66]">Отзывы могут оставлять только зарегистрированные покупатели.</p>
                   <button type="button" onClick={() => openAuthModal("login")} className="mt-5 w-full rounded-full bg-[#5b328a] px-6 py-4 text-sm font-black text-white transition hover:bg-[#47256e]">Войти в аккаунт</button>
                 </div>
-              ) : reviewEligibility === "not-eligible" ? (
+              ) : !isRetailBuyer ? (
                 <div className="text-center">
-                  <h3 className="text-lg font-black">Отзыв доступен после получения товара</h3>
-                  <p className="mt-2 text-sm leading-6 text-[#766d66]">Оставить отзыв могут покупатели, у которых этот товар есть в оплаченном и доставленном заказе.</p>
-                </div>
-              ) : reviewEligibility === "failed" ? (
-                <div className="text-center">
-                  <h3 className="text-lg font-black">Не удалось проверить заказ</h3>
-                  <p className="mt-2 text-sm leading-6 text-[#766d66]">Попробуйте обновить страницу. Отзыв не будет сохранён без подтверждённой покупки.</p>
+                  <h3 className="text-lg font-black">Отзывы доступны розничным покупателям</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#766d66]">Войдите в зарегистрированный аккаунт физического лица, чтобы оставить отзыв.</p>
                 </div>
               ) : voteDone ? (
                 <div className="mt-4 flex items-center gap-3 rounded-2xl bg-[#e8f5e9] p-4 text-sm font-bold text-[#2e7d32]"><CheckCircle2 className="h-5 w-5 shrink-0" /> Спасибо! Отзыв отправлен на модерацию и появится после проверки.</div>

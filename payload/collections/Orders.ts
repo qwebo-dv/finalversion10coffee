@@ -6,6 +6,7 @@ import { retryFailedMoyskladOrders } from "@/lib/moysklad/order-retry"
 import { canReadOperations, canRunIntegrations, getAllowedSalesChannels, operationsCreateAccess, operationsDeleteAccess, operationsUpdateAccess } from "../access/adminRoles"
 import { orderWorkspaceBaseFilter } from "../admin/workspace"
 import { accrueLoyaltyForDeliveredOrder, releaseLoyaltyReservation, reverseLoyaltyForReturnedOrder } from "@/lib/loyalty"
+import { sendCdekTrackingEmail } from "@/lib/cdek-tracking-email"
 
 async function generateSequentialOrderId() {
   const nextResult = await dbQuery<{ next_number: number }>(
@@ -221,6 +222,22 @@ export const Orders: CollectionConfig = {
       async ({ doc, previousDoc, req }) => {
         if (previousDoc && doc.status !== previousDoc.status) {
           console.log(`[Order ${doc.orderId}] Status: ${previousDoc.status} → ${doc.status}`)
+        }
+
+        const nextCdekTrackingNumber = String(doc.cdekTrackingNumber || "").trim()
+        const previousCdekTrackingNumber = String(previousDoc?.cdekTrackingNumber || "").trim()
+        if (
+          doc.deliveryMethod === "cdek"
+          && nextCdekTrackingNumber
+          && nextCdekTrackingNumber !== previousCdekTrackingNumber
+        ) {
+          const trackingEmail = await sendCdekTrackingEmail(req.payload, doc)
+          if (!trackingEmail.sent) {
+            console.error(
+              `[Order ${doc.orderId || doc.id}] Не удалось отправить трек-номер СДЭК:`,
+              trackingEmail.error,
+            )
+          }
         }
 
         const runLoyaltySideEffect = async (label: string, task: () => Promise<unknown>) => {

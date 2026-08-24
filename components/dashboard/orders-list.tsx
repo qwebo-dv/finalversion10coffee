@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
-import { ShoppingBag, RotateCcw, Calendar, X, FileText, Truck, Trash2 } from "lucide-react"
+import { ShoppingBag, RotateCcw, Calendar, ExternalLink, X, FileText, Truck, Trash2 } from "lucide-react"
 import { formatPrice, formatDate, formatOrderNumber } from "@/lib/utils/format"
 import {
   ORDER_STATUS_LABELS,
@@ -29,6 +29,7 @@ import { useAuth } from "@/providers/auth-provider"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { Order } from "@/types"
+import { CDEK_TRACKING_URL } from "@/lib/utils/cdek-tracking"
 
 interface OrdersListProps {
   initialOrders: Order[]
@@ -257,14 +258,20 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                         ` +${order.items.length - 3}`}
                     </p>
                   )}
-                  {(order.cdek_tracking_number || order.cap_2000_tracking_number) && (
+                  {order.cdek_tracking_number ? (
                     <div className="flex items-center gap-1.5 mt-1">
                       <Truck className="h-3 w-3 text-[#5b328a]" />
-                      <span className="text-[11px] font-semibold text-[#5b328a]">
-                        Трек: {order.cdek_tracking_number || order.cap_2000_tracking_number}
-                      </span>
+                      <a href={CDEK_TRACKING_URL} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()} className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#5b328a] underline decoration-[#5b328a]/30 underline-offset-2 hover:decoration-[#5b328a]">
+                        Трек СДЭК: {order.cdek_tracking_number}
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
                     </div>
-                  )}
+                  ) : order.cap_2000_tracking_number ? (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Truck className="h-3 w-3 text-[#5b328a]" />
+                      <span className="text-[11px] font-semibold text-[#5b328a]">Трек: {order.cap_2000_tracking_number}</span>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
