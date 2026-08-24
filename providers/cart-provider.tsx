@@ -121,7 +121,8 @@ export function CartProvider({ children, sessionScope }: { children: React.React
       )
 
       try {
-        await serverUpdateQuantity(itemId, quantity, sessionScope)
+        const result = await serverUpdateQuantity(itemId, quantity, sessionScope)
+        if (!result.success) throw new Error("Cart item was not found for the current customer")
       } catch {
         toast.error("Ошибка при обновлении количества")
         await loadCart()
@@ -136,7 +137,8 @@ export function CartProvider({ children, sessionScope }: { children: React.React
       setItems((prev) => prev.filter((i) => i.id !== itemId))
 
       try {
-        await serverRemoveItem(itemId, sessionScope)
+        const result = await serverRemoveItem(itemId, sessionScope)
+        if (!result.success) throw new Error("Cart item was not found for the current customer")
       } catch {
         toast.error("Ошибка при удалении из корзины")
         await loadCart()
@@ -152,7 +154,8 @@ export function CartProvider({ children, sessionScope }: { children: React.React
     setAppliedPromo(null)
 
     try {
-      await serverClearCart(sessionScope)
+      const result = await serverClearCart(sessionScope)
+      if (!result.success) throw new Error("Cart could not be cleared")
     } catch {
       toast.error("Ошибка при очистке корзины")
       await loadCart()

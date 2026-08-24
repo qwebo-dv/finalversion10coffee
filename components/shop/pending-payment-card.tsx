@@ -4,6 +4,18 @@ import { useCallback, useEffect, useState } from "react"
 import { CreditCard, Loader2 } from "lucide-react"
 import { useGuestCart } from "@/providers/guest-cart-provider"
 
+async function readResponse<T>(response: Response): Promise<T> {
+  const text = await response.text()
+  if (!text.trim()) {
+    throw new Error(`Сервер не вернул ответ (HTTP ${response.status})`)
+  }
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new Error(`Сервер вернул некорректный ответ (HTTP ${response.status})`)
+  }
+}
+
 export function PendingPaymentCard() {
   const { pendingPayment, setPendingPayment, clearCart } = useGuestCart()
   const [loading, setLoading] = useState(false)
@@ -16,7 +28,7 @@ export function PendingPaymentCard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: pendingPayment.token }),
     })
-    const result = await response.json() as { ok?: boolean; status?: string }
+    const result = await readResponse<{ ok?: boolean; status?: string }>(response)
     if (response.ok && result.ok && result.status === "paid") {
       clearCart()
       setPendingPayment(null)
@@ -49,7 +61,7 @@ export function PendingPaymentCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: payment.token }),
       })
-      const result = await response.json() as { ok?: boolean; status?: string; paymentUrl?: string; error?: string }
+      const result = await readResponse<{ ok?: boolean; status?: string; paymentUrl?: string; error?: string }>(response)
       if (!response.ok || !result.ok) throw new Error(result.error || "Не удалось повторить оплату")
       if (result.status === "paid") {
         clearCart()
@@ -81,7 +93,7 @@ export function PendingPaymentCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: payment.token }),
       })
-      const result = await response.json() as { ok?: boolean; error?: string }
+      const result = await readResponse<{ ok?: boolean; error?: string }>(response)
       if (!response.ok || !result.ok) throw new Error(result.error || "Не удалось отменить заказ")
       setPendingPayment(null)
     } catch (caught) {

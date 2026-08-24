@@ -27,6 +27,7 @@ import * as migration_20260821_150000_product_shipping_dimensions from './202608
 import * as migration_20260823_160000_social_messaging_ids from './20260823_160000_social_messaging_ids.ts';
 import * as migration_20260823_220000_job_applications from './20260823_220000_job_applications.ts';
 import * as migration_20260823_230000_repair_order_payment_statuses from './20260823_230000_repair_order_payment_statuses.ts';
+import * as migration_20260824_090000_production_runtime_repair from './20260824_090000_production_runtime_repair.ts';
 
 export const migrations = [
   {
@@ -173,5 +174,10 @@ export const migrations = [
     up: migration_20260823_230000_repair_order_payment_statuses.up,
     down: migration_20260823_230000_repair_order_payment_statuses.down,
     name: '20260823_230000_repair_order_payment_statuses'
+  },
+  {
+    up: migration_20260824_090000_production_runtime_repair.up,
+    down: migration_20260824_090000_production_runtime_repair.down,
+    name: '20260824_090000_production_runtime_repair'
   },
 ];

@@ -3,6 +3,7 @@
 import { getPayload } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
+import { dbQuery } from "@/lib/db"
 import { getMediaUrl, type PayloadMediaRef as MediaUrlRef } from "@/lib/media"
 import { normalizeProductDetailsSchema } from "@/lib/product-types"
 import type { CartItem, Product, ProductVariant, ProductTag, ProductDetailsSchema } from "@/types"
@@ -428,44 +429,43 @@ export async function updateCartQuantity(
 
   const clientId = await getCurrentUserId(sessionScope)
   if (!clientId) return { success: false }
-  const payload = await getPayloadClient()
-  const { docs } = await payload.find({
-    collection: "cart-items",
-    where: { and: [{ id: { equals: cartItemId } }, { clientId: { equals: clientId } }] },
-    limit: 1,
-    depth: 0,
-  })
-  if (!docs[0]) return { success: false }
-  await payload.update({ collection: "cart-items", id: docs[0].id, data: { quantity } })
+  const normalizedId = Number(cartItemId)
+  if (!Number.isInteger(normalizedId) || normalizedId <= 0) return { success: false }
 
-  return { success: true }
+  // Cart mutations are ownership-scoped SQL updates. They must not depend on
+  // Payload admin access rules or document-lock relations: those are unrelated
+  // to a customer's cart and can be temporarily unavailable during a deploy.
+  const updated = await dbQuery<{ id: number }>(
+    `update public.cart_items
+        set quantity = $1, updated_at = now()
+      where id = $2 and client_id = $3
+      returning id`,
+    [quantity, normalizedId, clientId],
+  )
+
+  return { success: updated.rowCount === 1 }
 }
 
 export async function removeCartItem(cartItemId: string, sessionScope?: CustomerSessionScope): Promise<{ success: boolean }> {
   const clientId = await getCurrentUserId(sessionScope)
   if (!clientId) return { success: false }
-  const payload = await getPayloadClient()
-  const { docs } = await payload.find({
-    collection: "cart-items",
-    where: { and: [{ id: { equals: cartItemId } }, { clientId: { equals: clientId } }] },
-    limit: 1,
-    depth: 0,
-  })
-  if (!docs[0]) return { success: false }
-  await payload.delete({ collection: "cart-items", id: docs[0].id })
+  const normalizedId = Number(cartItemId)
+  if (!Number.isInteger(normalizedId) || normalizedId <= 0) return { success: false }
+  const deleted = await dbQuery<{ id: number }>(
+    `delete from public.cart_items
+      where id = $1 and client_id = $2
+      returning id`,
+    [normalizedId, clientId],
+  )
 
-  return { success: true }
+  return { success: deleted.rowCount === 1 }
 }
 
 export async function clearCart(sessionScope?: CustomerSessionScope): Promise<{ success: boolean }> {
   const clientId = await getCurrentUserId(sessionScope)
   if (!clientId) return { success: false }
 
-  const payload = await getPayloadClient()
-  await payload.delete({
-    collection: "cart-items",
-    where: { clientId: { equals: clientId } },
-  })
+  await dbQuery("delete from public.cart_items where client_id = $1", [clientId])
 
   return { success: true }
 }

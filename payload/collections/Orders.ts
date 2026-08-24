@@ -222,14 +222,38 @@ export const Orders: CollectionConfig = {
         if (previousDoc && doc.status !== previousDoc.status) {
           console.log(`[Order ${doc.orderId}] Status: ${previousDoc.status} → ${doc.status}`)
         }
+
+        const runLoyaltySideEffect = async (label: string, task: () => Promise<unknown>) => {
+          try {
+            await task()
+          } catch (error) {
+            // Saving an order is the primary operation. Loyalty reconciliation
+            // is retryable and must not turn a successfully persisted status
+            // change into a generic 500 response in Payload admin or checkout.
+            console.error(
+              `[Order ${doc.orderId || doc.id}] ${label}:`,
+              error instanceof Error ? error.message : error,
+            )
+          }
+        }
+
         if (doc.status === "delivered") {
-          await accrueLoyaltyForDeliveredOrder(req.payload, doc as Record<string, unknown>)
+          await runLoyaltySideEffect(
+            "Не удалось начислить баллы",
+            () => accrueLoyaltyForDeliveredOrder(req.payload, doc as Record<string, unknown>),
+          )
         }
         if (["cancelled", "returned"].includes(doc.status) || ["cancelled", "failed", "refunded"].includes(doc.paymentStatus)) {
-          await releaseLoyaltyReservation(req.payload, doc.id)
+          await runLoyaltySideEffect(
+            "Не удалось освободить резерв баллов",
+            () => releaseLoyaltyReservation(req.payload, doc.id),
+          )
         }
         if (["cancelled", "returned"].includes(doc.status) || doc.paymentStatus === "refunded") {
-          await reverseLoyaltyForReturnedOrder(req.payload, doc as Record<string, unknown>)
+          await runLoyaltySideEffect(
+            "Не удалось выполнить возврат баллов",
+            () => reverseLoyaltyForReturnedOrder(req.payload, doc as Record<string, unknown>),
+          )
         }
       },
     ],
