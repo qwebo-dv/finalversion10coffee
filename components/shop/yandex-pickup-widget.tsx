@@ -128,11 +128,15 @@ export function YandexPickupWidget({
 
     void loadWidgetScript().then(() => {
       if (cancelled || !window.YaDelivery) return
+      const widgetContainer = document.getElementById(containerId)
+      const widgetHeight = Math.max(widgetContainer?.clientHeight || 0, 450)
       window.YaDelivery.createWidget({
         containerId,
         params: {
           city,
-          size: { height: "100%", width: "100%" },
+          // The widget does not resolve a percentage height against a flex item.
+          // Give it the measured modal body height so its internal map fills the dialog.
+          size: { height: `${widgetHeight}px`, width: "100%" },
           show_select_button: true,
           filter: {
             type: [mode],
