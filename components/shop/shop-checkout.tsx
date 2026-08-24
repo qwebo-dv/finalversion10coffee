@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { FormEvent, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Bike, CheckCircle2, ChevronDown, Loader2, LockKeyhole, MapPin, ShoppingBag, Store, Tag, X } from "lucide-react"
+import { ArrowLeft, Car, CheckCircle2, ChevronDown, Loader2, LockKeyhole, MapPin, ShoppingBag, Store, Tag, X } from "lucide-react"
 import { createShopOrder, previewShopPersonalDiscount, previewShopPromo, quoteShopSochiDelivery } from "@/lib/actions/shop-orders"
 import { getMyLoyalty, type MyLoyaltyData } from "@/lib/actions/loyalty"
 import type { SochiDeliveryQuote } from "@/lib/sochi-delivery"
@@ -23,7 +23,7 @@ function CdekLogo() {
 }
 
 function YandexDeliveryLogo() {
-  return <span className="flex items-center gap-2 text-left leading-none"><Image src="/brands/yandex.svg" alt="Яндекс" width={78} height={19} className="h-[18px] w-auto" /><span className="text-[13px] font-black text-[#1d1d1b]">Доставка</span></span>
+  return <span className="flex min-w-0 flex-col items-start gap-1 text-left leading-none"><Image src="/brands/yandex.svg" alt="Яндекс" width={68} height={17} className="h-4 max-w-full w-auto" /><span className="text-[12px] font-black text-[#1d1d1b]">Доставка</span></span>
 }
 
 function withCity(city: string, address: string): string {
@@ -440,7 +440,7 @@ export function ShopCheckout({
                   <span className="mt-3 block text-xs font-medium text-[#655c55]">{yandexEstimate ? `${yandexEstimate} · ${formatPrice(yandexSelection?.deliveryCost || 0)}` : "ПВЗ, постамат или курьер"}</span>
                 </button>}
                 <button type="button" aria-pressed={deliveryMethod === "sochi_delivery"} onClick={() => { setDeliveryMethod("sochi_delivery"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "sochi_delivery" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
-                  <span className="flex items-center gap-2 text-sm font-black"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#5b328a] text-white"><Bike className="h-4 w-4" /></span>По Сочи</span>
+                  <span className="flex items-center gap-2 text-sm font-black"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#5b328a] text-white"><Car className="h-4 w-4" /></span>По Сочи</span>
                   <span className="mt-3 block text-xs font-medium text-[#655c55]">{sochiDeliveryQuote?.available ? (sochiDeliveryQuote.cost > 0 ? formatPrice(sochiDeliveryQuote.cost) : "Бесплатно") : "По зонам города"}</span>
                 </button>
                 <button type="button" aria-pressed={deliveryMethod === "self_pickup"} onClick={() => { setDeliveryMethod("self_pickup"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "self_pickup" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
