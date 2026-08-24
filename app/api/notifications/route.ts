@@ -37,15 +37,20 @@ export async function GET() {
     const message = buildDiscountMessage(discountConfig)
     if (message) {
       const signature = JSON.stringify(discountConfig)
-      const { error: insertError } = await db.from("notifications").insert({
-        id: discountNotificationId(user.id, signature),
-        client_id: user.id,
-        type: "personal_discount",
-        title: "Ваша персональная скидка",
-        message,
-        data: { discount_signature: signature },
-      })
-      if (insertError && (insertError as { code?: string }).code !== "23505") {
+      const { error: insertError } = await db
+        .from("notifications")
+        .upsert(
+          {
+            id: discountNotificationId(user.id, signature),
+            client_id: user.id,
+            type: "personal_discount",
+            title: "Ваша персональная скидка",
+            message,
+            data: { discount_signature: signature },
+          },
+          { onConflict: "id" },
+        )
+      if (insertError) {
         console.error("[notifications] Не удалось создать уведомление о скидке", insertError)
       }
     }
