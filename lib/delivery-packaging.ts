@@ -301,8 +301,8 @@ export function calculateDeliveryPackaging(
 
   const selected = candidates.sort((left, right) =>
     left.packages.length - right.packages.length
-    || left.packagingCost - right.packagingCost
-    || left.packageVolume - right.packageVolume,
+    || left.packageVolume - right.packageVolume
+    || left.packagingCost - right.packagingCost,
   )[0]
 
   if (!selected) {

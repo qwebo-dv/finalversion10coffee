@@ -23,6 +23,27 @@ type CdekPackage = { length: number; width: number; height: number; weight: numb
 type Office = { code: string; name: string; address_full: string; work_time: string; type: string; location?: Record<string, unknown>; [key: string]: unknown }
 type AddressSuggestion = { city?: string; region?: string }
 
+const CITY_STORAGE_KEY = "10coffee-shop-cdek-city-v1"
+
+function parseStoredCity(value: string | null): City | null {
+  if (!value) return null
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (!parsed || typeof parsed !== "object") return null
+    const candidate = parsed as Partial<City>
+    if (!Number.isInteger(candidate.code) || Number(candidate.code) <= 0) return null
+    if (typeof candidate.city !== "string" || !candidate.city.trim()) return null
+    if (typeof candidate.region !== "string") return null
+    return {
+      code: Number(candidate.code),
+      city: candidate.city.trim(),
+      region: candidate.region.trim(),
+    }
+  } catch {
+    return null
+  }
+}
+
 function normalizeLocation(value: string): string {
   return value.toLocaleLowerCase("ru-RU").replace(/[^а-яёa-z0-9]/g, "")
 }
@@ -50,10 +71,45 @@ export function CdekDeliverySelector({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [courierAddress, setCourierAddress] = useState(defaultAddress)
+  const [storageRestored, setStorageRestored] = useState(false)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const restoredAddress = useRef("")
   const restoreCancelled = useRef(false)
   const activeTariff = type === "pickup" ? pickup : courier
+  const cityCode = city?.code || null
+  const quoteItemsPayload = JSON.stringify(items.map(({ productId, variantId, quantity }) => ({
+    productId,
+    variantId,
+    quantity,
+  })))
+
+  useEffect(() => {
+    let storedCity: City | null = null
+    try {
+      storedCity = parseStoredCity(window.localStorage.getItem(CITY_STORAGE_KEY))
+    } catch {
+      // Checkout remains usable when browser storage is unavailable.
+    }
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      if (storedCity) {
+        setCity(storedCity)
+        setQuery(`${storedCity.city}, ${storedCity.region}`)
+      }
+      setStorageRestored(true)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    if (!city) return
+    try {
+      window.localStorage.setItem(CITY_STORAGE_KEY, JSON.stringify(city))
+    } catch {
+      // Checkout remains usable when browser storage is unavailable.
+    }
+  }, [city])
 
   useEffect(() => {
     if (defaultAddress) setCourierAddress((current) => current || defaultAddress)
@@ -61,7 +117,7 @@ export function CdekDeliverySelector({
 
   useEffect(() => {
     const address = defaultAddress.trim()
-    if (!address || city || restoredAddress.current === address) return
+    if (!storageRestored || !address || city || restoredAddress.current === address) return
     restoredAddress.current = address
     restoreCancelled.current = false
     let cancelled = false
@@ -102,16 +158,20 @@ export function CdekDeliverySelector({
 
     void restoreCity()
     return () => { cancelled = true }
-  }, [city, defaultAddress])
+  }, [city, defaultAddress, storageRestored])
 
   useEffect(() => {
-    if (!city || items.length === 0) return
+    if (!cityCode || quoteItemsPayload === "[]") return
     setLoading(true)
     setError(null)
     setPickup(null)
     setCourier(null)
     setPackages([])
-    fetch("/api/cdek/calculate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cityCode: city.code, items }) })
+    fetch("/api/cdek/calculate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cityCode, items: JSON.parse(quoteItemsPayload) }),
+    })
       .then(async (response) => {
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || "Не удалось рассчитать доставку")
@@ -125,7 +185,7 @@ export function CdekDeliverySelector({
       })
       .catch((caught) => setError(caught instanceof Error ? caught.message : "Не удалось рассчитать доставку"))
       .finally(() => setLoading(false))
-  }, [city, items])
+  }, [cityCode, quoteItemsPayload])
 
   useEffect(() => {
     if (!city || type !== "pickup") {
@@ -152,6 +212,11 @@ export function CdekDeliverySelector({
 
   function search(value: string) {
     restoreCancelled.current = true
+    try {
+      window.localStorage.removeItem(CITY_STORAGE_KEY)
+    } catch {
+      // Checkout remains usable when browser storage is unavailable.
+    }
     setQuery(value)
     setCity(null)
     setPickup(null)

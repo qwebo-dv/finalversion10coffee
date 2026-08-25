@@ -23,6 +23,22 @@ export type ShopYandexDeliverySelection = {
 
 type Location = { geoId: number; address: string }
 
+const LOCATION_STORAGE_KEY = "10coffee-shop-yandex-location-v1"
+
+function parseStoredLocation(value: string | null): Location | null {
+  if (!value) return null
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (!parsed || typeof parsed !== "object") return null
+    const candidate = parsed as Partial<Location>
+    if (!Number.isInteger(candidate.geoId) || Number(candidate.geoId) <= 0) return null
+    if (typeof candidate.address !== "string" || !candidate.address.trim()) return null
+    return { geoId: Number(candidate.geoId), address: candidate.address.trim() }
+  } catch {
+    return null
+  }
+}
+
 function fullCourierAddress(city: string, address: string) {
   const trimmed = address.trim()
   if (!trimmed) return ""
@@ -61,6 +77,37 @@ export function YandexDeliverySelector({
   const [error, setError] = useState<string | null>(null)
   const [testMode, setTestMode] = useState(false)
   const timer = useRef<number | null>(null)
+  const quoteItemsPayload = JSON.stringify(items.map(({ productId, variantId, quantity }) => ({
+    productId,
+    variantId,
+    quantity,
+  })))
+
+  useEffect(() => {
+    let storedLocation: Location | null = null
+    try {
+      storedLocation = parseStoredLocation(window.localStorage.getItem(LOCATION_STORAGE_KEY))
+    } catch {
+      // Checkout remains usable when browser storage is unavailable.
+    }
+    if (!storedLocation) return
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled || !storedLocation) return
+      setLocation(storedLocation)
+      setQuery(storedLocation.address)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    if (!location) return
+    try {
+      window.localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(location))
+    } catch {
+      // Checkout remains usable when browser storage is unavailable.
+    }
+  }, [location])
 
   useEffect(() => {
     if (!testMode || !location || mode === "courier") return
@@ -109,7 +156,7 @@ export function YandexDeliverySelector({
     })
     const timeout = window.setTimeout(() => {
       void quoteShopYandexDelivery({
-        items,
+        items: JSON.parse(quoteItemsPayload) as ShopOrderInput["items"],
         deliveryType: mode,
         pickupPointId: point?.id,
         destinationAddress,
@@ -146,9 +193,14 @@ export function YandexDeliverySelector({
       cancelled = true
       window.clearTimeout(timeout)
     }
-  }, [courierAddress, email, fullName, items, location, mode, onChange, phone, point])
+  }, [courierAddress, email, fullName, location, mode, onChange, phone, point, quoteItemsPayload])
 
   function search(value: string) {
+    try {
+      window.localStorage.removeItem(LOCATION_STORAGE_KEY)
+    } catch {
+      // Checkout remains usable when browser storage is unavailable.
+    }
     setQuery(value)
     setLocation(null)
     setLocations([])
