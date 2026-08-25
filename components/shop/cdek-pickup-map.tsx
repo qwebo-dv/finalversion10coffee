@@ -73,6 +73,7 @@ export function CdekPickupMap({
   offices,
   selectedOfficeCode,
   tariff,
+  packages,
   weightGrams,
   onSelect,
 }: {
@@ -80,6 +81,7 @@ export function CdekPickupMap({
   offices: CdekMapOffice[]
   selectedOfficeCode?: string
   tariff: CdekMapTariff
+  packages: { length: number; width: number; height: number; weight: number }[]
   weightGrams: number
   onSelect: (office: CdekMapOffice) => void
 }) {
@@ -116,7 +118,9 @@ export function CdekPickupMap({
             period_max: tariff.maxDays,
             delivery_sum: tariff.price,
           },
-          goods: [{ length: 30, width: 20, height: 15, weight: Math.max(weightGrams / 1000, 0.1) }],
+          goods: packages.length > 0
+            ? packages.map((item) => ({ ...item, weight: Math.max(item.weight / 1000, 0.1) }))
+            : [{ length: 30, width: 20, height: 15, weight: Math.max(weightGrams / 1000, 0.1) }],
           hideDeliveryOptions: { office: false, door: true },
           onReady: () => {
             setLoading(false)
@@ -142,7 +146,7 @@ export function CdekPickupMap({
       widgetRef.current?.destroy?.()
       widgetRef.current = null
     }
-  }, [apiKey, cityName, offices, onSelect, open, rootId, selectedOfficeCode, tariff, weightGrams])
+  }, [apiKey, cityName, offices, onSelect, open, packages, rootId, selectedOfficeCode, tariff, weightGrams])
 
   if (!apiKey) {
     return <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">Карта ПВЗ появится после настройки ключа Яндекс Карт.</p>

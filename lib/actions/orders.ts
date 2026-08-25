@@ -20,6 +20,12 @@ import type { Order, OrderItem, OrderStatus, DeliveryMethod } from "@/types"
 import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad/sync"
 import { normalizeRussianPhone } from "@/lib/utils/phone"
 import type { CustomerSessionScope } from "@/lib/auth/constants"
+import { calculateTariff } from "@/lib/cdek"
+import {
+  calculateDeliveryPackaging,
+  getDeliveryPackagingSettings,
+  shippingLinesFromCartItems,
+} from "@/lib/delivery-packaging"
 
 interface OrderEmailItem {
   productName: string
@@ -516,6 +522,8 @@ export async function createOrder(params: {
   promoCodeId?: string
   discountAmount?: number
   deliveryCost?: number
+  cdekCityCode?: number
+  cdekDeliveryType?: "pickup" | "courier"
 }): Promise<{ error?: string; success?: boolean; orderId?: string; moyskladInvoiceCreated?: boolean }> {
 
   const supabase = await createClient("business")
@@ -622,7 +630,30 @@ export async function createOrder(params: {
     ? clientDoc.discountPercent
     : 0
 
-  const deliveryCost = params.deliveryCost ?? 0
+  let deliveryCost = params.deliveryCost ?? 0
+  if (params.deliveryMethod === "cdek") {
+    const cityCode = Number(params.cdekCityCode)
+    if (!Number.isInteger(cityCode) || cityCode <= 0 || !params.cdekDeliveryType) {
+      return { error: "Выберите город и способ доставки СДЭК" }
+    }
+    try {
+      const packagingSettings = await getDeliveryPackagingSettings()
+      const packaging = calculateDeliveryPackaging(shippingLinesFromCartItems(cartItems), packagingSettings)
+      const tariffs = await calculateTariff(
+        cityCode,
+        packaging.packages.map(({ weight, length, width, height }) => ({ weight, length, width, height })),
+      )
+      const allowedModes = params.cdekDeliveryType === "courier" ? [1, 3] : [2, 4]
+      const tariff = tariffs
+        .filter((item) => allowedModes.includes(item.delivery_mode))
+        .sort((left, right) => left.delivery_sum - right.delivery_sum)[0]
+      if (!tariff) return { error: "Для выбранного способа доставки нет тарифа СДЭК" }
+      deliveryCost = Math.round(tariff.delivery_sum + packaging.packagingCost)
+    } catch (error) {
+      console.error("[orders] Не удалось проверить тариф СДЭК", error)
+      return { error: "Не удалось подтвердить стоимость доставки СДЭК. Попробуйте ещё раз." }
+    }
+  }
   const total = Math.max(0, subtotal - discountAmount) + deliveryCost
 
   // Resolve company name/inn from Supabase companies table

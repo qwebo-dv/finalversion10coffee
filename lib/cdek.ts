@@ -83,10 +83,18 @@ export interface CdekTariff {
   period_max: number
 }
 
+export interface CdekPackageInput {
+  weight: number
+  length: number
+  width: number
+  height: number
+}
+
 export async function calculateTariff(
   toCityCode: number,
-  weightGrams: number,
+  packages: CdekPackageInput[],
 ): Promise<CdekTariff[]> {
+  if (packages.length === 0) throw new Error("CDEK package list is empty")
   const token = await getToken()
 
   const res = await fetch(`${CDEK_API_URL}/calculator/tarifflist`, {
@@ -98,14 +106,7 @@ export async function calculateTariff(
     body: JSON.stringify({
       from_location: { code: CDEK_SENDER_CITY_CODE },
       to_location: { code: toCityCode },
-      packages: [
-        {
-          weight: weightGrams,
-          length: 30,
-          width: 20,
-          height: 15,
-        },
-      ],
+      packages,
     }),
   })
 

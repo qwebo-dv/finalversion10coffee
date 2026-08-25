@@ -447,7 +447,7 @@ export function ShopCheckout({
               </div>
             </fieldset>
 
-            {deliveryMethod === "cdek" && <CdekDeliverySelector weightGrams={totalWeight} defaultAddress={defaultAddress} onChange={setCdekSelection} />}
+            {deliveryMethod === "cdek" && <CdekDeliverySelector items={items} weightGrams={totalWeight} defaultAddress={defaultAddress} onChange={setCdekSelection} />}
             {deliveryMethod === "yandex_delivery" && <YandexDeliverySelector items={items} fullName={fullName} email={email} phone={phone} defaultAddress={defaultAddress} onChange={setYandexSelection} />}
             {deliveryMethod === "sochi_delivery" && <div className="mt-5"><label className="block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><AddressInput name="address" required value={deliveryAddress} onChange={setDeliveryAddress} region="Краснодарский" className="h-12 rounded-2xl border-black/10 px-4 focus-visible:border-[#5b328a] focus-visible:ring-0" placeholder="Начните вводить улицу и дом" /></label>{sochiDeliveryQuoteLoading && <p className="mt-2 text-xs text-[#756b63]">Рассчитываем доставку по адресу…</p>}{!sochiDeliveryQuoteLoading && sochiDeliveryQuote?.available && <p className="mt-2 text-xs font-medium text-emerald-700">{sochiDeliveryQuote.cost > 0 ? `Доставка по этой зоне — ${formatPrice(sochiDeliveryQuote.cost)}` : "Доставка бесплатная"}{goodsTotal >= 3000 && " для заказа от 3 000 ₽"}</p>}{!sochiDeliveryQuoteLoading && sochiDeliveryQuote && !sochiDeliveryQuote.available && <p className="mt-2 text-xs font-medium text-red-700">{sochiDeliveryQuote.message}</p>}</div>}
             {deliveryMethod === "self_pickup" && (

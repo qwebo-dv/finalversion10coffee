@@ -220,7 +220,7 @@ export default function CheckoutPage() {
 
   // Calculate tariffs when city selected
   useEffect(() => {
-    if (!selectedCity || totalWeight === 0) return
+    if (!selectedCity || items.length === 0) return
     setCdekLoading(true)
     setCourierTariff(null)
     setPickupTariff(null)
@@ -228,7 +228,10 @@ export default function CheckoutPage() {
     fetch("/api/cdek/calculate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cityCode: selectedCity.code, weightGrams: totalWeight }),
+      body: JSON.stringify({
+        cityCode: selectedCity.code,
+        items: items.map((item) => ({ productId: item.product_id, variantId: item.variant_id, quantity: item.quantity })),
+      }),
     })
       .then((r) => r.json())
       .then((data) => {
@@ -246,7 +249,7 @@ export default function CheckoutPage() {
         setPickupTariff(null)
       })
       .finally(() => setCdekLoading(false))
-  }, [selectedCity, totalWeight])
+  }, [items, selectedCity])
 
   // Load offices when city selected and pickup type chosen
   useEffect(() => {
@@ -331,6 +334,8 @@ export default function CheckoutPage() {
         promoCodeId: appliedPromo?.promoCodeId,
         discountAmount: promoDiscount || undefined,
         deliveryCost: deliveryCost || undefined,
+        cdekCityCode: selectedCity?.code,
+        cdekDeliveryType,
       })
 
       if (result.error) {

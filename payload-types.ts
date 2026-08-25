@@ -133,11 +133,13 @@ export interface Config {
     'site-settings': SiteSetting;
     'payment-settings': PaymentSetting;
     'loyalty-settings': LoyaltySetting;
+    'delivery-settings': DeliverySetting;
   };
   globalsSelect: {
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
     'payment-settings': PaymentSettingsSelect<false> | PaymentSettingsSelect<true>;
     'loyalty-settings': LoyaltySettingsSelect<false> | LoyaltySettingsSelect<true>;
+    'delivery-settings': DeliverySettingsSelect<false> | DeliverySettingsSelect<true>;
   };
   locale: 'ru';
   widgets: {
@@ -1856,6 +1858,52 @@ export interface LoyaltySetting {
   createdAt?: string | null;
 }
 /**
+ * Размеры и стоимость транспортной упаковки. Стоимость автоматически включается в тариф СДЭК.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "delivery-settings".
+ */
+export interface DeliverySetting {
+  id: number;
+  cdekPackagingEnabled?: boolean | null;
+  /**
+   * 25 × 10 × 15 см · до 2 кг
+   */
+  packageS: {
+    lengthCm: number;
+    widthCm: number;
+    heightCm: number;
+    maxWeightGrams: number;
+    costRubles: number;
+  };
+  /**
+   * 35 × 15 × 25 см · до 5 кг
+   */
+  packageM: {
+    lengthCm: number;
+    widthCm: number;
+    heightCm: number;
+    maxWeightGrams: number;
+    costRubles: number;
+  };
+  /**
+   * 45 × 30 × 20 см · до 12 кг
+   */
+  packageL: {
+    lengthCm: number;
+    widthCm: number;
+    heightCm: number;
+    maxWeightGrams: number;
+    costRubles: number;
+  };
+  /**
+   * Если у варианта товара не заполнены все три габарита, одна единица товара занимает выбранную упаковку целиком.
+   */
+  fallbackPackageSize: 'S' | 'M' | 'L';
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site-settings_select".
  */
@@ -1904,6 +1952,44 @@ export interface LoyaltySettingsSelect<T extends boolean = true> {
         percent?: T;
         id?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "delivery-settings_select".
+ */
+export interface DeliverySettingsSelect<T extends boolean = true> {
+  cdekPackagingEnabled?: T;
+  packageS?:
+    | T
+    | {
+        lengthCm?: T;
+        widthCm?: T;
+        heightCm?: T;
+        maxWeightGrams?: T;
+        costRubles?: T;
+      };
+  packageM?:
+    | T
+    | {
+        lengthCm?: T;
+        widthCm?: T;
+        heightCm?: T;
+        maxWeightGrams?: T;
+        costRubles?: T;
+      };
+  packageL?:
+    | T
+    | {
+        lengthCm?: T;
+        widthCm?: T;
+        heightCm?: T;
+        maxWeightGrams?: T;
+        costRubles?: T;
+      };
+  fallbackPackageSize?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

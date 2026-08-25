@@ -29,6 +29,7 @@ import { Faqs } from "./payload/collections/Faqs"
 import { SiteSettings } from "./payload/globals/SiteSettings"
 import { PaymentSettings } from "./payload/globals/PaymentSettings"
 import { LoyaltySettings } from "./payload/globals/LoyaltySettings"
+import { DeliverySettings } from "./payload/globals/DeliverySettings"
 import { LoyaltyOperations } from "./payload/collections/LoyaltyOperations"
 import { JobApplications } from "./payload/collections/JobApplications"
 import { JobApplicationFiles } from "./payload/collections/JobApplicationFiles"
@@ -106,7 +107,7 @@ export default buildConfig({
     Admins,
   ],
 
-  globals: [SiteSettings, PaymentSettings, LoyaltySettings],
+  globals: [SiteSettings, PaymentSettings, LoyaltySettings, DeliverySettings],
 
   editor: lexicalEditor({
     admin: {
