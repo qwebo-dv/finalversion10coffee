@@ -1,5 +1,5 @@
 import type { Field, GlobalConfig } from "payload"
-import { canManageOperations, staffOnly } from "../access/adminRoles"
+import { staffOnly } from "../access/adminRoles"
 
 function packageFields(params: {
   name: "packageS" | "packageM" | "packageL"
@@ -41,7 +41,7 @@ export const DeliverySettings: GlobalConfig = {
   },
   access: {
     read: staffOnly,
-    update: ({ req }) => canManageOperations(req.user),
+    update: staffOnly,
   },
   fields: [
     {
