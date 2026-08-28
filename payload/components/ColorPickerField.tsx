@@ -1,6 +1,7 @@
 "use client"
 
-import { useField } from "@payloadcms/ui"
+import type { TextFieldClientProps } from "payload"
+import { FieldLabel, useField } from "@payloadcms/ui"
 
 const PRESET_COLORS = [
   { name: "Оранжевый", value: "#e6610d" },
@@ -26,11 +27,18 @@ function getContrastColor(hex: string): string {
   return luminance > 0.5 ? "#000000" : "#ffffff"
 }
 
-export default function ColorPickerField({ path }: { path: string }) {
+export default function ColorPickerField({ field, path }: TextFieldClientProps) {
   const { value, setValue } = useField<string>({ path })
 
   return (
     <div className="space-y-3">
+      <FieldLabel
+        htmlFor={`field-${path}`}
+        label={field.label}
+        localized={field.localized}
+        path={path}
+        required={field.required}
+      />
       <div className="flex flex-wrap gap-2">
         {PRESET_COLORS.map((preset) => (
           <button
@@ -68,6 +76,7 @@ export default function ColorPickerField({ path }: { path: string }) {
           title="Выбрать свой цвет"
         />
         <input
+          id={`field-${path}`}
           type="text"
           value={value || ""}
           onChange={(e) => {

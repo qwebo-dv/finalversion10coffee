@@ -1950,10 +1950,34 @@ export interface ShopPopupSetting {
   declineLabel: string;
   visualMode: 'coffee' | 'image';
   /**
-   * Рекомендуемое соотношение 4:5, размер не менее 900 × 1125 px. Текст и кнопки остаются отдельно и не обрезаются.
+   * Меняется только пачка кофе. Лучше использовать PNG или WebP с прозрачным фоном, без текста и декоративного фона.
    */
   visualImage?: (number | null) | Media;
   visualCaption?: string | null;
+  titleDesktopFontSize: number;
+  titleMobileFontSize: number;
+  descriptionDesktopFontSize: number;
+  descriptionMobileFontSize: number;
+  buttonDesktopFontSize: number;
+  buttonMobileFontSize: number;
+  badgeFontSize: number;
+  declineFontSize: number;
+  visualCaptionFontSize: number;
+  promoCodeFontSize: number;
+  panelBackgroundColor: string;
+  titleColor: string;
+  accentColor: string;
+  descriptionColor: string;
+  badgeBackgroundColor: string;
+  badgeTextColor: string;
+  buttonBackgroundColor: string;
+  buttonTextColor: string;
+  declineTextColor: string;
+  visualTextColor: string;
+  visualBackgroundColor: string;
+  visualGlowColor: string;
+  promoPlateBackgroundColor: string;
+  promoPlateTextColor: string;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2098,6 +2122,30 @@ export interface ShopPopupSettingsSelect<T extends boolean = true> {
   visualMode?: T;
   visualImage?: T;
   visualCaption?: T;
+  titleDesktopFontSize?: T;
+  titleMobileFontSize?: T;
+  descriptionDesktopFontSize?: T;
+  descriptionMobileFontSize?: T;
+  buttonDesktopFontSize?: T;
+  buttonMobileFontSize?: T;
+  badgeFontSize?: T;
+  declineFontSize?: T;
+  visualCaptionFontSize?: T;
+  promoCodeFontSize?: T;
+  panelBackgroundColor?: T;
+  titleColor?: T;
+  accentColor?: T;
+  descriptionColor?: T;
+  badgeBackgroundColor?: T;
+  badgeTextColor?: T;
+  buttonBackgroundColor?: T;
+  buttonTextColor?: T;
+  declineTextColor?: T;
+  visualTextColor?: T;
+  visualBackgroundColor?: T;
+  visualGlowColor?: T;
+  promoPlateBackgroundColor?: T;
+  promoPlateTextColor?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

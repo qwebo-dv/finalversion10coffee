@@ -33,6 +33,50 @@ const defaultDescription = {
   },
 }
 
+function validateHexColor(value: unknown): true | string {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value.trim())
+    ? true
+    : "Укажите цвет в формате #RRGGBB, например #F8F5F1."
+}
+
+const colorField = (
+  name: string,
+  label: string,
+  defaultValue: string,
+  description?: string,
+) => ({
+  name,
+  type: "text" as const,
+  label,
+  defaultValue,
+  required: true,
+  validate: validateHexColor,
+  admin: {
+    width: "50%",
+    description,
+    components: {
+      Field: "/payload/components/ColorPickerField",
+    },
+  },
+})
+
+const sizeField = (
+  name: string,
+  label: string,
+  defaultValue: number,
+  min: number,
+  max: number,
+) => ({
+  name,
+  type: "number" as const,
+  label,
+  defaultValue,
+  min,
+  max,
+  required: true,
+  admin: { width: "50%" },
+})
+
 export const ShopPopupSettings: GlobalConfig = {
   slug: "shop-popup-settings",
   label: "Промо-баннер магазина",
@@ -46,6 +90,15 @@ export const ShopPopupSettings: GlobalConfig = {
   },
   fields: [
     {
+      name: "popupPreview",
+      type: "ui",
+      admin: {
+        components: {
+          Field: "/payload/components/ShopPopupPreview",
+        },
+      },
+    },
+    {
       type: "row",
       fields: [
         { name: "enabled", type: "checkbox", label: "Баннер включён", defaultValue: false, admin: { width: "50%" } },
@@ -58,7 +111,7 @@ export const ShopPopupSettings: GlobalConfig = {
           required: true,
           admin: {
             width: "50%",
-            description: "Увеличьте число, если баннер должны снова увидеть посетители, закрывшие предыдущую версию.",
+            description: "При запуске новой акции увеличьте число на 1 (например, с 1 до 2) — баннер снова увидят все посетители, закрывшие его ранее.",
           },
         },
       ],
@@ -102,22 +155,22 @@ export const ShopPopupSettings: GlobalConfig = {
     {
       name: "visualMode",
       type: "select",
-      label: "Правая часть",
+      label: "Изображение упаковки кофе",
       defaultValue: "coffee",
       required: true,
       options: [
-        { label: "Фирменная кофейная иллюстрация", value: "coffee" },
-        { label: "Собственное изображение", value: "image" },
+        { label: "Стандартная пачка кофе", value: "coffee" },
+        { label: "Своя упаковка или товар", value: "image" },
       ],
     },
     {
       name: "visualImage",
       type: "upload",
       relationTo: "media",
-      label: "Изображение для правой части",
+      label: "Изображение вместо стандартной пачки",
       admin: {
         condition: (_, siblingData) => siblingData?.visualMode === "image",
-        description: "Рекомендуемое соотношение 4:5, размер не менее 900 × 1125 px. Текст и кнопки остаются отдельно и не обрезаются.",
+        description: "Меняется только пачка кофе. Лучше использовать PNG или WebP с прозрачным фоном, без текста и декоративного фона.",
       },
     },
     {
@@ -125,7 +178,104 @@ export const ShopPopupSettings: GlobalConfig = {
       type: "text",
       label: "Подпись на кофейной иллюстрации",
       defaultValue: "Свежая обжарка · бонусы с каждой покупки",
-      admin: { condition: (_, siblingData) => siblingData?.visualMode !== "image" },
+    },
+    {
+      type: "collapsible",
+      label: "Размеры текста",
+      admin: { initCollapsed: true },
+      fields: [
+        {
+          type: "row",
+          fields: [
+            sizeField("titleDesktopFontSize", "Заголовок на компьютере, px", 42, 24, 72),
+            sizeField("titleMobileFontSize", "Заголовок на телефоне, px", 30, 20, 52),
+          ],
+        },
+        {
+          type: "row",
+          fields: [
+            sizeField("descriptionDesktopFontSize", "Основной текст на компьютере, px", 15, 10, 28),
+            sizeField("descriptionMobileFontSize", "Основной текст на телефоне, px", 14, 10, 24),
+          ],
+        },
+        {
+          type: "row",
+          fields: [
+            sizeField("buttonDesktopFontSize", "Текст кнопки на компьютере, px", 16, 10, 26),
+            sizeField("buttonMobileFontSize", "Текст кнопки на телефоне, px", 14, 10, 24),
+          ],
+        },
+        {
+          type: "row",
+          fields: [
+            sizeField("badgeFontSize", "Верхний бейдж, px", 12, 8, 20),
+            sizeField("declineFontSize", "Ссылка «Нет, спасибо», px", 12, 9, 20),
+          ],
+        },
+        {
+          type: "row",
+          fields: [
+            sizeField("visualCaptionFontSize", "Подпись справа вверху, px", 10, 8, 18),
+            sizeField("promoCodeFontSize", "Промокод на плашке, px", 20, 12, 36),
+          ],
+        },
+      ],
+    },
+    {
+      type: "collapsible",
+      label: "Цвета",
+      admin: { initCollapsed: true },
+      fields: [
+        {
+          type: "row",
+          fields: [
+            colorField("panelBackgroundColor", "Фон текстовой части", "#F8F5F1"),
+            colorField("titleColor", "Основной цвет заголовка", "#1D1D1B"),
+          ],
+        },
+        {
+          type: "row",
+          fields: [
+            colorField("accentColor", "Акцент: 10%, иконки и круглый бейдж", "#E6610D"),
+            colorField("descriptionColor", "Основной текст описания", "#655C55"),
+          ],
+        },
+        {
+          type: "row",
+          fields: [
+            colorField("badgeBackgroundColor", "Фон верхнего бейджа", "#FAEAD5"),
+            colorField("badgeTextColor", "Текст верхнего бейджа", "#C84E00"),
+          ],
+        },
+        {
+          type: "row",
+          fields: [
+            colorField("buttonBackgroundColor", "Фон основной кнопки", "#5B328A"),
+            colorField("buttonTextColor", "Текст основной кнопки", "#FFFFFF"),
+          ],
+        },
+        {
+          type: "row",
+          fields: [
+            colorField("declineTextColor", "Текст ссылки «Нет, спасибо»", "#7D736B"),
+            colorField("visualTextColor", "Текст в правой части", "#FFFFFF"),
+          ],
+        },
+        {
+          type: "row",
+          fields: [
+            colorField("visualBackgroundColor", "Основной фон правой части", "#5B328A"),
+            colorField("visualGlowColor", "Цвет нижнего свечения справа", "#E6610D"),
+          ],
+        },
+        {
+          type: "row",
+          fields: [
+            colorField("promoPlateBackgroundColor", "Фон плашки промокода", "#1D1D1B"),
+            colorField("promoPlateTextColor", "Текст плашки промокода", "#FFFFFF"),
+          ],
+        },
+      ],
     },
   ],
 }

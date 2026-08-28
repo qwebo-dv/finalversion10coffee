@@ -48,8 +48,6 @@
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 12px;
-  padding-inline: clamp(18px, 2.1vw, 38px);
   font-family: var(--ticker-font, "Press Start 2P", ui-monospace, monospace);
   font-size: var(--ticker-font-size, 9px);
   font-weight: 400;
@@ -67,8 +65,15 @@
 }
 
 .marker {
+  display: inline-grid;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 1em;
+  place-items: center;
+  margin-inline: clamp(18px, 2.1vw, 38px);
   color: var(--ticker-marker, #fff);
   font-size: 14px;
+  line-height: 1;
   filter: none;
 }
 
@@ -90,12 +95,12 @@
   }
 
   .item {
-    gap: 9px;
     font-size: var(--ticker-mobile-font-size, 8px);
     letter-spacing: 0.08em;
   }
 
   .marker {
+    margin-inline: 18px;
     font-size: 12px;
   }
 }

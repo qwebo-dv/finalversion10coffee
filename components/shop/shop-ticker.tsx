@@ -20,8 +20,8 @@ function TickerGroup({ items, marker, hidden = false }: { items: TickerItem[]; m
     <div className={styles.group} aria-hidden={hidden || undefined}>
       {items.map((item, index) => (
         <span className={`${styles.item} ${item.highlighted ? styles.special : ""}`} key={`${item.text}-${index}`}>
-          <span className={styles.marker} aria-hidden="true">{marker}</span>
           {item.text}
+          <span className={styles.marker} aria-hidden="true">{marker}</span>
         </span>
       ))}
     </div>

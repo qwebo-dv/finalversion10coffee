@@ -31,6 +31,15 @@ export const ShopTickerSettings: GlobalConfig = {
   },
   fields: [
     {
+      name: "tickerPreview",
+      type: "ui",
+      admin: {
+        components: {
+          Field: "/payload/components/ShopTickerPreview",
+        },
+      },
+    },
+    {
       type: "row",
       fields: [
         {
@@ -92,7 +101,12 @@ export const ShopTickerSettings: GlobalConfig = {
               defaultValue: "#CBCAC6",
               required: true,
               validate: validateHexColor,
-              admin: { width: "50%" },
+              admin: {
+                width: "50%",
+                components: {
+                  Field: "/payload/components/ColorPickerField",
+                },
+              },
             },
             {
               name: "textColor",
@@ -101,7 +115,12 @@ export const ShopTickerSettings: GlobalConfig = {
               defaultValue: "#FFFFFF",
               required: true,
               validate: validateHexColor,
-              admin: { width: "50%" },
+              admin: {
+                width: "50%",
+                components: {
+                  Field: "/payload/components/ColorPickerField",
+                },
+              },
             },
           ],
         },
@@ -115,7 +134,12 @@ export const ShopTickerSettings: GlobalConfig = {
               defaultValue: "#FFFFFF",
               required: true,
               validate: validateHexColor,
-              admin: { width: "50%" },
+              admin: {
+                width: "50%",
+                components: {
+                  Field: "/payload/components/ColorPickerField",
+                },
+              },
             },
             {
               name: "highlightColor",
@@ -124,7 +148,12 @@ export const ShopTickerSettings: GlobalConfig = {
               defaultValue: "#FFFFFF",
               required: true,
               validate: validateHexColor,
-              admin: { width: "50%" },
+              admin: {
+                width: "50%",
+                components: {
+                  Field: "/payload/components/ColorPickerField",
+                },
+              },
             },
           ],
         },
