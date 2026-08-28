@@ -29,6 +29,9 @@ import * as migration_20260823_220000_job_applications from './20260823_220000_j
 import * as migration_20260823_230000_repair_order_payment_statuses from './20260823_230000_repair_order_payment_statuses.ts';
 import * as migration_20260824_090000_production_runtime_repair from './20260824_090000_production_runtime_repair.ts';
 import * as migration_20260825_090000_delivery_settings from './20260825_090000_delivery_settings.ts';
+import * as migration_20260826_120000_shop_popup_settings from './20260826_120000_shop_popup_settings.ts';
+import * as migration_20260828_090000_first_order_promo from './20260828_090000_first_order_promo.ts';
+import * as migration_20260828_100000_shop_ticker_settings from './20260828_100000_shop_ticker_settings.ts';
 
 export const migrations = [
   {
@@ -185,5 +188,20 @@ export const migrations = [
     up: migration_20260825_090000_delivery_settings.up,
     down: migration_20260825_090000_delivery_settings.down,
     name: '20260825_090000_delivery_settings'
+  },
+  {
+    up: migration_20260826_120000_shop_popup_settings.up,
+    down: migration_20260826_120000_shop_popup_settings.down,
+    name: '20260826_120000_shop_popup_settings'
+  },
+  {
+    up: migration_20260828_090000_first_order_promo.up,
+    down: migration_20260828_090000_first_order_promo.down,
+    name: '20260828_090000_first_order_promo'
+  },
+  {
+    up: migration_20260828_100000_shop_ticker_settings.up,
+    down: migration_20260828_100000_shop_ticker_settings.down,
+    name: '20260828_100000_shop_ticker_settings'
   },
 ];

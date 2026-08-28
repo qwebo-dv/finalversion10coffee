@@ -134,12 +134,16 @@ export interface Config {
     'payment-settings': PaymentSetting;
     'loyalty-settings': LoyaltySetting;
     'delivery-settings': DeliverySetting;
+    'shop-popup-settings': ShopPopupSetting;
+    'shop-ticker-settings': ShopTickerSetting;
   };
   globalsSelect: {
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
     'payment-settings': PaymentSettingsSelect<false> | PaymentSettingsSelect<true>;
     'loyalty-settings': LoyaltySettingsSelect<false> | LoyaltySettingsSelect<true>;
     'delivery-settings': DeliverySettingsSelect<false> | DeliverySettingsSelect<true>;
+    'shop-popup-settings': ShopPopupSettingsSelect<false> | ShopPopupSettingsSelect<true>;
+    'shop-ticker-settings': ShopTickerSettingsSelect<false> | ShopTickerSettingsSelect<true>;
   };
   locale: 'ru';
   widgets: {
@@ -689,6 +693,10 @@ export interface PromoCode {
    */
   discountValue: number;
   isSingleUse?: boolean | null;
+  /**
+   * 10COFFEE всегда имеет это ограничение.
+   */
+  firstOrderOnly?: boolean | null;
   /**
    * Пусто = без лимита
    */
@@ -1346,6 +1354,7 @@ export interface PromoCodesSelect<T extends boolean = true> {
   discountType?: T;
   discountValue?: T;
   isSingleUse?: T;
+  firstOrderOnly?: T;
   maxUses?: T;
   minOrderAmount?: T;
   startsAt?: T;
@@ -1904,6 +1913,85 @@ export interface DeliverySetting {
   createdAt?: string | null;
 }
 /**
+ * Первый экран для новых посетителей shop.10coffee.ru. Измените версию кампании, чтобы повторно показать обновлённый баннер.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "shop-popup-settings".
+ */
+export interface ShopPopupSetting {
+  id: number;
+  enabled?: boolean | null;
+  /**
+   * Увеличьте число, если баннер должны снова увидеть посетители, закрывшие предыдущую версию.
+   */
+  campaignVersion: number;
+  badgeText: string;
+  /**
+   * Фрагмент «10% на первый заказ» автоматически выделяется фирменным оранжевым цветом.
+   */
+  title: string;
+  description: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  promoCode: string;
+  ctaLabel: string;
+  declineLabel: string;
+  visualMode: 'coffee' | 'image';
+  /**
+   * Рекомендуемое соотношение 4:5, размер не менее 900 × 1125 px. Текст и кнопки остаются отдельно и не обрезаются.
+   */
+  visualImage?: (number | null) | Media;
+  visualCaption?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * Тексты и оформление бегущей строки под главным меню shop.10coffee.ru.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "shop-ticker-settings".
+ */
+export interface ShopTickerSetting {
+  id: number;
+  enabled?: boolean | null;
+  pauseOnHover?: boolean | null;
+  /**
+   * Перетаскивайте сообщения, чтобы менять порядок их показа.
+   */
+  items: {
+    text: string;
+    highlighted?: boolean | null;
+    id?: string | null;
+  }[];
+  backgroundColor: string;
+  textColor: string;
+  markerColor: string;
+  highlightColor: string;
+  fontPreset: 'pixel' | 'site' | 'monospace';
+  desktopFontSize: number;
+  mobileFontSize: number;
+  /**
+   * Чем меньше значение, тем быстрее движется строка.
+   */
+  speedSeconds: number;
+  marker: string;
+  uppercase?: boolean | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site-settings_select".
  */
@@ -1990,6 +2078,54 @@ export interface DeliverySettingsSelect<T extends boolean = true> {
         costRubles?: T;
       };
   fallbackPackageSize?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "shop-popup-settings_select".
+ */
+export interface ShopPopupSettingsSelect<T extends boolean = true> {
+  enabled?: T;
+  campaignVersion?: T;
+  badgeText?: T;
+  title?: T;
+  description?: T;
+  promoCode?: T;
+  ctaLabel?: T;
+  declineLabel?: T;
+  visualMode?: T;
+  visualImage?: T;
+  visualCaption?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "shop-ticker-settings_select".
+ */
+export interface ShopTickerSettingsSelect<T extends boolean = true> {
+  enabled?: T;
+  pauseOnHover?: T;
+  items?:
+    | T
+    | {
+        text?: T;
+        highlighted?: T;
+        id?: T;
+      };
+  backgroundColor?: T;
+  textColor?: T;
+  markerColor?: T;
+  highlightColor?: T;
+  fontPreset?: T;
+  desktopFontSize?: T;
+  mobileFontSize?: T;
+  speedSeconds?: T;
+  marker?: T;
+  uppercase?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

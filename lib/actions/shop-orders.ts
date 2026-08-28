@@ -1,6 +1,6 @@
 "use server"
 
-import { getPayload, type RequiredDataFromCollectionSlug } from "payload"
+import { getPayload, type RequiredDataFromCollectionSlug, type Where } from "payload"
 import configPromise from "@payload-config"
 import { getClientDiscountConfig, getShopProducts } from "@/lib/actions/products"
 import { calculateClientDiscount, type ClientDiscountLine } from "@/lib/discounts"
@@ -76,12 +76,14 @@ export interface ShopPersonalDiscountPreviewResult {
 
 interface PromoDoc {
   id: string | number
+  code?: string | null
   audience?: "all" | "individual" | "business" | null
   applicableProducts?: ({ id?: string | number } | string | number)[] | null
   discountType?: "percentage" | "fixed_amount"
   discountValue?: number
   isActive?: boolean
   isSingleUse?: boolean
+  firstOrderOnly?: boolean
   maxUses?: number | null
   currentUses?: number | null
   minOrderAmount?: number | null
@@ -128,6 +130,7 @@ async function resolvePromo(params: {
   email: string
   cartItems: CartItem[]
   subtotal: number
+  clientId?: string | number
 }) {
   if (!params.code?.trim()) return { discountAmount: 0, discountLines: [] as { cartItemId: string; discountPercent: number }[] }
 
@@ -146,6 +149,35 @@ async function resolvePromo(params: {
   if (promo.maxUses != null && (promo.currentUses || 0) >= promo.maxUses) throw new Error("Промокод исчерпан")
   if (promo.restrictedToEmail && promo.restrictedToEmail.toLowerCase() !== params.email.toLowerCase()) throw new Error("Промокод привязан к другому email")
   if (promo.minOrderAmount && params.subtotal < promo.minOrderAmount) throw new Error(`Минимальная сумма заказа: ${promo.minOrderAmount.toLocaleString("ru-RU")} ₽`)
+
+  const firstOrderOnly = promo.firstOrderOnly || String(promo.code || "").toUpperCase() === "10COFFEE"
+  if (firstOrderOnly) {
+    const normalizedEmail = params.email.trim().toLowerCase()
+    if (!normalizedEmail && !params.clientId) {
+      throw new Error("Укажите email, чтобы проверить промокод на первый заказ")
+    }
+
+    const customerConditions: Where[] = []
+    if (normalizedEmail) customerConditions.push({ customerEmail: { equals: normalizedEmail } })
+    if (params.clientId) customerConditions.push({ client: { equals: params.clientId } })
+
+    const previousOrders = await params.payload.find({
+      collection: "orders",
+      where: {
+        and: [
+          { salesChannel: { equals: "retail" } },
+          customerConditions.length === 1 ? customerConditions[0] : { or: customerConditions },
+          { status: { not_in: ["cancelled", "returned"] } },
+          { paymentStatus: { not_in: ["cancelled", "failed", "refunded"] } },
+        ],
+      },
+      limit: 1,
+      depth: 0,
+    })
+    if (previousOrders.totalDocs > 0) {
+      throw new Error("Промокод действует только на первый заказ")
+    }
+  }
 
   if (promo.isSingleUse) {
     const previous = await params.payload.find({
@@ -532,6 +564,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
       email,
       cartItems,
       subtotal,
+      clientId,
     })
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Не удалось применить промокод" }

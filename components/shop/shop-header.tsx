@@ -9,6 +9,7 @@ import { useAuth } from "@/providers/auth-provider"
 import { NotificationMenu } from "@/components/shop/notification-menu"
 import { openAuthModal } from "@/components/auth/auth-modal-store"
 import { PendingPaymentCard } from "@/components/shop/pending-payment-card"
+import { ShopTicker } from "@/components/shop/shop-ticker"
 import { formatPrice } from "@/lib/utils/format"
 import { formatProductCount } from "@/lib/utils/plural"
 import type { Product, ProductTypeOption } from "@/types"
@@ -145,6 +146,8 @@ export function ShopHeader({ products, productTypes }: { products: Product[]; pr
           </button>
         </div>
       </header>
+
+      <ShopTicker />
 
       {/* Mobile menu */}
       {menuOpen && (

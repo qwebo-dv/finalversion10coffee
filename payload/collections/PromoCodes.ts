@@ -155,6 +155,11 @@ export const PromoCodes: CollectionConfig = {
       ({ data }) => {
         if (data?.code && typeof data.code === "string") {
           data.code = data.code.trim().toUpperCase()
+          // Приветственный промокод всегда ограничен первым заказом. Это не
+          // позволяет случайно снять ограничение в админке.
+          if (data.code === "10COFFEE") {
+            data.firstOrderOnly = true
+          }
         }
         return data
       },
@@ -256,11 +261,21 @@ export const PromoCodes: CollectionConfig = {
           admin: { width: "33%" },
         },
         {
+          name: "firstOrderOnly",
+          type: "checkbox",
+          label: "Только на первый заказ",
+          defaultValue: false,
+          admin: {
+            width: "33%",
+            description: "10COFFEE всегда имеет это ограничение.",
+          },
+        },
+        {
           name: "maxUses",
           type: "number",
           label: "Макс. использований",
           admin: {
-            width: "33%",
+            width: "17%",
             description: "Пусто = без лимита",
           },
         },
@@ -269,7 +284,7 @@ export const PromoCodes: CollectionConfig = {
           type: "number",
           label: "Мин. сумма заказа",
           min: 0,
-          admin: { width: "34%" },
+          admin: { width: "17%" },
         },
       ],
     },

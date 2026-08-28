@@ -1,0 +1,116 @@
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+
+.ticker {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: var(--ticker-text, #fff);
+  background: var(--ticker-background, #cbcac6);
+}
+
+.ticker::before,
+.ticker::after {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: clamp(24px, 5vw, 88px);
+  pointer-events: none;
+  content: "";
+}
+
+.ticker::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--ticker-background, #cbcac6), transparent);
+}
+
+.ticker::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--ticker-background, #cbcac6), transparent);
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: ticker-scroll var(--ticker-duration, 92s) linear infinite;
+}
+
+.group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-width: max-content;
+  padding-block: 9px;
+}
+
+.item {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  padding-inline: clamp(18px, 2.1vw, 38px);
+  font-family: var(--ticker-font, "Press Start 2P", ui-monospace, monospace);
+  font-size: var(--ticker-font-size, 9px);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.15em;
+  white-space: nowrap;
+}
+
+.uppercase .item {
+  text-transform: uppercase;
+}
+
+.special {
+  color: var(--ticker-highlight, inherit);
+}
+
+.marker {
+  color: var(--ticker-marker, #fff);
+  font-size: 14px;
+  filter: none;
+}
+
+@keyframes ticker-scroll {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@media (hover: hover) {
+  .pauseOnHover:hover .track {
+    animation-play-state: paused;
+  }
+}
+
+@media (max-width: 640px) {
+  .group {
+    padding-block: 8px;
+  }
+
+  .item {
+    gap: 9px;
+    font-size: var(--ticker-mobile-font-size, 8px);
+    letter-spacing: 0.08em;
+  }
+
+  .marker {
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .ticker::-webkit-scrollbar {
+    display: none;
+  }
+
+  .track {
+    animation: none;
+  }
+}
