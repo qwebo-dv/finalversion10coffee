@@ -2,6 +2,7 @@
 
 import { getPayload, type Where } from "payload"
 import configPromise from "@payload-config"
+import { unstable_cache } from "next/cache"
 import { convertLexicalToHTML } from "@payloadcms/richtext-lexical/html"
 import type { SerializedEditorState } from "@payloadcms/richtext-lexical/lexical"
 import { createClient } from "@/lib/supabase/server"
@@ -322,23 +323,6 @@ async function findProductTypeBySlug(payload: PayloadClient, slug: ProductType):
   }
 }
 
-async function countProductsByType(payload: PayloadClient, typeId?: string | number): Promise<number> {
-  if (typeId === undefined) return 0
-
-  const result = await payload.find({
-    collection: "products",
-    where: {
-      and: [
-        { isVisible: { equals: true } },
-        buildProductTypeWhere(typeId),
-      ],
-    },
-    limit: 1,
-    depth: 0,
-  })
-  return result.totalDocs
-}
-
 function transformProductType(doc: PayloadProductTypeDoc): ProductTypeOption | null {
   const slug = doc.slug
   if (!slug) return null
@@ -536,7 +520,7 @@ function transformCategory(doc: PayloadCategoryDoc): CatalogCategoryDoc {
 // Public API
 // ============================================================
 
-export async function getProductTypes(): Promise<ProductTypeOption[]> {
+async function loadProductTypes(): Promise<ProductTypeOption[]> {
   const payload = await getPayloadClient()
   const { docs } = await payload.find({
     collection: "product-types",
@@ -548,21 +532,44 @@ export async function getProductTypes(): Promise<ProductTypeOption[]> {
 
   const productTypeDocs = docs as PayloadProductTypeDoc[]
 
-  const withCounts = await Promise.all(
-    productTypeDocs.map(async (doc) => {
-      const option = transformProductType(doc)
-      if (!option) return null
+  // The shop home is rendered for every visitor.  Counting products once per
+  // type created an N+1 query burst (one query for types plus one per type),
+  // which made the page particularly vulnerable to a busy database.  One
+  // shallow product query gives the same visible-product counts.
+  const visibleProducts = await payload.find({
+    collection: "products",
+    where: { isVisible: { equals: true } },
+    limit: 1000,
+    depth: 0,
+  })
+  const counts = new Map<string, number>()
+  for (const product of visibleProducts.docs as PayloadProductDoc[]) {
+    if (!hasAvailablePayloadVariant(product)) continue
+    const typeId = getRelationshipId(product.productTypeRef)
+    if (typeId === null) continue
+    const key = String(typeId)
+    counts.set(key, (counts.get(key) || 0) + 1)
+  }
 
-      const productCount = await countProductsByType(payload, getProductTypeId(doc))
-      return { ...option, product_count: productCount }
-    })
-  )
+  const withCounts = productTypeDocs.map((doc) => {
+    const option = transformProductType(doc)
+    if (!option) return null
+    return { ...option, product_count: counts.get(String(getProductTypeId(doc))) || 0 }
+  })
 
   return withCounts
     .filter((type): type is ProductTypeOption => type !== null)
     .filter((type) => type.product_count > 0)
     .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, "ru"))
 }
+
+// Catalog data is public and changes far less often than it is read.  A short
+// shared cache prevents simultaneous mobile visits from repeatedly rebuilding
+// the same complete catalog while keeping updates visible within one minute.
+export const getProductTypes = unstable_cache(loadProductTypes, ["shop-product-types"], {
+  revalidate: 60,
+  tags: ["shop-catalog"],
+})
 
 export async function getCategories(productType?: ProductType): Promise<CatalogCategoryDoc[]> {
   const payload = await getPayloadClient()
@@ -718,7 +725,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
     .filter((product) => product.variants?.some(isAvailableVariant))
 }
 
-export async function getShopProducts(): Promise<Product[]> {
+async function loadShopProducts(): Promise<Product[]> {
   const payload = await getPayloadClient()
   const { docs } = await payload.find({
     collection: "products",
@@ -733,6 +740,15 @@ export async function getShopProducts(): Promise<Product[]> {
     .map((doc) => transformProduct(doc, reviewsMap.get(String(doc.id)) || []))
     .filter((product) => product.variants?.some(isAvailableVariant))
 }
+
+// Keep the base loader uncached for checkout and order calculations: a price
+// changed by an administrator must be used immediately when creating an order.
+export const getShopProducts = loadShopProducts
+
+export const getCachedShopProducts = unstable_cache(loadShopProducts, ["shop-products"], {
+  revalidate: 60,
+  tags: ["shop-catalog"],
+})
 
 export async function getProductsByIds(ids: string[]): Promise<Product[]> {
   if (ids.length === 0) return []

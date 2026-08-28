@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { ShopHeader } from "@/components/shop/shop-header"
-import { getProductTypes, getShopProducts } from "@/lib/actions/products"
+import { getCachedShopProducts, getProductTypes } from "@/lib/actions/products"
 
 export const metadata: Metadata = {
   title: "Возврат товаров и денежных средств — 10coffee",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic"
 
 export default async function ReturnPage() {
-  const [products, productTypes] = await Promise.all([getShopProducts(), getProductTypes()])
+  const [products, productTypes] = await Promise.all([getCachedShopProducts(), getProductTypes()])
   return <main className="min-h-screen bg-[#f8f5f1] text-[#1d1d1b]"><ShopHeader products={products} productTypes={productTypes} /><article className="mx-auto max-w-5xl px-5 py-16 lg:px-10 lg:py-24"><p className="text-xs font-black uppercase tracking-[0.22em] text-[#e6610d]">Покупателям</p><h1 className="mt-4 text-4xl font-black tracking-[-0.05em] sm:text-6xl">Возврат и обмен</h1><p className="mt-6 max-w-3xl text-lg leading-8 text-[#6e655e]">Если с заказом что-то не так, свяжитесь с нами — разберём ситуацию и подскажем порядок действий.</p><div className="mt-12 space-y-5">{[
     ["Отказ от заказа", "Вы можете отказаться от заказа до его передачи в доставку. После передачи применяются сроки и условия, установленные законодательством Российской Федерации."],
     ["Товар надлежащего качества", "Для возврата непродовольственного товара должны быть сохранены товарный вид, потребительские свойства, комплектность и подтверждение покупки. Для продовольственных товаров действуют предусмотренные законом ограничения."],

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { ShopHeader } from "@/components/shop/shop-header"
-import { getProductTypes, getShopProducts } from "@/lib/actions/products"
+import { getCachedShopProducts, getProductTypes } from "@/lib/actions/products"
 
 export const metadata: Metadata = {
   title: "Доставка и оплата — 10coffee",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic"
 
 export default async function DeliveryPage() {
-  const [products, productTypes] = await Promise.all([getShopProducts(), getProductTypes()])
+  const [products, productTypes] = await Promise.all([getCachedShopProducts(), getProductTypes()])
 
   return (
     <main className="min-h-screen bg-[#f8f5f1] text-[#1d1d1b]">

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation"
-import { getFavoriteProductIds, getProductBySlug, getProductTypes, getShopProducts } from "@/lib/actions/products"
+import { getCachedShopProducts, getFavoriteProductIds, getProductBySlug, getProductTypes } from "@/lib/actions/products"
 import { getCoffeeBrewingGuides } from "@/lib/actions/coffee-brewing-guides"
 import { ShopProduct } from "@/components/shop/shop-product"
 
@@ -13,7 +13,7 @@ export default async function ShopProductPage({ params }: ShopProductPageProps) 
   const { slug } = await params
   const [product, products, productTypes, favoriteIds, coffeeBrewingGuides] = await Promise.all([
     getProductBySlug(slug),
-    getShopProducts(),
+    getCachedShopProducts(),
     getProductTypes(),
     getFavoriteProductIds("individual"),
     getCoffeeBrewingGuides(),

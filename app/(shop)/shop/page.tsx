@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { permanentRedirect } from "next/navigation"
-import { getFavoriteProductIds, getProductTypes, getShopProducts } from "@/lib/actions/products"
+import { getCachedShopProducts, getFavoriteProductIds, getProductTypes } from "@/lib/actions/products"
 import { ShopHome } from "@/components/shop/shop-home"
 import { ShopCatalog } from "@/components/shop/shop-catalog"
 import { getPublishedFaqs } from "@/lib/actions/faqs"
@@ -37,7 +37,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
   const [productTypes, products, faqs, favoriteIds] = await Promise.all([
     getProductTypes(),
-    getShopProducts(),
+    getCachedShopProducts(),
     getPublishedFaqs(5),
     getFavoriteProductIds("individual"),
   ])
