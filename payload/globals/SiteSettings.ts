@@ -22,12 +22,20 @@ export const SiteSettings: GlobalConfig = {
       defaultValue: false,
     },
     {
+      name: "priceListDownloadFile",
+      type: "upload",
+      relationTo: "media",
+      label: "Файл прайс-листа для скачивания",
+      admin: {
+        description: "Выберите PDF из медиатеки или загрузите новый — ссылка для скачивания сформируется автоматически.",
+      },
+    },
+    {
       name: "priceListUrl",
       type: "text",
-      label: "Ссылка на прайс-лист",
+      label: "Ссылка на прайс-лист (устаревшее поле)",
       admin: {
-        description: "URL для скачивания прайс-листа (PDF).",
-        placeholder: "/prais-list.pdf",
+        hidden: true,
       },
     },
     {
