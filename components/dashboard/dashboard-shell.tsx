@@ -99,6 +99,7 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
   }, [unreadCount])
   const [activePanel, setActivePanel] = useState<SlidePanel>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
   const [favorites, setFavorites] = useState<Product[]>([])
   const [favsLoading, setFavsLoading] = useState(false)
   const [priceListUrl, setPriceListUrl] = useState("")
@@ -138,6 +139,19 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
       if (panel === "favorites") loadFavorites()
     }
   }
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!mobileMenuRef.current?.contains(event.target as Node)) {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown)
+    return () => document.removeEventListener("pointerdown", handlePointerDown)
+  }, [mobileMenuOpen])
 
   return (
     <div className="bg-white">
@@ -504,21 +518,55 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
               </Link>
             )}
             {isIndividual ? (
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen((open) => !open)}
-                aria-expanded={mobileMenuOpen}
-                aria-controls="retail-mobile-more-menu"
-                className={cn(
-                  "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
-                  mobileMenuOpen || pathname.startsWith("/main/delivery") || pathname.startsWith("/main/settings")
-                    ? "text-[#5b328a]"
-                    : "text-neutral-400"
+              <div ref={mobileMenuRef} className="relative min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen((open) => !open)}
+                  aria-expanded={mobileMenuOpen}
+                  aria-controls="retail-mobile-more-menu"
+                  className={cn(
+                    "flex w-full min-w-0 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
+                    mobileMenuOpen || pathname.startsWith("/main/delivery") || pathname.startsWith("/main/settings")
+                      ? "text-[#5b328a]"
+                      : "text-neutral-400"
+                  )}
+                >
+                  <Menu className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Ещё</span>
+                </button>
+
+                {mobileMenuOpen && (
+                  <div
+                    id="retail-mobile-more-menu"
+                    className="absolute bottom-[calc(100%+0.75rem)] right-0 z-50 w-60 rounded-2xl border border-neutral-200 bg-white p-2 shadow-xl"
+                  >
+                    <Link
+                      href="/main/delivery"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                    >
+                      <Truck className="h-5 w-5 text-[#5b328a]" />
+                      Способы доставки
+                    </Link>
+                    <Link
+                      href="/main/settings"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                    >
+                      <Settings className="h-5 w-5 text-[#5b328a]" />
+                      Настройки
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => void handleSignOut()}
+                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-[#e6610d] hover:bg-[#faead5]/50"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      Выйти
+                    </button>
+                  </div>
                 )}
-              >
-                <Menu className="h-5 w-5" />
-                <span className="text-[10px] font-medium">Ещё</span>
-              </button>
+              </div>
             ) : (
               <>
                 <Link
@@ -543,46 +591,6 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
             )}
           </div>
         </nav>
-
-        {isIndividual && mobileMenuOpen && (
-          <>
-            <button
-              type="button"
-              aria-label="Закрыть дополнительное меню"
-              className="fixed inset-0 z-30 bg-black/20 lg:hidden"
-              onClick={() => setMobileMenuOpen(false)}
-            />
-            <div
-              id="retail-mobile-more-menu"
-              className="fixed inset-x-3 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] z-50 rounded-2xl border border-neutral-100 bg-white p-2 shadow-2xl lg:hidden"
-            >
-              <Link
-                href="/main/delivery"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-              >
-                <Truck className="h-5 w-5 text-[#5b328a]" />
-                Способы доставки
-              </Link>
-              <Link
-                href="/main/settings"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-              >
-                <Settings className="h-5 w-5 text-[#5b328a]" />
-                Настройки
-              </Link>
-              <button
-                type="button"
-                onClick={() => void handleSignOut()}
-                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-[#e6610d] hover:bg-[#faead5]/50"
-              >
-                <LogOut className="h-5 w-5" />
-                Выйти
-              </button>
-            </div>
-          </>
-        )}
       </div>
     </div>
   )
