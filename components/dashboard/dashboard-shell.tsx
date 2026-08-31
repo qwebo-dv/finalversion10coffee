@@ -428,6 +428,28 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
             {isIndividual ? (
               <>
                 <Link
+                  href="/main/loyalty"
+                  aria-label="Мои бонусы"
+                  className={cn(
+                    "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
+                    pathname.startsWith("/main/loyalty") ? "text-[#5b328a]" : "text-neutral-400"
+                  )}
+                >
+                  <BadgePercent className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Бонусы</span>
+                </Link>
+                <Link
+                  href="/main/reviews"
+                  aria-label="Мои отзывы"
+                  className={cn(
+                    "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
+                    pathname.startsWith("/main/reviews") ? "text-[#5b328a]" : "text-neutral-400"
+                  )}
+                >
+                  <Star className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Отзывы</span>
+                </Link>
+                <Link
                   href="/main/delivery"
                   className={cn(
                     "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
