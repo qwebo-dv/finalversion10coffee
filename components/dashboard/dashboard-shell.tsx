@@ -31,6 +31,7 @@ import {
   Truck,
   LayoutDashboard,
   BadgePercent,
+  Menu,
 } from "lucide-react"
 import { getSiteSettings } from "@/lib/actions/site-settings"
 import { cn } from "@/lib/utils"
@@ -97,6 +98,7 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
     return () => window.clearTimeout(timer)
   }, [unreadCount])
   const [activePanel, setActivePanel] = useState<SlidePanel>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [favorites, setFavorites] = useState<Product[]>([])
   const [favsLoading, setFavsLoading] = useState(false)
   const [priceListUrl, setPriceListUrl] = useState("")
@@ -450,16 +452,6 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
                   <span className="text-[10px] font-medium">Отзывы</span>
                 </Link>
                 <Link
-                  href="/main/delivery"
-                  className={cn(
-                    "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
-                    pathname.startsWith("/main/delivery") ? "text-[#5b328a]" : "text-neutral-400"
-                  )}
-                >
-                  <Truck className="h-5 w-5" />
-                  <span className="text-[10px] font-medium">Доставка</span>
-                </Link>
-                <Link
                   href="/main/favorites"
                   className={cn(
                     "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
@@ -511,26 +503,86 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
                 <span className="text-[10px] font-medium">Компании</span>
               </Link>
             )}
-            <Link
-              href={isIndividual ? "/main/settings" : "/dashboard/settings"}
-              className={cn(
-                "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
-                pathname === (isIndividual ? "/main/settings" : "/dashboard/settings") ? "text-[#5b328a]" : "text-neutral-400"
-              )}
-            >
-              <Settings className="h-5 w-5" />
-              <span className="text-[10px] font-medium">Настройки</span>
-            </Link>
-            <button
-              type="button"
-              onClick={() => void handleSignOut()}
-              className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 text-[#e6610d] transition-colors hover:bg-[#faead5]/50 sm:px-3"
-            >
-              <LogOut className="h-5 w-5" />
-              <span className="text-[10px] font-medium">Выйти</span>
-            </button>
+            {isIndividual ? (
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen((open) => !open)}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="retail-mobile-more-menu"
+                className={cn(
+                  "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
+                  mobileMenuOpen || pathname.startsWith("/main/delivery") || pathname.startsWith("/main/settings")
+                    ? "text-[#5b328a]"
+                    : "text-neutral-400"
+                )}
+              >
+                <Menu className="h-5 w-5" />
+                <span className="text-[10px] font-medium">Ещё</span>
+              </button>
+            ) : (
+              <>
+                <Link
+                  href="/dashboard/settings"
+                  className={cn(
+                    "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 transition-colors sm:px-3",
+                    pathname === "/dashboard/settings" ? "text-[#5b328a]" : "text-neutral-400"
+                  )}
+                >
+                  <Settings className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Настройки</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void handleSignOut()}
+                  className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 text-[#e6610d] transition-colors hover:bg-[#faead5]/50 sm:px-3"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Выйти</span>
+                </button>
+              </>
+            )}
           </div>
         </nav>
+
+        {isIndividual && mobileMenuOpen && (
+          <>
+            <button
+              type="button"
+              aria-label="Закрыть дополнительное меню"
+              className="fixed inset-0 z-30 bg-black/20 lg:hidden"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <div
+              id="retail-mobile-more-menu"
+              className="fixed inset-x-3 bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.75rem)] z-50 rounded-2xl border border-neutral-100 bg-white p-2 shadow-2xl lg:hidden"
+            >
+              <Link
+                href="/main/delivery"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              >
+                <Truck className="h-5 w-5 text-[#5b328a]" />
+                Способы доставки
+              </Link>
+              <Link
+                href="/main/settings"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              >
+                <Settings className="h-5 w-5 text-[#5b328a]" />
+                Настройки
+              </Link>
+              <button
+                type="button"
+                onClick={() => void handleSignOut()}
+                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-[#e6610d] hover:bg-[#faead5]/50"
+              >
+                <LogOut className="h-5 w-5" />
+                Выйти
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
