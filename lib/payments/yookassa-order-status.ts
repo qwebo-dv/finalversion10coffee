@@ -6,6 +6,7 @@ import { syncOrderToMoyskladById } from "@/lib/moysklad/order-retry"
 import { finalizeLoyaltyForPaidOrder, releaseLoyaltyReservation } from "@/lib/loyalty"
 import { createYandexDeliveryRequestForPaidOrder } from "@/lib/yandex-delivery"
 import { getPool } from "@/lib/db"
+import { clearPaidOrderCart } from "@/lib/payments/paid-order-cart"
 
 export async function refreshYooKassaOrderPayment(reference: string, referenceKind: "order" | "payment" = "payment") {
   const normalized = reference.trim()
@@ -33,6 +34,14 @@ export async function refreshYooKassaOrderPayment(reference: string, referenceKi
     },
     overrideAccess: true,
   })
+  if (payment.status === "paid" && !order.cartClearedAt) {
+    const cartCleanup = await clearPaidOrderCart(payload, order, {
+      allowLegacyFullClear: order.paymentStatus !== "paid",
+    })
+    if (!cartCleanup.cleared && !cartCleanup.skipped) {
+      console.error(`[Order ${order.orderId || order.id}] Не удалось очистить оплаченную корзину: ${cartCleanup.error}`)
+    }
+  }
   if (payment.status === "paid") await finalizeLoyaltyForPaidOrder(payload, order as unknown as Record<string, unknown>)
   if (["cancelled", "failed", "refunded"].includes(payment.status)) await releaseLoyaltyReservation(payload, order.id)
   let yandexDeliveryCreated: boolean | null = null

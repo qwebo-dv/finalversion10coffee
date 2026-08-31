@@ -192,6 +192,8 @@ export interface Order {
   paymentExternalId?: string | null;
   paymentUrl?: string | null;
   paymentUpdatedAt?: string | null;
+  cartOwnerId?: string | null;
+  cartClearedAt?: string | null;
   /**
    * Автоматически суммируется из позиций заказа (можно скорректировать вручную).
    */
@@ -266,6 +268,7 @@ export interface Order {
   items?:
     | {
         productId?: string | null;
+        cartItemId?: string | null;
         productName: string;
         variantName: string;
         grindOption?: string | null;
@@ -1232,6 +1235,8 @@ export interface OrdersSelect<T extends boolean = true> {
   paymentExternalId?: T;
   paymentUrl?: T;
   paymentUpdatedAt?: T;
+  cartOwnerId?: T;
+  cartClearedAt?: T;
   subtotal?: T;
   discountPercent?: T;
   discountAmount?: T;
@@ -1273,6 +1278,7 @@ export interface OrdersSelect<T extends boolean = true> {
     | T
     | {
         productId?: T;
+        cartItemId?: T;
         productName?: T;
         variantName?: T;
         grindOption?: T;

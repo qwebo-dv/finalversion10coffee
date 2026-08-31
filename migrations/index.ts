@@ -33,6 +33,7 @@ import * as migration_20260826_120000_shop_popup_settings from './20260826_12000
 import * as migration_20260828_090000_first_order_promo from './20260828_090000_first_order_promo.ts';
 import * as migration_20260828_100000_shop_ticker_settings from './20260828_100000_shop_ticker_settings.ts';
 import * as migration_20260828_110000_shop_popup_appearance from './20260828_110000_shop_popup_appearance.ts';
+import * as migration_20260831_130000_paid_order_cart_cleanup from './20260831_130000_paid_order_cart_cleanup.ts';
 
 export const migrations = [
   {
@@ -209,5 +210,10 @@ export const migrations = [
     up: migration_20260828_110000_shop_popup_appearance.up,
     down: migration_20260828_110000_shop_popup_appearance.down,
     name: '20260828_110000_shop_popup_appearance'
+  },
+  {
+    up: migration_20260831_130000_paid_order_cart_cleanup.up,
+    down: migration_20260831_130000_paid_order_cart_cleanup.down,
+    name: '20260831_130000_paid_order_cart_cleanup'
   },
 ];

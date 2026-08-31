@@ -366,6 +366,18 @@ export const Orders: CollectionConfig = {
       admin: { position: "sidebar", readOnly: true },
     },
     {
+      name: "cartOwnerId",
+      type: "text",
+      label: "Владелец корзины",
+      admin: { hidden: true },
+    },
+    {
+      name: "cartClearedAt",
+      type: "date",
+      label: "Корзина очищена",
+      admin: { position: "sidebar", readOnly: true },
+    },
+    {
       name: "subtotal",
       type: "number",
       label: "Сумма товаров",
@@ -754,6 +766,7 @@ export const Orders: CollectionConfig = {
                   type: "row",
                   fields: [
                     { name: "productId", type: "text", admin: { hidden: true } },
+                    { name: "cartItemId", type: "text", admin: { hidden: true } },
                     { name: "productName", type: "text", label: "Товар", required: true, admin: { width: "40%" } },
                     { name: "variantName", type: "text", label: "Фасовка", required: true, admin: { width: "30%" } },
                     { name: "grindOption", type: "text", label: "Помол", admin: { width: "30%" } },

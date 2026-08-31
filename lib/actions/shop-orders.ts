@@ -663,6 +663,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     const lineDiscountAmount = personalLine?.discountAmount
       ?? (lineDiscountPercent > 0 ? Math.round(lineSubtotal * lineDiscountPercent / 100) : 0)
     return {
+      cartItemId: item.id,
       productId: item.product?.id || "",
       productName: item.product?.name || "",
       variantName: item.variant?.name || "",
@@ -691,6 +692,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     paymentMethod: "yookassa",
     paymentStatus: "pending",
     status: "new",
+    cartOwnerId: currentUser?.id,
     moyskladSyncStatus: shouldSyncRetailOrder ? "pending" : "disabled",
     customerFullName: fullName,
     customerEmail: email,
