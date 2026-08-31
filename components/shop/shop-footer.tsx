@@ -15,7 +15,7 @@ const COMPANY_LINKS = [
   { label: "Новости", href: "https://10coffee.ru/news" },
   { label: "Блог", href: "https://10coffee.ru/blog" },
   { label: "Обучение бариста", href: "https://10coffee.ru/obuchenie" },
-  { label: "Оптовым клиентам", href: "https://10coffee.ru/b2b-servis" },
+  { label: "Сервисное обслуживание и ремонт", href: "https://10coffee.ru/b2b-servis" },
 ]
 
 const CUSTOMER_LINKS = [
