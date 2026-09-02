@@ -425,31 +425,13 @@ export const Products: CollectionConfig = {
         },
         {
           name: "brewingMethods",
-          type: "array",
+          type: "relationship",
           label: "Способы приготовления",
-          labels: {
-            singular: "Способ приготовления",
-            plural: "Способы приготовления",
+          relationTo: "coffee-brewing-guides",
+          hasMany: true,
+          admin: {
+            description: "Выберите один или несколько способов, созданных в разделе «Способы приготовления кофе».",
           },
-          fields: [
-            {
-              name: "method",
-              type: "text",
-              label: "Способ",
-              required: true,
-            },
-            {
-              name: "description",
-              type: "textarea",
-              label: "Описание",
-            },
-            {
-              name: "image",
-              type: "upload",
-              label: "Изображение",
-              relationTo: "media",
-            },
-          ],
         },
       ],
     },

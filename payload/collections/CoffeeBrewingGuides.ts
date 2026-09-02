@@ -6,7 +6,7 @@ export const CoffeeBrewingGuides: CollectionConfig = {
   admin: {
     useAsTitle: "title",
     group: "Контент",
-    description: "Общие способы приготовления, которые показываются у всех сортов кофе.",
+    description: "Создайте способы приготовления, которые затем можно выбрать в карточках товаров.",
     defaultColumns: ["title", "article", "sortOrder", "isVisible", "updatedAt"],
   },
   labels: {
@@ -39,7 +39,7 @@ export const CoffeeBrewingGuides: CollectionConfig = {
         isPublished: { equals: true },
       },
       admin: {
-        description: "Текст этой статьи открывается в окне на карточке каждого кофе.",
+        description: "Текст этой статьи открывается в окне на карточке товара, где выбран этот способ.",
       },
     },
     {

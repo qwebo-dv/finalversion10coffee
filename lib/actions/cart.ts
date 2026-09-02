@@ -137,6 +137,10 @@ interface PayloadCategoryRef {
   parent?: PayloadCategoryRef | string | number | null
 }
 
+interface PayloadCoffeeBrewingGuideRef {
+  id?: string | number
+}
+
 interface PayloadProductDoc {
   id?: string | number
   category?: PayloadCategoryRef | string | number | null
@@ -163,10 +167,7 @@ interface PayloadProductDoc {
     brewGroup?: "espresso" | "filter" | "drip"
     growingHeight?: string
     qGraderRating?: number
-    brewingMethods?: {
-      method?: string
-      description?: string
-    }[]
+    brewingMethods?: (PayloadCoffeeBrewingGuideRef | string | number | null)[]
   }
   teaDetails?: {
     brewingInstructions?: {
@@ -198,6 +199,13 @@ function isPayloadMedia(value: PayloadMediaRef): value is PayloadMedia {
 
 function isDefined<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined
+}
+
+function extractRelationIds(values: (PayloadCoffeeBrewingGuideRef | string | number | null)[] | undefined): string[] {
+  return (values || []).map((value) => {
+    if (typeof value === "string" || typeof value === "number") return String(value)
+    return value?.id == null ? "" : String(value.id)
+  }).filter(Boolean)
 }
 
 function isNonEmptyString(value: string | null | undefined): value is string {
@@ -338,10 +346,8 @@ function transformProductFromPayload(doc: PayloadProductDoc): Product {
     coffee_group: coffee.brewGroup || null,
     growing_height: coffee.growingHeight || null,
     q_grader_rating: coffee.qGraderRating || null,
-    brewing_methods: (coffee.brewingMethods || []).map((m) => ({
-      method: m.method || "",
-      description: m.description || "",
-    })),
+    brewing_methods: [],
+    coffee_brewing_guide_ids: extractRelationIds(coffee.brewingMethods),
     brewing_instructions: (tea.brewingInstructions || []).map((i) => ({
       title: i.title || "",
       text: i.text || "",

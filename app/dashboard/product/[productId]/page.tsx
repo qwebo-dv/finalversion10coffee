@@ -18,12 +18,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
   if (!product) {
     notFound()
   }
+  const selectedGuideIds = new Set(product.coffee_brewing_guide_ids || [])
+  const selectedGuides = coffeeBrewingGuides.filter((guide) => selectedGuideIds.has(guide.id))
 
   return (
     <ProductDetail
       product={product}
       isFavorite={favoriteIds.includes(product.id)}
-      coffeeBrewingGuides={coffeeBrewingGuides}
+      coffeeBrewingGuides={selectedGuides}
     />
   )
 }

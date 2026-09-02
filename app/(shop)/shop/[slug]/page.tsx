@@ -19,6 +19,8 @@ export default async function ShopProductPage({ params }: ShopProductPageProps) 
     getCoffeeBrewingGuides(),
   ])
   if (!product) notFound()
+  const selectedGuideIds = new Set(product.coffee_brewing_guide_ids || [])
+  const selectedGuides = coffeeBrewingGuides.filter((guide) => selectedGuideIds.has(guide.id))
 
-  return <ShopProduct product={product} products={products} productTypes={productTypes} isFavorite={favoriteIds.includes(product.id)} coffeeBrewingGuides={coffeeBrewingGuides} />
+  return <ShopProduct product={product} products={products} productTypes={productTypes} isFavorite={favoriteIds.includes(product.id)} coffeeBrewingGuides={selectedGuides} />
 }

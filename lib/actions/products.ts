@@ -92,6 +92,10 @@ interface PayloadCategoryRef {
   parent?: PayloadCategoryRef | string | number | null
 }
 
+interface PayloadCoffeeBrewingGuideRef {
+  id?: string | number
+}
+
 interface PayloadProductDoc {
   id?: string | number
   category?: PayloadCategoryRef | string | number | null
@@ -118,11 +122,7 @@ interface PayloadProductDoc {
     brewGroup?: "espresso" | "filter" | "drip"
     growingHeight?: string
     qGraderRating?: number
-    brewingMethods?: {
-      method?: string
-      description?: string
-      image?: PayloadMediaRef
-    }[]
+    brewingMethods?: (PayloadCoffeeBrewingGuideRef | string | number | null)[]
   }
   teaDetails?: {
     brewingInstructions?: {
@@ -223,6 +223,13 @@ function isPayloadMedia(value: PayloadMediaRef): value is PayloadMedia {
 
 function isDefined<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined
+}
+
+function extractRelationIds(values: (PayloadCoffeeBrewingGuideRef | string | number | null)[] | undefined): string[] {
+  return (values || []).map((value) => {
+    if (typeof value === "string" || typeof value === "number") return String(value)
+    return value?.id == null ? "" : String(value.id)
+  }).filter(Boolean)
 }
 
 function isNonEmptyString(value: string | null | undefined): value is string {
@@ -477,12 +484,8 @@ function transformProduct(doc: PayloadProductDoc, reviews: ProductReview[] = [])
     growing_height: coffee.growingHeight || null,
     q_grader_rating: coffee.qGraderRating || null,
 
-    // Legacy per-product methods remain in existing data but are no longer shown on product pages.
-    brewing_methods: (coffee.brewingMethods || []).map((method) => ({
-      method: method.method || "",
-      description: method.description || "",
-      image_url: extractMediaUrl(method.image) || undefined,
-    })),
+    brewing_methods: [],
+    coffee_brewing_guide_ids: extractRelationIds(coffee.brewingMethods),
 
     // Tea brewing instructions
     brewing_instructions: (tea.brewingInstructions || []).map((i) => ({

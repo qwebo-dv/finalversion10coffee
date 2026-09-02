@@ -208,6 +208,7 @@ export interface Product {
 
   // Coffee brewing methods
   brewing_methods: BrewingMethod[] | null
+  coffee_brewing_guide_ids?: string[]
 
   // Attached files
   attached_files: AttachedFile[] | null

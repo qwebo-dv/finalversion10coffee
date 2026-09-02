@@ -565,14 +565,10 @@ export interface Product {
      */
     growingHeight?: string | null;
     qGraderRating?: number | null;
-    brewingMethods?:
-      | {
-          method: string;
-          description?: string | null;
-          image?: (number | null) | Media;
-          id?: string | null;
-        }[]
-      | null;
+    /**
+     * Выберите один или несколько способов, созданных в разделе «Способы приготовления кофе».
+     */
+    brewingMethods?: (number | CoffeeBrewingGuide)[] | null;
   };
   teaDetails?: {
     brewingInstructions?:
@@ -726,6 +722,62 @@ export interface Tag {
    */
   slug: string;
   color?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Создайте способы приготовления, которые затем можно выбрать в карточках товаров.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "coffee-brewing-guides".
+ */
+export interface CoffeeBrewingGuide {
+  id: number;
+  /**
+   * Например: Эспрессо, Турка или Френч-пресс.
+   */
+  title: string;
+  /**
+   * Текст этой статьи открывается в окне на карточке товара, где выбран этот способ.
+   */
+  article: number | BlogPost;
+  sortOrder: number;
+  isVisible?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Статьи блога для публичной страницы /blog
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "blog_posts".
+ */
+export interface BlogPost {
+  id: number;
+  title: string;
+  slug: string;
+  /**
+   * Короткий текст для предпросмотра на странице блога
+   */
+  excerpt?: string | null;
+  content: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  coverImage?: (number | null) | Media;
+  isPublished?: boolean | null;
+  publishedAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -980,62 +1032,6 @@ export interface MapLocation {
    */
   longitude: number;
   isActive?: boolean | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * Статьи блога для публичной страницы /blog
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "blog_posts".
- */
-export interface BlogPost {
-  id: number;
-  title: string;
-  slug: string;
-  /**
-   * Короткий текст для предпросмотра на странице блога
-   */
-  excerpt?: string | null;
-  content: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  };
-  coverImage?: (number | null) | Media;
-  isPublished?: boolean | null;
-  publishedAt?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * Общие способы приготовления, которые показываются у всех сортов кофе.
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "coffee-brewing-guides".
- */
-export interface CoffeeBrewingGuide {
-  id: number;
-  /**
-   * Например: Эспрессо, Турка или Френч-пресс.
-   */
-  title: string;
-  /**
-   * Текст этой статьи открывается в окне на карточке каждого кофе.
-   */
-  article: number | BlogPost;
-  sortOrder: number;
-  isVisible?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1558,14 +1554,7 @@ export interface ProductsSelect<T extends boolean = true> {
         brewGroup?: T;
         growingHeight?: T;
         qGraderRating?: T;
-        brewingMethods?:
-          | T
-          | {
-              method?: T;
-              description?: T;
-              image?: T;
-              id?: T;
-            };
+        brewingMethods?: T;
       };
   teaDetails?:
     | T
