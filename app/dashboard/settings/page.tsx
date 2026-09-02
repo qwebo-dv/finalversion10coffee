@@ -51,6 +51,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
+  const [addressComplete, setAddressComplete] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [quickComments, setQuickComments] = useState<string[]>([])
   const [newComment, setNewComment] = useState("")
@@ -118,6 +119,10 @@ export default function SettingsPage() {
 
     if (!isValidRussianPhone(phone)) {
       toast.error("Введите корректный мобильный телефон")
+      return
+    }
+    if (isIndividual && address.trim() && !addressComplete) {
+      toast.error("Выберите адрес из подсказок с улицей и номером дома")
       return
     }
 
@@ -322,12 +327,14 @@ export default function SettingsPage() {
               <AddressInput
                 value={address}
                 onChange={setAddress}
+                onCompleteChange={setAddressComplete}
+                requireHouse
                 placeholder="Город, улица, дом, квартира"
                 className="mt-1.5"
               />
             </div>
           )}
-          <Button onClick={handleSaveProfile} disabled={loading}>
+          <Button onClick={handleSaveProfile} disabled={loading || (isIndividual && Boolean(address.trim()) && !addressComplete)}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Сохранить
           </Button>

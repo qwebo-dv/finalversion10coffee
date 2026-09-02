@@ -1,32 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-
-interface DadataSuggestion {
-  value?: string
-  unrestricted_value?: string
-  data?: {
-    city?: string | null
-    settlement?: string | null
-    region?: string | null
-    street_with_type?: string | null
-    house_type?: string | null
-    house?: string | null
-    block_type?: string | null
-    block?: string | null
-    flat_type?: string | null
-    flat?: string | null
-  }
-}
-
-function localAddress(suggestion: DadataSuggestion): string {
-  const data = suggestion.data
-  if (!data?.street_with_type) return suggestion.value || ""
-  return [
-    data.street_with_type,
-    data.house ? `${data.house_type || "д"} ${data.house}` : "",
-    data.block ? `${data.block_type || "корп"} ${data.block}` : "",
-    data.flat ? `${data.flat_type || "кв"} ${data.flat}` : "",
-  ].filter(Boolean).join(", ")
-}
+import { formatLocalDadataAddress, getDadataAddressSuggestions } from "@/lib/dadata-address"
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as { query?: unknown; city?: unknown; region?: unknown } | null
@@ -38,45 +11,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ suggestions: [] })
   }
 
-  const apiKey = process.env.DADATA_API_KEY
-  if (!apiKey) {
+  if (!process.env.DADATA_API_KEY) {
     return NextResponse.json({ error: "Address suggestions are not configured" }, { status: 503 })
   }
 
   try {
-    const response = await fetch(
-      "https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Token ${apiKey}`,
-        },
-        body: JSON.stringify({
-          query,
-          count: 5,
-          ...(city || region ? {
-            from_bound: { value: "street" },
-            to_bound: { value: "house" },
-            locations: [city ? { city } : { region }],
-          } : {}),
-        }),
-      }
-    )
-
-    if (!response.ok) {
-      console.error("DaData address suggestions failed:", response.status)
-      return NextResponse.json({ error: "Address suggestions are unavailable" }, { status: 502 })
-    }
-
-    const data = await response.json() as { suggestions?: DadataSuggestion[] }
-    const suggestions = ((data.suggestions || []) as DadataSuggestion[]).map((s) => ({
-      value: city ? localAddress(s) : s.value || "",
+    const data = await getDadataAddressSuggestions({ query, city, region })
+    const suggestions = data.map((s) => ({
+      value: city ? formatLocalDadataAddress(s) : s.value || "",
       label: s.value || "",
       unrestricted: s.unrestricted_value || "",
       city: s.data?.city || s.data?.settlement || "",
       region: s.data?.region || "",
+      house: s.data?.house || "",
+      houseFiasId: s.data?.house_fias_id || "",
+      fiasLevel: s.data?.fias_level || "",
     }))
       .filter((suggestion) => suggestion.value && suggestion.label)
 

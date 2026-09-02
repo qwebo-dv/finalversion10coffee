@@ -228,6 +228,16 @@ export const Clients: CollectionConfig = {
           label: "Промокоды",
           fields: [
             {
+              name: "promoCodes",
+              type: "relationship",
+              relationTo: "promo-codes",
+              hasMany: true,
+              label: "Промокоды клиента",
+              admin: {
+                description: "Выберите один или несколько промокодов из раздела «Промокоды».",
+              },
+            },
+            {
               name: "issuePromo",
               type: "ui",
               admin: {

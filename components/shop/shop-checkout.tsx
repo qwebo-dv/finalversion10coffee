@@ -57,6 +57,7 @@ export function ShopCheckout({
   const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
   const [deliveryAddress, setDeliveryAddress] = useState("")
+  const [sochiAddressComplete, setSochiAddressComplete] = useState(false)
   const [sochiDeliveryQuote, setSochiDeliveryQuote] = useState<SochiDeliveryQuote | null>(null)
   const [sochiDeliveryQuoteLoading, setSochiDeliveryQuoteLoading] = useState(false)
   const [promoCode, setPromoCode] = useState("")
@@ -211,7 +212,7 @@ export function ShopCheckout({
     }
 
     const address = deliveryAddress.trim()
-    if (address.length < 4) {
+    if (address.length < 4 || !sochiAddressComplete) {
       setSochiDeliveryQuote(null)
       setSochiDeliveryQuoteLoading(false)
       return
@@ -233,7 +234,7 @@ export function ShopCheckout({
       cancelled = true
       window.clearTimeout(timeout)
     }
-  }, [deliveryAddress, deliveryMethod, goodsTotal])
+  }, [deliveryAddress, deliveryMethod, goodsTotal, sochiAddressComplete])
 
   function resetPromo() {
     setAppliedPromo(null)
@@ -289,6 +290,11 @@ export function ShopCheckout({
     if (deliveryMethod === "cdek" && !cdekSelection) {
       setLoading(false)
       setError("Выберите город, способ и пункт выдачи СДЭК либо адрес курьерской доставки")
+      return
+    }
+    if (deliveryMethod === "sochi_delivery" && !sochiAddressComplete) {
+      setLoading(false)
+      setError("Выберите адрес из подсказок с улицей и номером дома")
       return
     }
     if (deliveryMethod === "sochi_delivery" && (!sochiDeliveryQuote || !sochiDeliveryQuote.available)) {
@@ -449,7 +455,7 @@ export function ShopCheckout({
 
             {deliveryMethod === "cdek" && <CdekDeliverySelector items={items} weightGrams={totalWeight} defaultAddress={defaultAddress} onChange={setCdekSelection} />}
             {deliveryMethod === "yandex_delivery" && <YandexDeliverySelector items={items} fullName={fullName} email={email} phone={phone} defaultAddress={defaultAddress} onChange={setYandexSelection} />}
-            {deliveryMethod === "sochi_delivery" && <div className="mt-5"><label className="block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><AddressInput name="address" required value={deliveryAddress} onChange={setDeliveryAddress} region="Краснодарский" className="h-12 rounded-2xl border-black/10 px-4 focus-visible:border-[#5b328a] focus-visible:ring-0" placeholder="Начните вводить улицу и дом" /></label>{sochiDeliveryQuoteLoading && <p className="mt-2 text-xs text-[#756b63]">Рассчитываем доставку по адресу…</p>}{!sochiDeliveryQuoteLoading && sochiDeliveryQuote?.available && <p className="mt-2 text-xs font-medium text-emerald-700">{sochiDeliveryQuote.cost > 0 ? `Доставка по этой зоне — ${formatPrice(sochiDeliveryQuote.cost)}` : "Доставка бесплатная"}{goodsTotal >= 3000 && " для заказа от 3 000 ₽"}</p>}{!sochiDeliveryQuoteLoading && sochiDeliveryQuote && !sochiDeliveryQuote.available && <p className="mt-2 text-xs font-medium text-red-700">{sochiDeliveryQuote.message}</p>}</div>}
+            {deliveryMethod === "sochi_delivery" && <div className="mt-5"><label className="block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Адрес доставки</span><AddressInput name="address" required requireHouse value={deliveryAddress} onChange={setDeliveryAddress} onCompleteChange={setSochiAddressComplete} region="Краснодарский" className="h-12 rounded-2xl border-black/10 px-4 focus-visible:border-[#5b328a] focus-visible:ring-0" placeholder="Начните вводить улицу и дом" /></label>{sochiDeliveryQuoteLoading && <p className="mt-2 text-xs text-[#756b63]">Рассчитываем доставку по адресу…</p>}{!sochiDeliveryQuoteLoading && sochiDeliveryQuote?.available && <p className="mt-2 text-xs font-medium text-emerald-700">{sochiDeliveryQuote.cost > 0 ? `Доставка по этой зоне — ${formatPrice(sochiDeliveryQuote.cost)}` : "Доставка бесплатная"}{goodsTotal >= 3000 && " для заказа от 3 000 ₽"}</p>}{!sochiDeliveryQuoteLoading && sochiDeliveryQuote && !sochiDeliveryQuote.available && <p className="mt-2 text-xs font-medium text-red-700">{sochiDeliveryQuote.message}</p>}</div>}
             {deliveryMethod === "self_pickup" && (
               <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#5b328a]/20 bg-[#f4edfa] p-4 text-[#5b328a]">
                 <MapPin className="mt-0.5 h-5 w-5 shrink-0" />
@@ -572,7 +578,7 @@ export function ShopCheckout({
                 )}
               </div>
             </div>
-            <button disabled={loading || !hydrated || (deliveryMethod === "cdek" && !cdekSelection) || (deliveryMethod === "yandex_delivery" && !yandexSelection)} className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#5b328a] text-sm font-black text-white hover:bg-[#47256e] disabled:opacity-60">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{loading ? "Оформляем…" : `Оформить заказ · ${formatPrice(total)}`}</button>
+            <button disabled={loading || !hydrated || (deliveryMethod === "cdek" && !cdekSelection) || (deliveryMethod === "sochi_delivery" && (!sochiAddressComplete || !sochiDeliveryQuote?.available)) || (deliveryMethod === "yandex_delivery" && !yandexSelection)} className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#5b328a] text-sm font-black text-white hover:bg-[#47256e] disabled:opacity-60">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{loading ? "Оформляем…" : `Оформить заказ · ${formatPrice(total)}`}</button>
           </form>
 
           <aside className="h-fit rounded-[32px] bg-[#1d1d1b] p-6 text-white lg:sticky lg:top-8">

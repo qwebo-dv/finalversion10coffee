@@ -362,6 +362,10 @@ export interface Client {
     totalDocs?: number;
   };
   /**
+   * Выберите один или несколько промокодов из раздела «Промокоды».
+   */
+  promoCodes?: (number | PromoCode)[] | null;
+  /**
    * Работает только для выбранной категории. Подкатегории не наследуют скидку автоматически.
    */
   categoryDiscounts?:
@@ -388,119 +392,54 @@ export interface Client {
   createdAt: string;
 }
 /**
- * Категории товаров
+ * Промокоды и скидки
  *
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "categories".
+ * via the `definition` "promo-codes".
  */
-export interface Category {
+export interface PromoCode {
   id: number;
-  name: string;
+  isActive?: boolean | null;
+  currentUses?: number | null;
   /**
-   * URL-имя категории (латиница, дефисы)
+   * Заглавные буквы, без пробелов
    */
-  slug: string;
-  /**
-   * Используется для сопоставления категории сайта с productfolder в МойСклад.
-   */
-  moyskladId?: string | null;
-  /**
-   * Основной тип для вкладок каталога.
-   */
-  productTypeRef: number | ProductType;
-  /**
-   * Фото для отображения в каталоге
-   */
-  image?: (number | null) | Media;
-  /**
-   * Оставьте пустым для корневой категории. Доступны только категории того же типа.
-   */
-  parent?: (number | null) | Category;
+  code: string;
   description?: string | null;
-  sortOrder?: number | null;
-  isVisible?: boolean | null;
+  /**
+   * Существующие промокоды по умолчанию относятся к оптовому магазину.
+   */
+  audience: 'all' | 'individual' | 'business';
+  /**
+   * Оставьте пустым, чтобы промокод действовал на все товары выбранной аудитории.
+   */
+  applicableProducts?: (number | Product)[] | null;
+  discountType: 'percentage' | 'fixed_amount';
+  /**
+   * Процент или сумма в рублях
+   */
+  discountValue: number;
+  isSingleUse?: boolean | null;
+  /**
+   * 10COFFEE всегда имеет это ограничение.
+   */
+  firstOrderOnly?: boolean | null;
+  /**
+   * Пусто = без лимита
+   */
+  maxUses?: number | null;
+  minOrderAmount?: number | null;
+  startsAt?: string | null;
+  /**
+   * Пусто = бессрочно
+   */
+  expiresAt?: string | null;
+  /**
+   * Только этот клиент сможет использовать
+   */
+  restrictedToEmail?: string | null;
   updatedAt: string;
   createdAt: string;
-}
-/**
- * Управляемые типы товаров для вкладок каталога
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "product-types".
- */
-export interface ProductType {
-  id: number;
-  name: string;
-  /**
-   * Латиница без пробелов, например coffee, tea, syrups
-   */
-  slug: string;
-  /**
-   * Опциональная связь с группой товаров в МойСклад.
-   */
-  moyskladId?: string | null;
-  /**
-   * На фронте иконка выводится размером 14x14 px
-   */
-  icon?: (number | null) | Media;
-  /**
-   * Определяет, какие блоки характеристик будут доступны у товаров этого типа.
-   */
-  detailsSchema: 'generic' | 'coffee' | 'tea';
-  sortOrder?: number | null;
-  isVisible?: boolean | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * Изображения и файлы
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media".
- */
-export interface Media {
-  id: number;
-  /**
-   * Описание изображения для доступности
-   */
-  alt?: string | null;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-  sizes?: {
-    thumbnail?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-    card?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-    full?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-  };
 }
 /**
  * Товары каталога
@@ -626,6 +565,14 @@ export interface Product {
      */
     growingHeight?: string | null;
     qGraderRating?: number | null;
+    brewingMethods?:
+      | {
+          method: string;
+          description?: string | null;
+          image?: (number | null) | Media;
+          id?: string | null;
+        }[]
+      | null;
   };
   teaDetails?: {
     brewingInstructions?:
@@ -648,6 +595,121 @@ export interface Product {
   createdAt: string;
 }
 /**
+ * Управляемые типы товаров для вкладок каталога
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "product-types".
+ */
+export interface ProductType {
+  id: number;
+  name: string;
+  /**
+   * Латиница без пробелов, например coffee, tea, syrups
+   */
+  slug: string;
+  /**
+   * Опциональная связь с группой товаров в МойСклад.
+   */
+  moyskladId?: string | null;
+  /**
+   * На фронте иконка выводится размером 14x14 px
+   */
+  icon?: (number | null) | Media;
+  /**
+   * Определяет, какие блоки характеристик будут доступны у товаров этого типа.
+   */
+  detailsSchema: 'generic' | 'coffee' | 'tea';
+  sortOrder?: number | null;
+  isVisible?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Изображения и файлы
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "media".
+ */
+export interface Media {
+  id: number;
+  /**
+   * Описание изображения для доступности
+   */
+  alt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    card?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    full?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
+}
+/**
+ * Категории товаров
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "categories".
+ */
+export interface Category {
+  id: number;
+  name: string;
+  /**
+   * URL-имя категории (латиница, дефисы)
+   */
+  slug: string;
+  /**
+   * Используется для сопоставления категории сайта с productfolder в МойСклад.
+   */
+  moyskladId?: string | null;
+  /**
+   * Основной тип для вкладок каталога.
+   */
+  productTypeRef: number | ProductType;
+  /**
+   * Фото для отображения в каталоге
+   */
+  image?: (number | null) | Media;
+  /**
+   * Оставьте пустым для корневой категории. Доступны только категории того же типа.
+   */
+  parent?: (number | null) | Category;
+  description?: string | null;
+  sortOrder?: number | null;
+  isVisible?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * Теги товаров — создавайте и применяйте к товарам
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -664,56 +726,6 @@ export interface Tag {
    */
   slug: string;
   color?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * Промокоды и скидки
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "promo-codes".
- */
-export interface PromoCode {
-  id: number;
-  isActive?: boolean | null;
-  currentUses?: number | null;
-  /**
-   * Заглавные буквы, без пробелов
-   */
-  code: string;
-  description?: string | null;
-  /**
-   * Существующие промокоды по умолчанию относятся к оптовому магазину.
-   */
-  audience: 'all' | 'individual' | 'business';
-  /**
-   * Оставьте пустым, чтобы промокод действовал на все товары выбранной аудитории.
-   */
-  applicableProducts?: (number | Product)[] | null;
-  discountType: 'percentage' | 'fixed_amount';
-  /**
-   * Процент или сумма в рублях
-   */
-  discountValue: number;
-  isSingleUse?: boolean | null;
-  /**
-   * 10COFFEE всегда имеет это ограничение.
-   */
-  firstOrderOnly?: boolean | null;
-  /**
-   * Пусто = без лимита
-   */
-  maxUses?: number | null;
-  minOrderAmount?: number | null;
-  startsAt?: string | null;
-  /**
-   * Пусто = бессрочно
-   */
-  expiresAt?: string | null;
-  /**
-   * Только этот клиент сможет использовать
-   */
-  restrictedToEmail?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1400,6 +1412,7 @@ export interface ClientsSelect<T extends boolean = true> {
         id?: T;
       };
   orders?: T;
+  promoCodes?: T;
   categoryDiscounts?:
     | T
     | {
@@ -1545,6 +1558,14 @@ export interface ProductsSelect<T extends boolean = true> {
         brewGroup?: T;
         growingHeight?: T;
         qGraderRating?: T;
+        brewingMethods?:
+          | T
+          | {
+              method?: T;
+              description?: T;
+              image?: T;
+              id?: T;
+            };
       };
   teaDetails?:
     | T
@@ -1928,7 +1949,7 @@ export interface ShopPopupSetting {
   id: number;
   enabled?: boolean | null;
   /**
-   * Увеличьте число, если баннер должны снова увидеть посетители, закрывшие предыдущую версию.
+   * При запуске новой акции увеличьте число на 1 (например, с 1 до 2) — баннер снова увидят все посетители, закрывшие его ранее.
    */
   campaignVersion: number;
   badgeText: string;

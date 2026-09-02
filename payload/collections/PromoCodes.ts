@@ -124,6 +124,24 @@ export const PromoCodes: CollectionConfig = {
           },
         })
 
+        if (clientId) {
+          const client = await req.payload.findByID({
+            collection: "clients",
+            id: clientId,
+            depth: 0,
+          }) as { promoCodes?: Array<string | number | { id?: string | number }> | null }
+          const existingPromoIds = (client.promoCodes || []).map((promo) =>
+            Number(typeof promo === "object" && promo !== null ? promo.id : promo)
+          ).filter((id) => Number.isInteger(id) && id > 0)
+          await req.payload.update({
+            collection: "clients",
+            id: clientId,
+            data: {
+              promoCodes: Array.from(new Set([...existingPromoIds, Number(promoCode.id)])),
+            },
+          })
+        }
+
         let emailSent = false
         let emailError: string | undefined
         if (targetEmail) {

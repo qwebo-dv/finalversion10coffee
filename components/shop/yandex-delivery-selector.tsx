@@ -70,6 +70,7 @@ export function YandexDeliverySelector({
   const [points, setPoints] = useState<YandexDeliveryPickupPoint[]>([])
   const [point, setPoint] = useState<YandexDeliveryPickupPoint | null>(null)
   const [courierAddress, setCourierAddress] = useState(defaultAddress)
+  const [courierAddressComplete, setCourierAddressComplete] = useState(false)
   const [quote, setQuote] = useState<ShopYandexDeliveryQuote | null>(null)
   const [loadingLocations, setLoadingLocations] = useState(false)
   const [loadingPoints, setLoadingPoints] = useState(false)
@@ -137,7 +138,7 @@ export function YandexDeliverySelector({
       && fullName.trim().length >= 2
       && /^\S+@\S+\.\S+$/.test(email.trim())
       && phone.trim().length >= 6
-      && (mode === "courier" ? destinationAddress.length >= 4 : point),
+      && (mode === "courier" ? destinationAddress.length >= 4 && courierAddressComplete : point),
     )
     if (!ready || !location) {
       queueMicrotask(() => {
@@ -193,7 +194,7 @@ export function YandexDeliverySelector({
       cancelled = true
       window.clearTimeout(timeout)
     }
-  }, [courierAddress, email, fullName, location, mode, onChange, phone, point, quoteItemsPayload])
+  }, [courierAddress, courierAddressComplete, email, fullName, location, mode, onChange, phone, point, quoteItemsPayload])
 
   function search(value: string) {
     try {
@@ -252,7 +253,7 @@ export function YandexDeliverySelector({
         ["terminal", "Постамат", Package],
         ["courier", "Курьером", Truck],
       ] as const).map(([value, label, Icon]) => <button key={value} type="button" onClick={() => selectMode(value)} className={`rounded-2xl border p-3 text-left text-sm font-bold ${mode === value ? "border-[#5b328a] bg-[#f4edfa] text-[#5b328a]" : "border-black/10"}`}><Icon className="mb-2 h-4 w-4" />{label}</button>)}</div></div>
-      {mode === "courier" ? <label className="block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Улица, дом, квартира</span><AddressInput name="yandex-address" required value={courierAddress} onChange={setCourierAddress} city={location.address} className="h-12 rounded-2xl border-black/10 px-4 focus-visible:border-[#5b328a] focus-visible:ring-0" placeholder="Начните вводить улицу" /><span className="mt-2 block text-xs text-[#7d736b]">Стоимость появится после выбора полного адреса с улицей и номером дома.</span></label> : testMode ? <div className="space-y-3"><label className="block text-xs font-bold text-[#655c55]">{mode === "terminal" ? "Постамат" : "Пункт выдачи"}</label>{loadingPoints && <p className="flex items-center gap-2 text-sm text-[#7d736b]"><Loader2 className="h-4 w-4 animate-spin" />Загружаем точки…</p>}<div className="max-h-64 space-y-1 overflow-y-auto rounded-2xl border border-black/10 bg-white p-1">{points.map((item) => <button key={item.id} type="button" onClick={() => setPoint(item)} className={`block w-full rounded-xl p-3 text-left text-sm ${point?.id === item.id ? "bg-[#f4edfa] text-[#5b328a]" : "hover:bg-[#f8f5f1]"}`}><b>{item.name}</b><span className="mt-1 block text-xs text-[#7d736b]">{item.address}</span></button>)}{!loadingPoints && points.length === 0 && <p className="p-3 text-sm text-[#7d736b]">Выберите другой город или способ получения.</p>}</div></div> : <div className="space-y-3"><label className="block text-xs font-bold text-[#655c55]">{mode === "terminal" ? "Выберите постамат на карте" : "Выберите пункт выдачи на карте"}</label><YandexPickupWidget city={location.address} mode={mode} onSelect={setPoint} />{point && <div className="rounded-2xl border border-[#5b328a]/20 bg-[#f4edfa] p-3 text-sm text-[#5b328a]"><b>{point.name}</b><span className="mt-1 block text-xs">{point.address}</span></div>}</div>}
+      {mode === "courier" ? <label className="block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Улица, дом, квартира</span><AddressInput name="yandex-address" required requireHouse value={courierAddress} onChange={setCourierAddress} onCompleteChange={setCourierAddressComplete} city={location.address} className="h-12 rounded-2xl border-black/10 px-4 focus-visible:border-[#5b328a] focus-visible:ring-0" placeholder="Начните вводить улицу и дом" /><span className="mt-2 block text-xs text-[#7d736b]">Стоимость появится после выбора полного адреса с улицей и номером дома.</span></label> : testMode ? <div className="space-y-3"><label className="block text-xs font-bold text-[#655c55]">{mode === "terminal" ? "Постамат" : "Пункт выдачи"}</label>{loadingPoints && <p className="flex items-center gap-2 text-sm text-[#7d736b]"><Loader2 className="h-4 w-4 animate-spin" />Загружаем точки…</p>}<div className="max-h-64 space-y-1 overflow-y-auto rounded-2xl border border-black/10 bg-white p-1">{points.map((item) => <button key={item.id} type="button" onClick={() => setPoint(item)} className={`block w-full rounded-xl p-3 text-left text-sm ${point?.id === item.id ? "bg-[#f4edfa] text-[#5b328a]" : "hover:bg-[#f8f5f1]"}`}><b>{item.name}</b><span className="mt-1 block text-xs text-[#7d736b]">{item.address}</span></button>)}{!loadingPoints && points.length === 0 && <p className="p-3 text-sm text-[#7d736b]">Выберите другой город или способ получения.</p>}</div></div> : <div className="space-y-3"><label className="block text-xs font-bold text-[#655c55]">{mode === "terminal" ? "Выберите постамат на карте" : "Выберите пункт выдачи на карте"}</label><YandexPickupWidget city={location.address} mode={mode} onSelect={setPoint} />{point && <div className="rounded-2xl border border-[#5b328a]/20 bg-[#f4edfa] p-3 text-sm text-[#5b328a]"><b>{point.name}</b><span className="mt-1 block text-xs">{point.address}</span></div>}</div>}
       {loadingQuote && <p className="flex items-center gap-2 text-sm text-[#7d736b]"><Loader2 className="h-4 w-4 animate-spin" />Рассчитываем стоимость доставки…</p>}
       {!loadingQuote && quote?.available && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"><div className="flex justify-between gap-3"><b>Яндекс Доставка</b><b>{formatPrice(quote.cost)}</b></div>{formatDeliveryDateRange(quote.deliveryFrom, quote.deliveryTo) && <p className="mt-1 text-xs">Ориентировочная доставка: {formatDeliveryDateRange(quote.deliveryFrom, quote.deliveryTo)}</p>}</div>}
     </>}

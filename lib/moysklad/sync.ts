@@ -62,6 +62,7 @@ interface SyncOrderParams {
   company?: SyncCompany | null
   cartItems: CartItem[]
   discountLines?: MoyskladDiscountLine[]
+  force?: boolean
 }
 
 interface MoyskladDiscountLine {
@@ -985,7 +986,7 @@ export async function ensureMoyskladStockLossForOrder(
 export async function syncOrderToMoysklad(params: SyncOrderParams) {
   const salesChannel: SalesChannel = params.order.salesChannel || (params.order.customerType === "individual" ? "retail" : "wholesale")
   const config = getMoyskladConfig(salesChannel)
-  if (!config.enabled || !config.syncOrdersOnCreate) {
+  if (!config.enabled || (!config.syncOrdersOnCreate && !params.force)) {
     return { skipped: true as const }
   }
 

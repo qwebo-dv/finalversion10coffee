@@ -22,6 +22,12 @@ import { getLoyaltySnapshot, releaseLoyaltyReservation, reserveLoyaltyPoints } f
 import { quoteSochiDeliveryByCoordinates, type SochiDeliveryQuote } from "@/lib/sochi-delivery"
 import { createYandexDeliveryOffer, type YandexDeliveryMode } from "@/lib/yandex-delivery"
 import type { CartItem, DeliveryMethod, Product } from "@/types"
+import {
+  dadataSuggestionHasHouse,
+  dadataSuggestionsMatchAddressWithHouse,
+  getDadataAddressSuggestions,
+  validateDadataAddressHasHouse,
+} from "@/lib/dadata-address"
 
 export interface ShopOrderInput {
   items: {
@@ -308,13 +314,6 @@ export interface ShopYandexDeliveryQuote {
   message?: string
 }
 
-interface DadataAddressSuggestion {
-  data?: {
-    geo_lat?: string | null
-    geo_lon?: string | null
-  }
-}
-
 export async function quoteShopSochiDelivery({
   address,
   goodsAmount,
@@ -327,38 +326,19 @@ export async function quoteShopSochiDelivery({
     return { available: false, cost: 0, zone: null, message: "Введите адрес доставки с улицей и домом" }
   }
 
-  const apiKey = process.env.DADATA_API_KEY
-  if (!apiKey) {
-    console.error("[shop-orders] DADATA_API_KEY is not configured for Sochi delivery quote")
-    return { available: false, cost: 0, zone: null, message: "Расчёт доставки временно недоступен" }
-  }
-
   try {
-    const response = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Token ${apiKey}`,
-      },
-      body: JSON.stringify({
-        query: /краснодарск/i.test(normalizedAddress)
-          ? normalizedAddress
-          : `Краснодарский край, ${normalizedAddress}`,
-        count: 5,
-        from_bound: { value: "street" },
-        to_bound: { value: "house" },
-        locations: [{ region: "Краснодарский" }],
-      }),
-      cache: "no-store",
+    const suggestions = await getDadataAddressSuggestions({
+      query: /краснодарск/i.test(normalizedAddress)
+        ? normalizedAddress
+        : `Краснодарский край, ${normalizedAddress}`,
+      region: "Краснодарский",
     })
-    if (!response.ok) {
-      console.error("[shop-orders] DaData quote request failed:", response.status)
-      return { available: false, cost: 0, zone: null, message: "Не удалось проверить адрес доставки" }
+    const completeSuggestions = suggestions.filter(dadataSuggestionHasHouse)
+    if (!dadataSuggestionsMatchAddressWithHouse(normalizedAddress, completeSuggestions)) {
+      return { available: false, cost: 0, zone: null, message: "Выберите адрес с улицей и номером дома" }
     }
 
-    const body = await response.json() as { suggestions?: DadataAddressSuggestion[] }
-    const quotes = (body.suggestions || []).map((suggestion) => {
+    const quotes = completeSuggestions.map((suggestion) => {
       const latitude = Number(suggestion?.data?.geo_lat)
       const longitude = Number(suggestion?.data?.geo_lon)
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
@@ -369,9 +349,6 @@ export async function quoteShopSochiDelivery({
     if (availableQuote) return availableQuote
     if (quotes.length > 0) {
       return { available: false, cost: 0, zone: null, message: "Адрес находится вне зоны доставки по Сочи" }
-    }
-    if (!body.suggestions?.length) {
-      return { available: false, cost: 0, zone: null, message: "Укажите адрес с улицей и номером дома" }
     }
     return { available: false, cost: 0, zone: null, message: "Не удалось определить координаты адреса" }
   } catch (error) {
@@ -391,6 +368,10 @@ export async function quoteShopYandexDelivery(input: {
   phone: string
 }): Promise<ShopYandexDeliveryQuote> {
   try {
+    if (input.deliveryType === "courier") {
+      const complete = await validateDadataAddressHasHouse({ address: input.destinationAddress || "" })
+      if (!complete) return { available: false, cost: 0, message: "Выберите адрес с улицей и номером дома" }
+    }
     const products = await getShopProducts()
     const cartItems = buildValidatedCart(products, input.items)
     if (cartItems.length === 0) return { available: false, cost: 0, message: "Корзина пуста или товары больше недоступны" }
@@ -608,6 +589,15 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     if (!Number.isInteger(cityCode) || cityCode <= 0 || !input.cdekDeliveryType) {
       return { error: "Выберите город и способ доставки СДЭК" }
     }
+    if (input.cdekDeliveryType === "courier") {
+      try {
+        const complete = await validateDadataAddressHasHouse({ address })
+        if (!complete) return { error: "Выберите адрес доставки с улицей и номером дома" }
+      } catch (error) {
+        console.error("[shop-orders] Не удалось проверить полноту адреса СДЭК", error)
+        return { error: "Не удалось проверить адрес доставки. Попробуйте ещё раз." }
+      }
+    }
     try {
       const packagingSettings = await getDeliveryPackagingSettings(payload)
       const packaging = calculateDeliveryPackaging(shippingLinesFromCartItems(cartItems), packagingSettings)
@@ -684,7 +674,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
   })
 
   const retailMoyskladConfig = getMoyskladConfig("retail")
-  const shouldSyncRetailOrder = retailMoyskladConfig.enabled && retailMoyskladConfig.syncOrdersOnCreate
+  const shouldSyncRetailOrder = retailMoyskladConfig.enabled
   const orderData: RequiredDataFromCollectionSlug<"orders"> = {
     salesChannel: "retail",
     customerType: "individual",
@@ -754,6 +744,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     company: null,
     cartItems,
     discountLines: appliedDiscountLines,
+    force: true,
   })
   if ("error" in moyskladSyncResult && moyskladSyncResult.error) {
     console.error(`[Order ${order.orderId || order.id}] Первичная выгрузка розничного заказа в МойСклад завершилась ошибкой: ${moyskladSyncResult.error}`)

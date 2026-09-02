@@ -834,6 +834,7 @@ async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
     company,
     cartItems,
     discountLines: buildDiscountLines(order, cartItems, client),
+    force: true,
   })
 }
 

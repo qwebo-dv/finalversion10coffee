@@ -423,6 +423,34 @@ export const Products: CollectionConfig = {
           min: 0,
           max: 100,
         },
+        {
+          name: "brewingMethods",
+          type: "array",
+          label: "Способы приготовления",
+          labels: {
+            singular: "Способ приготовления",
+            plural: "Способы приготовления",
+          },
+          fields: [
+            {
+              name: "method",
+              type: "text",
+              label: "Способ",
+              required: true,
+            },
+            {
+              name: "description",
+              type: "textarea",
+              label: "Описание",
+            },
+            {
+              name: "image",
+              type: "upload",
+              label: "Изображение",
+              relationTo: "media",
+            },
+          ],
+        },
       ],
     },
 

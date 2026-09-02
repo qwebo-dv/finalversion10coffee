@@ -20,6 +20,7 @@ export default function DeliveryPage() {
   const supabase = createClient()
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | "">("")
   const [address, setAddress] = useState("")
+  const [addressComplete, setAddressComplete] = useState(false)
   const [loading, setLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
 
@@ -43,6 +44,10 @@ export default function DeliveryPage() {
     }
     if (deliveryMethod !== "self_pickup" && !address.trim()) {
       toast.error("Укажите адрес доставки")
+      return
+    }
+    if (deliveryMethod !== "self_pickup" && !addressComplete) {
+      toast.error("Выберите адрес из подсказок с улицей и номером дома")
       return
     }
 
@@ -115,13 +120,15 @@ export default function DeliveryPage() {
           <AddressInput
             value={address}
             onChange={setAddress}
+            onCompleteChange={setAddressComplete}
+            requireHouse
             placeholder="Город, улица, дом, квартира"
             className="mt-1.5 h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] md:text-sm"
           />
         </div>
       )}
 
-      <Button onClick={handleSave} disabled={loading}>
+      <Button onClick={handleSave} disabled={loading || (deliveryMethod !== "" && deliveryMethod !== "self_pickup" && !addressComplete)}>
         {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
         Сохранить
       </Button>
