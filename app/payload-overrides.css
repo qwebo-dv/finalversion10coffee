@@ -15,3 +15,19 @@
 .payload-toast-container .payload-toast-item .payload-toast-close-button:hover {
   color: #171717;
 }
+
+/* Products: keep shipping dimensions readable in the narrower admin workspace. */
+@media (max-width: 1440px) {
+  .field-type.row.product-shipping-grid .row__fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: calc(var(--base) * 0.5);
+    margin-inline: 0;
+    width: 100%;
+  }
+
+  .field-type.row.product-shipping-grid .row__fields > * {
+    width: 100% !important;
+    margin-inline: 0;
+  }
+}

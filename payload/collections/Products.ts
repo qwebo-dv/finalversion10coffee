@@ -259,6 +259,9 @@ export const Products: CollectionConfig = {
         },
         {
           type: "row",
+          admin: {
+            className: "product-shipping-grid",
+          },
           fields: [
             {
               name: "shippingLengthCm",
