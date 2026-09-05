@@ -62,12 +62,7 @@ async function syncClientProfile(userId: string, profile: SocialProfile) {
 
     const { docs } = await payload.find({
       collection: "clients",
-      where: {
-        or: [
-          { supabaseId: { equals: userId } },
-          { email: { equals: profile.email } },
-        ],
-      },
+      where: { supabaseId: { equals: userId } },
       limit: 1,
       depth: 0,
     })
@@ -184,6 +179,9 @@ export async function GET(request: NextRequest) {
           auth_provider: profile.provider,
         },
       })
+      if (!result.created) {
+        return errorRedirect("Аккаунт с таким email уже существует. Войдите по паролю и привяжите социальную сеть в настройках.")
+      }
       user = result.user
       created = result.created
     }

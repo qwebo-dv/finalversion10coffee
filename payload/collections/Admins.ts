@@ -82,16 +82,17 @@ export const Admins: CollectionConfig = {
     beforeValidate: [({ data }) => data ? normalizeWorkspaceAccess(data) : data],
   },
   access: {
+    unlock: ({ req }) => isSuperAdmin(req.user),
     admin: ({ req }) => isStaffUser(req.user),
     read: ({ req }) => isSuperAdmin(req.user)
       ? true
-      : req.user?.id
+      : isStaffUser(req.user) && req.user?.id
         ? { id: { equals: req.user.id } }
         : false,
     create: ({ req }) => isSuperAdmin(req.user),
     update: ({ req }) => isSuperAdmin(req.user)
       ? true
-      : req.user?.id
+      : isStaffUser(req.user) && req.user?.id
         ? { id: { equals: req.user.id } }
         : false,
     delete: ({ req }) => isSuperAdmin(req.user),

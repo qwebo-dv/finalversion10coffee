@@ -437,18 +437,7 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
   if (currentUser) {
     const clients = await payload.find({
       collection: "clients",
-      where: {
-        or: [
-          { supabaseId: { equals: currentUser.id } },
-          ...(currentUser.email ? [{
-            and: [
-              { email: { equals: currentUser.email.toLowerCase() } },
-              { customerType: { equals: "individual" } },
-              { salesChannel: { equals: "retail" } },
-            ],
-          }] : []),
-        ],
-      },
+      where: { supabaseId: { equals: currentUser.id } },
       limit: 1,
       depth: 0,
     })

@@ -3,10 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { Company } from "@/types"
-
-function sanitizeInn(value: string | null | undefined): string {
-  return (value || "").replace(/\D/g, "").slice(0, 12)
-}
+import { createCompanyInput, updateCompanyInput } from "@/lib/company-input"
 
 export async function getClientCompanies() {
   const supabase = await createClient("business")
@@ -69,16 +66,14 @@ export async function createCompany(formData: {
 
   if (!user) return { error: "Не авторизован" }
 
-  const normalizedFormData = {
-    ...formData,
-    inn: sanitizeInn(formData.inn),
-  }
+  const parsed = createCompanyInput.safeParse(formData)
+  if (!parsed.success) return { error: "Некорректные реквизиты компании" }
 
   const { data, error } = await supabase
     .from("companies")
     .insert({
+      ...parsed.data,
       client_id: user.id,
-      ...normalizedFormData,
     })
     .select()
     .single()
@@ -106,15 +101,11 @@ export async function updateCompany(
     "contact_phone",
     "contact_email",
   ]
-  const updateData: Partial<Company> = {
-    ...formData,
-  }
+  const parsed = updateCompanyInput.safeParse(formData)
+  if (!parsed.success) return { error: "Некорректные реквизиты компании" }
+  const updateData: Partial<Company> = parsed.data
 
-  if (typeof formData.inn === "string") {
-    updateData.inn = sanitizeInn(formData.inn)
-  }
-
-  if (fieldsThatChangeCounterparty.some((field) => field in formData)) {
+  if (fieldsThatChangeCounterparty.some((field) => field in updateData)) {
     updateData.moysklad_counterparty_id = null
   }
 

@@ -2,6 +2,7 @@
 
 import { getPayload } from "payload"
 import configPromise from "@payload-config"
+import { requirePayloadAdmin } from "@/lib/auth/payload-admin"
 import { getMoyskladConfig } from "@/lib/moysklad/config"
 import { extractMoyskladId, moyskladGetList } from "@/lib/moysklad/client"
 import { importMoyskladCatalog } from "@/lib/moysklad/import-catalog"
@@ -44,6 +45,7 @@ async function fetchAllAssortment(limit = 100, maxItems = 1000) {
 }
 
 export async function testMoyskladConnection() {
+  await requirePayloadAdmin("integrations")
   const config = getMoyskladConfig()
   if (!config.enabled) {
     return { ok: false, error: "MOYSKLAD_ENABLED не включен" }
@@ -66,6 +68,7 @@ export async function testMoyskladConnection() {
 }
 
 export async function previewMoyskladCatalog() {
+  await requirePayloadAdmin("integrations")
   const config = getMoyskladConfig()
   if (!config.enabled) {
     return { ok: false, error: "MOYSKLAD_ENABLED не включен" }
@@ -102,6 +105,7 @@ export async function previewMoyskladCatalog() {
 }
 
 export async function syncMappedMoyskladPrices() {
+  await requirePayloadAdmin("integrations")
   const config = getMoyskladConfig()
   if (!config.enabled) {
     return { ok: false, error: "MOYSKLAD_ENABLED не включен" }
@@ -197,6 +201,7 @@ export async function syncMappedMoyskladPrices() {
 }
 
 export async function runMoyskladCatalogImport() {
+  await requirePayloadAdmin("integrations")
   const config = getMoyskladConfig()
   if (!config.enabled) {
     return { ok: false, error: "MOYSKLAD_ENABLED не включен" }
@@ -214,6 +219,7 @@ export async function runMoyskladCatalogImport() {
 }
 
 export async function runMoyskladOrderStatusSync() {
+  await requirePayloadAdmin("integrations")
   const config = getMoyskladConfig()
   if (!config.enabled) {
     return { ok: false, error: "MOYSKLAD_ENABLED не включен" }
@@ -231,6 +237,7 @@ export async function runMoyskladOrderStatusSync() {
 }
 
 export async function runMoyskladDeliveryServiceSetup() {
+  await requirePayloadAdmin("integrations")
   const config = getMoyskladConfig()
   if (!config.enabled) {
     return { ok: false, error: "MOYSKLAD_ENABLED не включен" }

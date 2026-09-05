@@ -104,14 +104,14 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
   }
 
   async function handleDeleteOrder(orderId: string) {
-    if (!confirm("Удалить заказ? Это действие необратимо.")) return
+    if (!confirm("Отменить новый неоплаченный заказ?")) return
     const result = await deleteOrder(orderId)
     if (result.success) {
-      setOrders((prev) => prev.filter((o) => o.id !== orderId))
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "cancelled" } : o))
       setSelectedOrder(null)
-      toast.success("Заказ удалён")
+      toast.success("Заказ отменён")
     } else {
-      toast.error(result.error || "Ошибка при удалении")
+      toast.error(result.error || "Ошибка при отмене")
     }
   }
 
@@ -452,6 +452,9 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                   </button>
                   <button
                     onClick={() => handleDeleteOrder(selectedOrder.id)}
+                    disabled={selectedOrder.status !== "new" || !["pending", "unpaid"].includes(selectedOrder.payment_status || "pending")}
+                    aria-label="Отменить заказ"
+                    title="Отменить новый неоплаченный заказ"
                     className="h-9 px-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

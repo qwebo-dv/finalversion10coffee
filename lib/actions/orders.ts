@@ -2,6 +2,7 @@
 
 import { getPayload, type Payload, type RequiredDataFromCollectionSlug, type Where } from "payload"
 import configPromise from "@payload-config"
+import { requirePayloadAdmin } from "@/lib/auth/payload-admin"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { addToCart, getCartItems, clearCart as clearPayloadCart } from "@/lib/actions/cart"
@@ -18,7 +19,6 @@ import { revalidatePath } from "next/cache"
 import nodemailer from "nodemailer"
 import type { Order, OrderItem, OrderStatus, DeliveryMethod } from "@/types"
 import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad/sync"
-import { normalizeRussianPhone } from "@/lib/utils/phone"
 import type { CustomerSessionScope } from "@/lib/auth/constants"
 import { calculateTariff } from "@/lib/cdek"
 import {
@@ -448,29 +448,11 @@ export async function getClientOrders(sessionScope: CustomerSessionScope = "busi
   const userId = await getCurrentUserId(sessionScope)
   if (!userId) return []
 
-  let userEmail = ""
-  try {
-    const supabase = await createClient(sessionScope)
-    const { data: { user } } = await supabase.auth.getUser()
-    userEmail = user?.email?.toLowerCase() || ""
-  } catch {}
-
   const clientDoc = await getClientDoc(userId)
-
+  if (!clientDoc) return []
   const payload = await getPayloadClient()
-
-  const ownerConditions: Where[] = [
-    ...(clientDoc ? [{ client: { equals: clientDoc.id } }] : []),
-    ...(userEmail ? [{ customerEmail: { equals: userEmail } }] : []),
-    ...(clientDoc?.phone && clientDoc.fullName ? [{
-      and: [
-        { customerPhone: { equals: normalizeRussianPhone(clientDoc.phone) } },
-        { customerFullName: { equals: clientDoc.fullName } },
-      ],
-    }] : []),
-  ]
-  if (ownerConditions.length === 0) return []
-  const ownerWhere: Where = ownerConditions.length === 1 ? ownerConditions[0] : { or: ownerConditions }
+  // Contact details are editable and do not prove order ownership.
+  const ownerWhere: Where = { client: { equals: clientDoc.id } }
 
   const where: Where = {
     and: [
@@ -498,16 +480,21 @@ export async function getClientOrders(sessionScope: CustomerSessionScope = "busi
 }
 
 export async function getOrderById(orderId: string): Promise<Order | null> {
-
+  const userId = await getCurrentUserId()
+  if (!userId) return null
+  const clientId = await getClientDocId(userId)
+  if (!clientId) return null
   const payload = await getPayloadClient()
 
   try {
-    const doc = await payload.findByID({
+    const { docs } = await payload.find({
       collection: "orders",
-      id: orderId,
+      where: { and: [{ id: { equals: orderId } }, { client: { equals: clientId } }] },
+      limit: 1,
       depth: 1,
     })
-    const order = doc as PayloadOrderDoc
+    if (!docs[0]) return null
+    const order = docs[0] as PayloadOrderDoc
     return transformOrder(order)
   } catch {
     return null
@@ -1020,10 +1007,22 @@ export async function deleteOrder(orderId: string): Promise<{ success?: boolean;
       return { error: "Нет доступа" }
     }
 
-    await payload.delete({
+    // Keep financial records and hooks intact. Customers may only cancel a
+    // new unpaid order; deletion belongs to the administrative API.
+    if (doc.status !== "new" || !["pending", "unpaid"].includes(doc.paymentStatus || "pending")) {
+      return { error: "Можно отменить только новый неоплаченный заказ" }
+    }
+    const cancelled = await payload.update({
       collection: "orders",
-      id: orderId,
+      where: { and: [
+        { id: { equals: orderId } },
+        { client: { equals: clientDocId } },
+        { status: { equals: "new" } },
+        { paymentStatus: { equals: doc.paymentStatus || "pending" } },
+      ] },
+      data: { status: "cancelled" },
     })
+    if (!cancelled.docs.length) return { error: "Статус заказа изменился. Обновите страницу" }
 
     revalidatePath("/dashboard/orders")
     return { success: true }
@@ -1037,11 +1036,12 @@ export async function deleteOrder(orderId: string): Promise<{ success?: boolean;
 // ============================================================
 
 export async function getAllOrders(): Promise<Order[]> {
-
-  const payload = await getPayloadClient()
+  const { payload, user } = await requirePayloadAdmin("readOrders")
 
   const { docs } = await payload.find({
     collection: "orders",
+    overrideAccess: false,
+    user,
     sort: "-createdAt",
     depth: 1,
     limit: 500,
@@ -1055,14 +1055,13 @@ export async function updateOrderStatus(
   newStatus: OrderStatus,
   note?: string
 ): Promise<{ success?: boolean; error?: string }> {
-  const userId = await getCurrentUserId()
-  if (!userId) return { error: "Не авторизован" }
-
-  const payload = await getPayloadClient()
+  const { payload, user } = await requirePayloadAdmin("manageOrders")
 
   // Get current order
   const doc = await payload.findByID({
     collection: "orders",
+    overrideAccess: false,
+    user,
     id: orderId,
     depth: 1,
   }) as PayloadOrderDoc
@@ -1072,6 +1071,8 @@ export async function updateOrderStatus(
   // Update via Payload
   await payload.update({
     collection: "orders",
+    overrideAccess: false,
+    user,
     id: orderId,
     data: { status: newStatus },
   })
@@ -1082,8 +1083,9 @@ export async function updateOrderStatus(
     order_id: orderId,
     old_status: oldStatus,
     new_status: newStatus,
-    changed_by: userId,
-    note,
+    // Legacy history references auth.users UUIDs, not Payload admin IDs.
+    changed_by: null,
+    note: [`Payload admin ${user.id}`, note].filter(Boolean).join(": "),
   })
 
   // Notify client
@@ -1135,6 +1137,7 @@ export async function updateOrderStatus(
 }
 
 export async function sendPromoCodeEmail(email: string, code: string, discount: string, description?: string) {
+  await requirePayloadAdmin("manageOrders")
   try {
     await smtpTransporter.sendMail({
       from: `"10coffee" <${process.env.SMTP_EMAIL}>`,

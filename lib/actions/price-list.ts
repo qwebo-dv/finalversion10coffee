@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import nodemailer from "nodemailer";
+import nodemailer, { type SendMailOptions } from "nodemailer";
 import { getPayload } from "payload";
 import configPromise from "@payload-config";
 
@@ -68,7 +68,7 @@ export async function submitPriceListRequest(
     const settings = await getSiteSettings();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SERVER_URL || "https://10coffee.ru";
 
-    const attachments: nodemailer.SendMailOptions["attachments"] = [];
+    const attachments: SendMailOptions["attachments"] = [];
 
     // The uploaded file is the single source for the public price-list link and email attachment.
     const emailFile = settings?.priceListForm?.emailFile;

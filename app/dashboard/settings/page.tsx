@@ -294,13 +294,14 @@ export default function SettingsPage() {
             <Input
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              readOnly
               autoComplete="email"
+              title="Изменение email требует подтверждения нового адреса и пока недоступно"
               className="mt-1.5"
             />
             {user?.user_metadata?.email_is_placeholder === true && (
               <p className="mt-1.5 text-xs text-muted-foreground">
-                Укажите ваш рабочий email для заказов и уведомлений. Вход через Telegram сохранится.
+                Email для заказа можно указать при оформлении. Изменение адреса аккаунта пока недоступно.
               </p>
             )}
           </div>

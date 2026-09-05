@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { dbQuery } from "@/lib/db"
 import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
 import { verifyPassword } from "@/lib/auth/local"
+import { parseProfileMetadata } from "@/lib/auth/profile-input"
 
 async function syncPayloadClientProfile(params: {
   supabaseId: string
@@ -26,12 +27,7 @@ async function syncPayloadClientProfile(params: {
 
     const { docs } = await payload.find({
       collection: "clients",
-      where: {
-        or: [
-          { supabaseId: { equals: params.supabaseId } },
-          { email: { equals: params.email || "" } },
-        ],
-      },
+      where: { supabaseId: { equals: params.supabaseId } },
       limit: 1,
       depth: 0,
     })
@@ -85,20 +81,25 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const data = body?.data && typeof body.data === "object"
-    ? body.data as Record<string, unknown>
-    : undefined
+  let data: Record<string, string> | undefined
+  try {
+    data = parseProfileMetadata(body?.data)
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Некорректные данные" }, { status: 400 })
+  }
   const password = typeof body?.password === "string" ? body.password : undefined
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : undefined
   const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : ""
   const phoneProvided = Boolean(data && Object.prototype.hasOwnProperty.call(data, "phone"))
-  let normalizedData = data ? { ...data } : undefined
+  const normalizedData = data ? { ...data } : undefined
 
   if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Введите корректный email" }, { status: 400 })
   }
   if (email && email !== user.email?.toLowerCase()) {
-    normalizedData = { ...normalizedData, email_is_placeholder: false }
+    // Email is also used by social login and password recovery. Do not change
+    // the account identity without proof of control of the new mailbox.
+    return NextResponse.json({ error: "Изменение email требует подтверждения нового адреса и пока недоступно" }, { status: 400 })
   }
 
   if (password !== undefined && (password.length < 8 || password.length > 72)) {

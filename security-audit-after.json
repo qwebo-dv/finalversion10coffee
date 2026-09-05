@@ -1,0 +1,413 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@esbuild-kit/core-utils": {
+      "name": "@esbuild-kit/core-utils",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "esbuild"
+      ],
+      "effects": [
+        "@esbuild-kit/esm-loader"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/@esbuild-kit/core-utils"
+      ],
+      "fixAvailable": {
+        "name": "@payloadcms/db-postgres",
+        "version": "0.1.9",
+        "isSemVerMajor": true
+      }
+    },
+    "@esbuild-kit/esm-loader": {
+      "name": "@esbuild-kit/esm-loader",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@esbuild-kit/core-utils"
+      ],
+      "effects": [
+        "drizzle-kit"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/@esbuild-kit/esm-loader"
+      ],
+      "fixAvailable": {
+        "name": "@payloadcms/db-postgres",
+        "version": "0.1.9",
+        "isSemVerMajor": true
+      }
+    },
+    "@payloadcms/db-postgres": {
+      "name": "@payloadcms/db-postgres",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@payloadcms/drizzle",
+        "drizzle-kit",
+        "payload"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/@payloadcms/db-postgres"
+      ],
+      "fixAvailable": {
+        "name": "@payloadcms/db-postgres",
+        "version": "0.1.9",
+        "isSemVerMajor": true
+      }
+    },
+    "@payloadcms/drizzle": {
+      "name": "@payloadcms/drizzle",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "payload"
+      ],
+      "effects": [
+        "@payloadcms/db-postgres"
+      ],
+      "range": "<=3.88.0",
+      "nodes": [
+        "node_modules/@payloadcms/drizzle"
+      ],
+      "fixAvailable": {
+        "name": "@payloadcms/db-postgres",
+        "version": "0.1.9",
+        "isSemVerMajor": true
+      }
+    },
+    "@payloadcms/graphql": {
+      "name": "@payloadcms/graphql",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "payload"
+      ],
+      "effects": [
+        "@payloadcms/next"
+      ],
+      "range": "<=3.88.0",
+      "nodes": [
+        "node_modules/@payloadcms/graphql"
+      ],
+      "fixAvailable": {
+        "name": "@payloadcms/richtext-lexical",
+        "version": "0.1.9",
+        "isSemVerMajor": true
+      }
+    },
+    "@payloadcms/next": {
+      "name": "@payloadcms/next",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@payloadcms/graphql",
+        "@payloadcms/ui",
+        "payload"
+      ],
+      "effects": [
+        "@payloadcms/richtext-lexical"
+      ],
+      "range": "<=3.88.0",
+      "nodes": [
+        "node_modules/@payloadcms/next"
+      ],
+      "fixAvailable": {
+        "name": "@payloadcms/richtext-lexical",
+        "version": "0.1.9",
+        "isSemVerMajor": true
+      }
+    },
+    "@payloadcms/plugin-cloud-storage": {
+      "name": "@payloadcms/plugin-cloud-storage",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@payloadcms/ui",
+        "payload"
+      ],
+      "effects": [
+        "@payloadcms/storage-s3"
+      ],
+      "range": "1.0.5 - 3.88.0",
+      "nodes": [
+        "node_modules/@payloadcms/plugin-cloud-storage"
+      ],
+      "fixAvailable": false
+    },
+    "@payloadcms/richtext-lexical": {
+      "name": "@payloadcms/richtext-lexical",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@payloadcms/next",
+        "@payloadcms/ui",
+        "payload"
+      ],
+      "effects": [],
+      "range": "0.1.10 - 3.88.0",
+      "nodes": [
+        "node_modules/@payloadcms/richtext-lexical"
+      ],
+      "fixAvailable": {
+        "name": "@payloadcms/richtext-lexical",
+        "version": "0.1.9",
+        "isSemVerMajor": true
+      }
+    },
+    "@payloadcms/storage-s3": {
+      "name": "@payloadcms/storage-s3",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@payloadcms/plugin-cloud-storage",
+        "payload"
+      ],
+      "effects": [],
+      "range": "<=3.88.0",
+      "nodes": [
+        "node_modules/@payloadcms/storage-s3"
+      ],
+      "fixAvailable": false
+    },
+    "@payloadcms/ui": {
+      "name": "@payloadcms/ui",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "payload"
+      ],
+      "effects": [
+        "@payloadcms/next",
+        "@payloadcms/plugin-cloud-storage",
+        "@payloadcms/richtext-lexical"
+      ],
+      "range": "<=3.88.0",
+      "nodes": [
+        "node_modules/@payloadcms/ui"
+      ],
+      "fixAvailable": {
+        "name": "@payloadcms/richtext-lexical",
+        "version": "0.1.9",
+        "isSemVerMajor": true
+      }
+    },
+    "dompurify": {
+      "name": "dompurify",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1124022,
+          "name": "dompurify",
+          "dependency": "dompurify",
+          "title": "DOMPurify: `CUSTOM_ELEMENT_HANDLING` bypasses `afterSanitizeElements` for allowed custom elements.",
+          "url": "https://github.com/advisories/GHSA-c2j3-45gr-mqc4",
+          "severity": "low",
+          "cwe": [
+            "CWE-79",
+            "CWE-184",
+            "CWE-693"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=3.4.11"
+        },
+        {
+          "source": 1124233,
+          "name": "dompurify",
+          "dependency": "dompurify",
+          "title": "DOMPurify: Permanent `ALLOWED_ATTR` pollution via `setConfig()` bypassing the hook clone-guard (incomplete fix of the 3.4.7 hook-pollution patch)",
+          "url": "https://github.com/advisories/GHSA-cmwh-pvxp-8882",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-79",
+            "CWE-471",
+            "CWE-665"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=3.4.10"
+        },
+        {
+          "source": 1124234,
+          "name": "dompurify",
+          "dependency": "dompurify",
+          "title": "DOMPurify: Trusted Types policy survives `clearConfig()` and can poison later `RETURN_TRUSTED_TYPE` output",
+          "url": "https://github.com/advisories/GHSA-vxr8-fq34-vvx9",
+          "severity": "low",
+          "cwe": [
+            "CWE-693"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<3.4.9"
+        },
+        {
+          "source": 1138538,
+          "name": "dompurify",
+          "dependency": "dompurify",
+          "title": "DOMPurify: IN_PLACE hook removal leaves a detached subtree executable, causing XSS",
+          "url": "https://github.com/advisories/GHSA-55q2-fjhq-7xh7",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-79"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=3.4.12"
+        }
+      ],
+      "effects": [
+        "monaco-editor"
+      ],
+      "range": "<=3.4.12",
+      "nodes": [
+        "node_modules/dompurify"
+      ],
+      "fixAvailable": true
+    },
+    "drizzle-kit": {
+      "name": "drizzle-kit",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@esbuild-kit/esm-loader"
+      ],
+      "effects": [
+        "@payloadcms/db-postgres"
+      ],
+      "range": "0.19.0 - 1.0.0-beta.1-fd8bfcc",
+      "nodes": [
+        "node_modules/drizzle-kit"
+      ],
+      "fixAvailable": {
+        "name": "@payloadcms/db-postgres",
+        "version": "0.1.9",
+        "isSemVerMajor": true
+      }
+    },
+    "esbuild": {
+      "name": "esbuild",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1102341,
+          "name": "esbuild",
+          "dependency": "esbuild",
+          "title": "esbuild enables any website to send any requests to the development server and read the response",
+          "url": "https://github.com/advisories/GHSA-67mh-4wv8-2f99",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-346"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:N/A:N"
+          },
+          "range": "<=0.24.2"
+        }
+      ],
+      "effects": [
+        "@esbuild-kit/core-utils"
+      ],
+      "range": "<=0.24.2",
+      "nodes": [
+        "node_modules/@esbuild-kit/core-utils/node_modules/esbuild"
+      ],
+      "fixAvailable": {
+        "name": "@payloadcms/db-postgres",
+        "version": "0.1.9",
+        "isSemVerMajor": true
+      }
+    },
+    "monaco-editor": {
+      "name": "monaco-editor",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        "dompurify"
+      ],
+      "effects": [],
+      "range": ">=0.54.0-dev-20250909",
+      "nodes": [
+        "node_modules/monaco-editor"
+      ],
+      "fixAvailable": true
+    },
+    "payload": {
+      "name": "payload",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1182135,
+          "name": "payload",
+          "dependency": "payload",
+          "title": "Payload CMS default account-unlock access allows authenticated users to reset other accounts' lockouts",
+          "url": "https://github.com/advisories/GHSA-jg8r-5jh2-v2xj",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-307"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=3.88.0"
+        }
+      ],
+      "effects": [
+        "@payloadcms/db-postgres",
+        "@payloadcms/drizzle",
+        "@payloadcms/graphql",
+        "@payloadcms/next",
+        "@payloadcms/plugin-cloud-storage",
+        "@payloadcms/richtext-lexical",
+        "@payloadcms/storage-s3",
+        "@payloadcms/ui"
+      ],
+      "range": "<=3.88.0",
+      "nodes": [
+        "node_modules/payload"
+      ],
+      "fixAvailable": {
+        "name": "@payloadcms/richtext-lexical",
+        "version": "0.1.9",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 1,
+      "moderate": 14,
+      "high": 0,
+      "critical": 0,
+      "total": 15
+    },
+    "dependencies": {
+      "prod": 577,
+      "dev": 574,
+      "optional": 168,
+      "peer": 7,
+      "peerOptional": 0,
+      "total": 1268
+    }
+  }
+}
