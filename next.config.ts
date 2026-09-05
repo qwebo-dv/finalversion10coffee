@@ -51,6 +51,12 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
+    // Next.js 16.3 rejects local image query strings by default. Payload S3
+    // includes this fixed public-media prefix in its generated file URLs.
+    localPatterns: [
+      { pathname: "/**", search: "" },
+      { pathname: "/api/media/file/**", search: "?prefix=media%2F" },
+    ],
     remotePatterns: remoteImagePatterns,
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 30,
