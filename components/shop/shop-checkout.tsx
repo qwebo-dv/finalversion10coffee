@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { FormEvent, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Car, CheckCircle2, ChevronDown, Loader2, LockKeyhole, MapPin, ShoppingBag, Store, Tag, X } from "lucide-react"
+import { ArrowLeft, Car, CheckCircle2, ChevronDown, Clock, Loader2, LockKeyhole, MapPin, ShoppingBag, Store, Tag, X } from "lucide-react"
 import { createShopOrder, previewShopPersonalDiscount, previewShopPromo, quoteShopSochiDelivery } from "@/lib/actions/shop-orders"
 import { getMyLoyalty, type MyLoyaltyData } from "@/lib/actions/loyalty"
 import type { SochiDeliveryQuote } from "@/lib/sochi-delivery"
@@ -14,6 +14,7 @@ import AddressInput from "@/components/shared/address-input"
 import { PendingPaymentCard } from "@/components/shop/pending-payment-card"
 import { formatPrice } from "@/lib/utils/format"
 import { formatDeliveryDateRange, formatDeliveryDays } from "@/lib/utils/delivery-estimate"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import type { DeliveryMethod, Product } from "@/types"
 import { CdekDeliverySelector, type ShopCdekSelection } from "./cdek-delivery-selector"
 import { YandexDeliverySelector, type ShopYandexDeliverySelection } from "./yandex-delivery-selector"
@@ -85,6 +86,8 @@ export function ShopCheckout({
   const [loyalty, setLoyalty] = useState<MyLoyaltyData | null>(null)
   const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false)
   const [loyaltyPoints, setLoyaltyPoints] = useState(0)
+  const [showDeliveryTimeNotice, setShowDeliveryTimeNotice] = useState(false)
+  const [pendingDeliveryMethod, setPendingDeliveryMethod] = useState<DeliveryMethod | null>(null)
 
   const defaultAddress = (user?.user_metadata?.address as string) || ""
   const isRetailAccountCheckout = user?.user_metadata?.customer_type === "individual"
@@ -235,6 +238,35 @@ export function ShopCheckout({
       window.clearTimeout(timeout)
     }
   }, [deliveryAddress, deliveryMethod, goodsTotal, sochiAddressComplete])
+
+  function handleDeliveryMethodClick(method: DeliveryMethod) {
+    if (method === "self_pickup" || method === "sochi_delivery") {
+      setPendingDeliveryMethod(method)
+      setShowDeliveryTimeNotice(true)
+      return
+    }
+    setDeliveryMethod(method)
+    setCdekSelection(null)
+    setYandexSelection(null)
+  }
+
+  function confirmDeliveryTime() {
+    if (pendingDeliveryMethod) {
+      setDeliveryMethod(pendingDeliveryMethod)
+      setCdekSelection(null)
+      setYandexSelection(null)
+    }
+    setShowDeliveryTimeNotice(false)
+    setPendingDeliveryMethod(null)
+  }
+
+  function switchToCdek() {
+    setDeliveryMethod("cdek")
+    setCdekSelection(null)
+    setYandexSelection(null)
+    setShowDeliveryTimeNotice(false)
+    setPendingDeliveryMethod(null)
+  }
 
   function resetPromo() {
     setAppliedPromo(null)
@@ -442,11 +474,11 @@ export function ShopCheckout({
                   <YandexDeliveryLogo />
                   <span className="mt-3 block text-xs font-medium text-[#655c55]">{yandexEstimate ? `${yandexEstimate} · ${formatPrice(yandexSelection?.deliveryCost || 0)}` : "ПВЗ, постамат или курьер"}</span>
                 </button>
-                <button type="button" aria-pressed={deliveryMethod === "sochi_delivery"} onClick={() => { setDeliveryMethod("sochi_delivery"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "sochi_delivery" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
+                <button type="button" aria-pressed={deliveryMethod === "sochi_delivery"} onClick={() => handleDeliveryMethodClick("sochi_delivery")} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "sochi_delivery" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
                   <span className="flex items-center gap-2 text-sm font-black"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#5b328a] text-white"><Car className="h-4 w-4" /></span>По Сочи</span>
                   <span className="mt-3 block text-xs font-medium text-[#655c55]">{sochiDeliveryQuote?.available ? (sochiDeliveryQuote.cost > 0 ? formatPrice(sochiDeliveryQuote.cost) : "Бесплатно") : "По зонам города"}</span>
                 </button>
-                <button type="button" aria-pressed={deliveryMethod === "self_pickup"} onClick={() => { setDeliveryMethod("self_pickup"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "self_pickup" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
+                <button type="button" aria-pressed={deliveryMethod === "self_pickup"} onClick={() => handleDeliveryMethodClick("self_pickup")} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "self_pickup" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
                   <span className="flex items-center gap-2 text-sm font-black"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#1d1d1b] text-white"><Store className="h-4 w-4" /></span>Самовывоз</span>
                   <span className="mt-3 block text-xs font-medium text-[#655c55]">Бесплатно · Сочи</span>
                 </button>
@@ -465,6 +497,45 @@ export function ShopCheckout({
                 </div>
               </div>
             )}
+            <Dialog open={showDeliveryTimeNotice} onOpenChange={(open) => { setShowDeliveryTimeNotice(open); if (!open) setPendingDeliveryMethod(null) }}>
+              <DialogContent className="max-w-md gap-0 overflow-hidden rounded-[28px] border-0 bg-[#fffdf9] p-0 shadow-[0_32px_90px_rgba(45,27,17,0.25)] sm:max-w-md">
+                <div className="relative overflow-hidden bg-[#5b328a] p-6 text-white sm:p-8">
+                  <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" aria-hidden="true" />
+                  <div className="absolute -bottom-12 -left-6 h-28 w-28 rounded-full bg-[#e6610d]/25" aria-hidden="true" />
+                  <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
+                    <Clock className="h-6 w-6" />
+                  </div>
+                  <DialogTitle className="mt-4 text-2xl font-black tracking-[-0.02em]">
+                    {pendingDeliveryMethod === "self_pickup" ? "Самовывоз" : "Доставка по Сочи"}
+                  </DialogTitle>
+                  <p className="mt-2 text-sm font-medium text-white/85">Пожалуйста, проверьте, что сможете принять заказ</p>
+                </div>
+                <div className="p-6 sm:p-8">
+                  <div className="rounded-3xl border border-[#5b328a]/15 bg-[#f8f4fb] p-5">
+                    <div className="flex items-start gap-3">
+                      <Clock className="mt-0.5 h-5 w-5 shrink-0 text-[#5b328a]" />
+                      <div>
+                        <p className="text-sm font-black text-[#1d1d1b]">Время работы</p>
+                        <p className="mt-1 text-sm leading-6 text-[#655c55]">Доставка осуществляется в будние дни с 9:00 до 18:00.</p>
+                      </div>
+                    </div>
+                  </div>
+                  {pendingDeliveryMethod === "self_pickup" && (
+                    <div className="mt-3 flex items-start gap-3 rounded-3xl border border-[#e6610d]/25 bg-[#fff4e8] p-5">
+                      <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#8a4b1c]" />
+                      <div>
+                        <p className="text-sm font-black text-[#1d1d1b]">Забрать заказ можно по адресу</p>
+                        <p className="mt-1 text-sm leading-6 text-[#8a4b1c]">г. Сочи, ул. Пластунская, 79/1, пом. 1</p>
+                      </div>
+                    </div>
+                  )}
+                  <p className="mt-4 text-sm leading-6 text-[#756b63]">
+                    Если вы не можете получить заказ в указанный период времени то выберете, пожалуйста, другой способ доставки.
+                  </p>
+                  
+                </div>
+              </DialogContent>
+            </Dialog>
             <label className="mt-5 block"><span className="mb-2 block text-xs font-bold text-[#655c55]">Комментарий</span><textarea name="comment" rows={3} className="w-full rounded-2xl border border-black/10 p-4 outline-none focus:border-[#5b328a]" placeholder="Пожелания к заказу" /></label>
             {!hasExclusivePersonalRules && (!user || discountRulesResolvedForUserId === user.id) && <details className="group mt-5 rounded-2xl border border-black/10 bg-white">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-[#655c55] [&::-webkit-details-marker]:hidden">

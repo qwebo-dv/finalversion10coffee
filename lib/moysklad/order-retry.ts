@@ -722,6 +722,7 @@ async function getRetryClient(payload: Payload, order: PayloadOrderDoc): Promise
       collection: "clients",
       id: clientId,
       depth: 0,
+      overrideAccess: true,
     }) as PayloadClientDoc
 
     return {
@@ -962,6 +963,7 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
       limit,
       page,
       depth: 1,
+      overrideAccess: true,
       ...(orderIds ? { pagination: false as const } : {}),
     })
 
@@ -1066,6 +1068,7 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
           moyskladSyncStatus: "error",
           moyskladSyncError: message,
         },
+        overrideAccess: true,
       })
 
       await writeMoyskladLog({

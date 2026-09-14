@@ -129,6 +129,7 @@ export async function syncMoyskladOrderStatuses(
     sort: "-createdAt",
     limit,
     depth: 1,
+    overrideAccess: true,
   })
 
   const orders = (result.docs as PayloadOrderForStatus[])
@@ -157,6 +158,7 @@ export async function syncMoyskladOrderStatuses(
           moyskladSyncError: "",
           moyskladSyncedAt: new Date().toISOString(),
         },
+        overrideAccess: true,
       })
 
       if (statusChanged) {
@@ -195,6 +197,7 @@ export async function syncMoyskladOrderStatuses(
           moyskladSyncStatus: "error",
           moyskladSyncError: message,
         },
+        overrideAccess: true,
       })
 
       await writeMoyskladLog({

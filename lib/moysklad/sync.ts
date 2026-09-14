@@ -314,6 +314,7 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company:
           collection: "clients",
           id: client.id,
           data: { moyskladCounterpartyId: existingId },
+          overrideAccess: true,
         })
       }
       return existingId
@@ -336,6 +337,7 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company:
       collection: "clients",
       id: client.id,
       data: { moyskladCounterpartyId: createdId },
+      overrideAccess: true,
     })
   }
 
@@ -921,6 +923,7 @@ export async function ensureMoyskladStockLossForOrder(
         moyskladStockLossSyncedAt: new Date().toISOString(),
         moyskladStockLossError: "",
       },
+      overrideAccess: true,
     })
 
     return { success: true as const, moyskladStockLossId: existingId, reused: true as const }
@@ -962,6 +965,7 @@ export async function ensureMoyskladStockLossForOrder(
       moyskladStockLossSyncedAt: new Date().toISOString(),
       moyskladStockLossError: "",
     },
+    overrideAccess: true,
   })
 
   await writeMoyskladLog({
@@ -999,6 +1003,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
         moyskladSyncStatus: "pending",
         moyskladSyncError: "",
       },
+      overrideAccess: true,
     })
 
 
@@ -1095,6 +1100,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
             collection: "orders",
             id: orderId,
             data: { moyskladCustomerOrderId: null, moyskladInvoiceOutId: null },
+            overrideAccess: true,
           }).catch(() => {})
         } else {
           throw error
@@ -1190,6 +1196,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
         collection: "orders",
         id: orderId,
         depth: 0,
+        overrideAccess: true,
       })
       updateData.moyskladSyncedHash = computeOrderContentHash(storedOrder as Parameters<typeof computeOrderContentHash>[0])
     } catch {
@@ -1201,6 +1208,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       collection: "orders",
       id: orderId,
       data: updateData,
+      overrideAccess: true,
     })
 
     if (moyskladInvoiceOutId) {
@@ -1234,6 +1242,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       collection: "orders",
       id: orderId,
       data: errorData,
+      overrideAccess: true,
     })
 
     await writeMoyskladLog({
