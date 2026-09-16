@@ -78,7 +78,7 @@ export function AuthModal({ announcement, customerType }: AuthModalProps) {
           />
         )}
         {view === "forgot" && (
-          <ForgotPasswordForm onSwitchToLogin={() => switchView("login")} />
+          <ForgotPasswordForm onSwitchToLogin={() => switchView("login")} customerType={customerType} />
         )}
       </DialogContent>
     </Dialog>

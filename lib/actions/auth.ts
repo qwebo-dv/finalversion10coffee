@@ -18,8 +18,10 @@ const transporter = nodemailer.createTransport({
 })
 
 function generatePassword(length = 12): string {
+  // Ambiguous characters (0/O, 1/l/I) are excluded so a password sent by
+  // email is not mistyped into a "wrong password" login failure.
   const chars =
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%"
+    "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%"
   return Array.from(crypto.randomBytes(length))
     .map((byte) => chars[byte % chars.length])
     .join("")
@@ -32,7 +34,7 @@ export async function signIn(formData: {
   const supabase = await createClient(expectedCustomerType)
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: formData.email,
+    email: formData.email.trim().toLowerCase(),
     password: formData.password,
   })
 
@@ -143,23 +145,29 @@ export async function signUp(formData: {
     console.error("Failed to sync client to Payload:", syncError)
   }
 
-  // Send password to email via Brevo SMTP
+  // Send password to email so the customer keeps a record of the credentials.
+  const customerType = formData.customer_type || "business"
+  const email = formData.email.trim().toLowerCase()
+  const loginUrl = customerType === "individual"
+    ? "shop.10coffee.ru"
+    : "10coffee.ru"
   try {
     await transporter.sendMail({
       from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
-      to: formData.email,
-      subject: "Ваш пароль для входа в личный кабинет 10coffee",
+      to: email,
+      subject: "Ваш логин и пароль для входа в личный кабинет 10coffee",
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
           <h2 style="margin:0 0 16px">Добро пожаловать в 10coffee!</h2>
-          <p style="color:#666;margin:0 0 24px">Вы успешно зарегистрированы. Используйте данные ниже для входа в личный кабинет.</p>
+          <p style="color:#666;margin:0 0 24px">Вы успешно зарегистрированы. Сохраните эти данные — они нужны для каждого входа в личный кабинет.</p>
           <div style="background:#f5f5f5;border-radius:12px;padding:20px;margin:0 0 24px">
-            <p style="margin:0 0 8px;color:#999;font-size:13px">Email</p>
-            <p style="margin:0 0 16px;font-weight:bold">${formData.email}</p>
+            <p style="margin:0 0 8px;color:#999;font-size:13px">Логин (email)</p>
+            <p style="margin:0 0 16px;font-weight:bold">${email}</p>
             <p style="margin:0 0 8px;color:#999;font-size:13px">Пароль</p>
             <p style="margin:0;font-weight:bold;font-size:18px;letter-spacing:1px">${password}</p>
           </div>
-          <p style="color:#999;font-size:12px;margin:0">Рекомендуем сохранить пароль в надёжном месте.</p>
+          <p style="margin:0 0 8px;font-size:13px;color:#666">Вход для ${customerType === "individual" ? "покупателей" : "оптовиков"}: <a href="https://${loginUrl}" style="color:#5b328a;font-weight:600">${loginUrl}</a></p>
+          <p style="color:#999;font-size:12px;margin:0">Рекомендуем сохранить пароль в надёжном месте. Его можно сменить в настройках кабинета.</p>
         </div>
       `,
     })
@@ -169,17 +177,16 @@ export async function signUp(formData: {
 
   // A new customer should enter the same isolated account context immediately.
   // This also gives the registration flow the same completion behaviour as sign-in.
-  const customerType = formData.customer_type || "business"
   const sessionClient = await createClient(customerType)
   const { error: sessionError } = await sessionClient.auth.signInWithPassword({
-    email: formData.email,
+    email,
     password,
   })
 
   if (sessionError) {
     return {
       success: true,
-      message: `Регистрация успешна! Пароль отправлен на ${formData.email}. Проверьте почту.`,
+      message: `Регистрация успешна! Пароль отправлен на ${email}. Проверьте почту.`,
       password,
       userId: data.user?.id,
     }
@@ -198,18 +205,34 @@ export async function signOut(scope?: "individual" | "business") {
   redirect(scope === "individual" ? "/shop" : "/")
 }
 
-export async function resetPassword(formData: { email: string }) {
+export async function resetPassword(formData: { email: string; customerType?: "individual" | "business" }) {
+  const email = formData.email.trim().toLowerCase()
   const adminClient = createAdminClient()
 
   const { data: users, error: listError } = await adminClient.auth.admin.listUsers()
   if (listError) return { error: "Ошибка при поиске пользователя" }
 
   const user = users.users.find(
-    (u) => u.email?.toLowerCase() === formData.email.toLowerCase()
+    (u) => u.email?.toLowerCase() === email
   )
 
   if (!user) {
     return { error: "Пользователь с таким email не найден" }
+  }
+
+  // Accounts that predate the retail cabinet have no explicit customer_type
+  // and are treated as wholesale accounts, exactly like signIn. Recovery must
+  // not reset the password of an account that cannot log in to this site,
+  // otherwise the customer receives a new password that the login rejects.
+  if (formData.customerType) {
+    const accountType = user.user_metadata?.customer_type === "individual" ? "individual" : "business"
+    if (accountType !== formData.customerType) {
+      return {
+        error: formData.customerType === "individual"
+          ? "Этот аккаунт относится к оптовому кабинету. Восстановите пароль на сайте 10coffee.ru."
+          : "Этот аккаунт относится к кабинету покупателя. Восстановите пароль на сайте shop.10coffee.ru.",
+      }
+    }
   }
 
   const newPassword = generatePassword()
@@ -225,7 +248,7 @@ export async function resetPassword(formData: { email: string }) {
   try {
     await transporter.sendMail({
       from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
-      to: formData.email,
+      to: email,
       subject: "Новый пароль для входа в личный кабинет 10coffee",
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
@@ -233,7 +256,7 @@ export async function resetPassword(formData: { email: string }) {
           <p style="color:#666;margin:0 0 24px">Ваш пароль был сброшен. Используйте новый пароль для входа.</p>
           <div style="background:#f5f5f5;border-radius:12px;padding:20px;margin:0 0 24px">
             <p style="margin:0 0 8px;color:#999;font-size:13px">Email</p>
-            <p style="margin:0 0 16px;font-weight:bold">${formData.email}</p>
+            <p style="margin:0 0 16px;font-weight:bold">${email}</p>
             <p style="margin:0 0 8px;color:#999;font-size:13px">Новый пароль</p>
             <p style="margin:0;font-weight:bold;font-size:18px;letter-spacing:1px">${newPassword}</p>
           </div>
@@ -245,7 +268,7 @@ export async function resetPassword(formData: { email: string }) {
     console.error("Failed to send reset email:", emailError)
   }
 
-  return { success: true, message: `Новый пароль отправлен на ${formData.email}` }
+  return { success: true, message: `Новый пароль отправлен на ${email}` }
 }
 
 // ============================================================

@@ -14,9 +14,10 @@ import { Loader2, ArrowLeft, Mail } from "lucide-react"
 
 interface ForgotPasswordFormProps {
   onSwitchToLogin: () => void
+  customerType?: "individual" | "business"
 }
 
-export function ForgotPasswordForm({ onSwitchToLogin }: ForgotPasswordFormProps) {
+export function ForgotPasswordForm({ onSwitchToLogin, customerType }: ForgotPasswordFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -31,7 +32,7 @@ export function ForgotPasswordForm({ onSwitchToLogin }: ForgotPasswordFormProps)
     setError(null)
     setLoading(true)
     try {
-      const result = await resetPassword(data)
+      const result = await resetPassword({ email: data.email, customerType })
       if (result?.error) setError(result.error)
       else setSuccess(true)
     } catch {
