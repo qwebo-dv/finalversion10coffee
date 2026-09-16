@@ -111,7 +111,7 @@ export default function LandingFooter() {
             <div className={styles.contactDetails}>
               <div>
                 <Copy type="lines" animateOnScroll start="top 80%" delay={0.3}>
-                  <p className="mono">10coffee@mail.ru</p>
+                  <p className="mono">info@10coffee.ru</p>
                   <p className="mono">+7 (938) 453-70-60</p>
                   <p className="mono">+7 (918) 401-70-60</p>
                 </Copy>
@@ -124,7 +124,7 @@ export default function LandingFooter() {
               </div>
             </div>
           </div>
-          <AnimatedButton href="mailto:10coffee@mail.ru">
+          <AnimatedButton href="mailto:info@10coffee.ru">
             Написать нам
           </AnimatedButton>
         </div>

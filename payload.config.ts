@@ -5,7 +5,7 @@ import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from "@payloadcms/
 import { s3Storage } from "@payloadcms/storage-s3"
 import { ru } from "@payloadcms/translations/languages/ru"
 import type { EmailAdapter, SendEmailOptions } from "payload"
-import nodemailer from "nodemailer"
+import { defaultFromAddress, mailFrom, smtpTransporter } from "./lib/mailer"
 import sharp from "sharp"
 
 import { Categories } from "./payload/collections/Categories"
@@ -48,23 +48,16 @@ const databaseUrl = requiredEnv("DATABASE_URL")
 const payloadSecret = requiredEnv("PAYLOAD_SECRET")
 
 const smtpEmailAdapter: EmailAdapter = () => {
-  const defaultFromAddress = process.env.SMTP_EMAIL || "noreply@10coffee.ru"
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.SMTP_EMAIL,
-      pass: process.env.SMTP_PASSWORD,
-    },
-  })
+  const adapterFrom = defaultFromAddress()
 
   return {
     name: "smtp",
-    defaultFromAddress,
+    defaultFromAddress: adapterFrom,
     defaultFromName: "10coffee",
     sendEmail: (message: SendEmailOptions) =>
-      transporter.sendMail({
+      smtpTransporter.sendMail({
         ...message,
-        from: message.from || `"10coffee" <${defaultFromAddress}>`,
+        from: message.from || mailFrom(),
       }),
   }
 }

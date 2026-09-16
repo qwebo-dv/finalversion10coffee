@@ -39,7 +39,7 @@ export function ShopFooter() {
           <div className="mt-6 space-y-2.5 text-sm text-[#554b43]">
             <p className="flex items-center gap-2.5"><Phone className="h-4 w-4 text-[#e6610d]" /><a href="tel:+79384537060" className="hover:text-[#5b328a]">+7 (938) 453-70-60</a></p>
             <p className="flex items-center gap-2.5 pl-[26px]"><a href="tel:+79184017060" className="hover:text-[#5b328a]">+7 (918) 401-70-60</a></p>
-            <p className="flex items-center gap-2.5"><Mail className="h-4 w-4 text-[#e6610d]" /><a href="mailto:10coffee@mail.ru" className="hover:text-[#5b328a]">10coffee@mail.ru</a></p>
+            <p className="flex items-center gap-2.5"><Mail className="h-4 w-4 text-[#e6610d]" /><a href="mailto:info@10coffee.ru" className="hover:text-[#5b328a]">info@10coffee.ru</a></p>
             <p className="flex items-center gap-2.5"><MapPin className="h-4 w-4 text-[#e6610d]" /><span>г. Сочи, ул. Пластунская 79/1</span></p>
           </div>
         </div>

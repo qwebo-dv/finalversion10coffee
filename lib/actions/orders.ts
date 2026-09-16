@@ -16,7 +16,7 @@ import {
 } from "@/lib/discounts"
 import { getRelationshipId } from "@/lib/product-types"
 import { revalidatePath } from "next/cache"
-import nodemailer from "nodemailer"
+import { mailFrom, smtpTransporter } from "@/lib/mailer"
 import type { Order, OrderItem, OrderStatus, DeliveryMethod } from "@/types"
 import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad/sync"
 import type { CustomerSessionScope } from "@/lib/auth/constants"
@@ -139,14 +139,6 @@ interface SupabaseCompanyRow {
   moysklad_counterparty_id?: string | null
 }
 
-const smtpTransporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.SMTP_EMAIL,
-    pass: process.env.SMTP_PASSWORD,
-  },
-})
-
 const INVOICE_SELLER = {
   name: 'ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ПЕЙДЖ КОФЕ"',
   inn: "2366021670",
@@ -215,7 +207,7 @@ async function sendOrderEmail(email: string, order: OrderEmailSummary, items: Or
     : []
 
   await smtpTransporter.sendMail({
-    from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
+    from: mailFrom(),
     to: email,
     subject: `Заказ ${order.orderId || order.id} оформлен — 10coffee`,
     html: `
@@ -239,7 +231,7 @@ async function sendOrderEmail(email: string, order: OrderEmailSummary, items: Or
 
 async function sendStatusEmail(email: string, orderId: string, status: string, statusLabel: string) {
   await smtpTransporter.sendMail({
-    from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
+    from: mailFrom(),
     to: email,
     subject: `Заказ ${orderId} — ${statusLabel}`,
     html: `
@@ -1140,7 +1132,7 @@ export async function sendPromoCodeEmail(email: string, code: string, discount: 
   await requirePayloadAdmin("manageOrders")
   try {
     await smtpTransporter.sendMail({
-      from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
+      from: mailFrom(),
       to: email,
       subject: `Промокод от 10coffee — скидка ${discount}`,
       html: `
