@@ -1,7 +1,15 @@
 "use server";
 
 import { z } from "zod";
-import { mailFrom, smtpTransporter } from "@/lib/mailer";
+import nodemailer from "nodemailer";
+
+const smtpTransporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASSWORD,
+  },
+});
 
 const serviceSchema = z.object({
   name: z.string().min(2, "Введите имя"),
@@ -25,7 +33,7 @@ export type ContactFormState = {
 
 async function sendAcknowledgementEmail(email: string, name: string, subject: string) {
   await smtpTransporter.sendMail({
-    from: mailFrom("10кофе"),
+    from: `"10кофе" <${process.env.SMTP_EMAIL}>`,
     to: email,
     subject,
     html: `
@@ -64,7 +72,7 @@ export async function submitServiceRequest(
 
   try {
     await smtpTransporter.sendMail({
-      from: mailFrom("10кофе"),
+      from: `"10кофе" <${process.env.SMTP_EMAIL}>`,
       to: "10coffeeroasters@gmail.com",
       subject: "Заявка на сервисное обслуживание",
       html: `
@@ -117,7 +125,7 @@ export async function submitTrainingRequest(
 
   try {
     await smtpTransporter.sendMail({
-      from: mailFrom("10кофе"),
+      from: `"10кофе" <${process.env.SMTP_EMAIL}>`,
       to: "10coffeeroasters@gmail.com",
       subject: "Запись на обучение",
       html: `

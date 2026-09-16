@@ -1,8 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { type SendMailOptions } from "nodemailer";
-import { mailFrom, smtpTransporter } from "@/lib/mailer";
+import nodemailer, { type SendMailOptions } from "nodemailer";
 import { getPayload } from "payload";
 import configPromise from "@payload-config";
 
@@ -19,6 +18,14 @@ export type PriceListState = {
   error?: string;
   name?: string;
 };
+
+const smtpTransporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASSWORD,
+  },
+});
 
 export async function submitPriceListRequest(
   _prev: PriceListState,
@@ -82,7 +89,7 @@ export async function submitPriceListRequest(
     let emailSent = false;
     try {
       await smtpTransporter.sendMail({
-        from: mailFrom("10кофе"),
+        from: `"10кофе" <${process.env.SMTP_EMAIL}>`,
         to: email,
         subject: "Прайс-лист и условия сотрудничества | 10кофе",
         html: `

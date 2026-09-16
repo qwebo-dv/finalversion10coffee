@@ -5,9 +5,17 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import crypto from "crypto"
-import { mailFrom, smtpTransporter as transporter } from "@/lib/mailer"
+import nodemailer from "nodemailer"
 import { dbQuery } from "@/lib/db"
 import { isValidRussianPhone, normalizeRussianPhone } from "@/lib/utils/phone"
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASSWORD,
+  },
+})
 
 function generatePassword(length = 12): string {
   // Ambiguous characters (0/O, 1/l/I) are excluded so a password sent by
@@ -145,7 +153,7 @@ export async function signUp(formData: {
     : "10coffee.ru"
   try {
     await transporter.sendMail({
-      from: mailFrom(),
+      from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
       to: email,
       subject: "Ваш логин и пароль для входа в личный кабинет 10coffee",
       html: `
@@ -239,7 +247,7 @@ export async function resetPassword(formData: { email: string; customerType?: "i
 
   try {
     await transporter.sendMail({
-      from: mailFrom(),
+      from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
       to: email,
       subject: "Новый пароль для входа в личный кабинет 10coffee",
       html: `

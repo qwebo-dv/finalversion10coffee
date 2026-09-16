@@ -2,8 +2,17 @@ import type { CollectionConfig } from "payload"
 import { canManageOperations, canReadOperations, operationsDeleteAccess } from "../access/adminRoles"
 import { promoWorkspaceBaseFilter } from "../admin/workspace"
 import { randomBytes } from "crypto"
-import { mailFrom, smtpTransporter } from "../../lib/mailer"
+import nodemailer from "nodemailer"
 import { PROMO_PRESETS } from "../promo-presets"
+
+const smtpTransporter = nodemailer.createTransport({
+  host: "smtp-relay.brevo.com",
+  port: 587,
+  auth: {
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASSWORD,
+  },
+})
 
 function createPromoSuffix() {
   return randomBytes(3).toString("hex").toUpperCase()
@@ -17,7 +26,7 @@ function formatDiscount(discountType: "percentage" | "fixed_amount", discountVal
 
 async function sendIssuedPromoEmail(email: string, code: string, discount: string, description?: string) {
   await smtpTransporter.sendMail({
-    from: mailFrom(),
+    from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
     to: email,
     subject: `Промокод от 10coffee — скидка ${discount}`,
     html: `

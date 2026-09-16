@@ -48,17 +48,10 @@ export default function KontaktyPage() {
               </p>
             </div>
 
-<div className={styles.infoBlock}>
+            <div className={styles.infoBlock}>
               <p className={styles.infoLabel}>Почта</p>
               <p className={styles.infoItem}>
-                <a href="mailto:info@10coffee.ru">info@10coffee.ru</a>
-              </p>
-            </div>
-
-            <div className={styles.infoBlock}>
-              <p className={styles.infoLabel}>Почта директора</p>
-              <p className={styles.infoItem}>
-                <a href="mailto:manager@10coffee.ru">manager@10coffee.ru</a>
+                <a href="mailto:10coffee@mail.ru">10coffee@mail.ru</a>
               </p>
             </div>
 
