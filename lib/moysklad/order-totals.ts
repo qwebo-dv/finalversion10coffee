@@ -10,10 +10,10 @@ export function moyskladPositionsSum(positions: MoyskladOrderPositionPayload[]) 
   return positions.reduce((sum, p) => sum + Math.round(p.price * p.quantity * (1 - (p.discount || 0) / 100)), 0)
 }
 
-/** Preserve the site's saved ruble discounts, including whole-ruble rounding.
- * Only a line whose percentage produces a different amount needs net pricing.
- * Split that line into at most two integer-kopeck prices when necessary; its
- * assortment, VAT and total quantity remain unchanged. No synthetic products.
+/** Preserve the site's saved totals and explicit percentage on one row per item.
+ * MoySklad price is a Float in kopecks. Adjust only the price of a row whose
+ * percentage disagrees with the site's rounded discount; never replace the
+ * discount with zero or split quantities to distribute the rounding remainder.
  */
 export function reconcileMoyskladOrderTotals(
   positions: MoyskladOrderPositionPayload[],
@@ -70,15 +70,22 @@ export function reconcileMoyskladOrderTotals(
     if (remainder !== 0) throw new Error("Не удалось согласовать округление скидки с итогом заказа")
   }
 
-  const result = positions.flatMap((position, index) => {
+  const result = positions.map((position, index) => {
     const target = targets[index]
-    if (moyskladPositionsSum([position]) === target) return [{ ...position }]
-    const price = Math.floor(target / position.quantity)
-    const higherPriceQuantity = target % position.quantity
-    const lowerPriceQuantity = position.quantity - higherPriceQuantity
-    const rows = [{ ...position, price, quantity: lowerPriceQuantity, discount: 0 }]
-    if (higherPriceQuantity > 0) rows.push({ ...position, price: price + 1, quantity: higherPriceQuantity, discount: 0 })
-    return rows
+    if (moyskladPositionsSum([position]) === target) return { ...position }
+    const multiplier = 1 - (position.discount || 0) / 100
+    if (!(multiplier > 0 && multiplier <= 1)) {
+      throw new Error("Не удалось согласовать сумму позиции с её процентом скидки")
+    }
+    const exactPrice = target / position.quantity / multiplier
+    // Use the least decimal precision that reproduces the saved line total.
+    // The response total is checked separately against the real API result.
+    for (let precision = 0; precision <= 6; precision++) {
+      const candidate = { ...position, price: Number(exactPrice.toFixed(precision)) }
+      if (Number.isFinite(candidate.price) && candidate.price >= 0 &&
+          moyskladPositionsSum([candidate]) === target) return candidate
+    }
+    throw new Error("Не удалось согласовать округление цены без разделения позиции; требуется сверка")
   })
   if (moyskladPositionsSum(result) !== targets.reduce((sum, value) => sum + value, 0)) {
     throw new Error("Ошибка проверки итоговой суммы перед отправкой в МойСклад")

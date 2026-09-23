@@ -58,7 +58,7 @@ MoySklad sales-channel types use its documented enum. The recommended mapping is
 
 ## MoySklad rounding and link maintenance (September 2026)
 
-The rounding fix requires a normal application deployment, with no database schema migration. It preserves the site's saved prices, discounts, numbers and totals. When a percentage cannot reproduce a saved rounded line discount, that MoySklad line uses its net price and `discount=0`; at most two prices one kopeck apart preserve its total quantity, assortment and VAT. Unaffected lines keep their original price and percentage. Orders and invoices receive identical positions; a mismatching API response is recorded as an error with the remote IDs retained.
+The rounding fix requires a normal application deployment, with no database schema migration. It preserves the site's saved prices, discounts, numbers and totals. Since 2026-09-23, each exported item keeps one row, its full quantity and its explicit discount percentage. When whole-ruble discount rounding would change the line total, only its MoySklad unit price is adjusted, using fractional kopecks as needed (the API declares `price` as Float in kopecks). Exact lines keep their original price. This replaces the previous net-price/zero-discount and split-row fallback. Assortment and VAT stay unchanged. Orders and invoices receive identical positions; a mismatching API response is recorded as an error with the remote IDs retained. API price precision still requires verification on a real affected order after deployment.
 
 Deployment alone does not update existing documents. In the deployed application's terminal, explicitly select the internal Payload IDs requiring an update:
 

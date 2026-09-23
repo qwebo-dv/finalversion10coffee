@@ -351,6 +351,8 @@ const moneyFixtures = [
   { name: 'discount rounded down', total: 20152, rows: [[12, 2399, 30, 8636]] },
   { name: 'discount rounded up', total: 8756, rows: [[5, 2399, 27, 3239]] },
   { name: 'exact percent unchanged', total: 9720, rows: [[5, 2430, 20, 2430]] },
+  { name: 'six kilograms stay on one line', total: 11515.15, rows: [[6, 2399, 20, 2878.85]] },
+  { name: 'discounted and full-price items coexist', total: 16784, rows: [[6, 2399, 15, 2159], [3, 500, 0, 0], [1, 3388, 10, 339]] },
   { name: 'delivery excluded from discount', total: 135, delivery: 35, rows: [[3, 50, 33.33, 50]] },
 ]
 
@@ -372,7 +374,17 @@ for (const data of moneyFixtures) {
     assert.deepEqual(order.positions, invoice.positions)
     assert.equal(order.positions.reduce((s, p) => s + Math.round(p.quantity * p.price * (1 - (p.discount || 0) / 100)), 0), data.total * 100)
     assert.equal(order.positions.reduce((s, p) => s + p.quantity, 0), data.rows.reduce((s, r) => s + r[0], 0) + (data.delivery ? 1 : 0))
-    assert.ok(order.positions.every(p => Number.isInteger(p.price) && p.price >= 0 && p.quantity > 0))
+    assert.equal(order.positions.length, data.rows.length + (data.delivery ? 1 : 0))
+    data.rows.forEach(([quantity, price, discountPercent, discountAmount], i) => {
+      const position = order.positions[i]
+      assert.equal(position.quantity, quantity)
+      assert.equal(position.discount || 0, discountPercent)
+      assert.equal(Math.round(position.quantity * position.price * (1 - (position.discount || 0) / 100)), Math.round((quantity * price - discountAmount) * 100))
+      if (Math.round(quantity * price * 100 * (1 - discountPercent / 100)) === Math.round((quantity * price - discountAmount) * 100)) {
+        assert.equal(position.price, price * 100)
+      }
+    })
+    assert.ok(order.positions.every(p => Number.isFinite(p.price) && p.price >= 0 && p.quantity > 0))
     assert.equal(order.name, '10C-00382')
     if (data.name === 'exact percent unchanged') assert.equal(order.positions[0].discount, 20)
     if (data.delivery) assert.equal(order.positions.at(-1).price, data.delivery * 100)
@@ -385,6 +397,8 @@ test('legacy discounts and global rounding are reconciled without changing assor
   const position = { price: 10100, quantity: 3, discount: 10, vat: 22, assortment: { meta: { href: 'product' } } }
   const result = reconcileMoyskladOrderTotals([position], ['item'], [{ cartItemId: 'item', discountPercent: 10 }], 273)
   assert.equal(moyskladPositionsSum(result), 27300)
+  assert.equal(result.length, 1)
+  assert.equal(result[0].discount, 10)
   assert.equal(result.reduce((s, p) => s + p.quantity, 0), 3)
   assert.ok(result.every(p => p.vat === 22 && p.assortment.meta.href === 'product'))
   assert.equal(position.price, 10100)
@@ -392,6 +406,27 @@ test('legacy discounts and global rounding are reconciled without changing assor
   assert.equal(moyskladPositionsSum(reconcileMoyskladOrderTotals([small, small], ['a', 'b'], [
     { cartItemId: 'a', discountPercent: 10 }, { cartItemId: 'b', discountPercent: 10 },
   ], 1)), 100)
+})
+
+test('fractional kopeck prices preserve percentages and whole quantities across rounding cases', () => {
+  const { reconcileMoyskladOrderTotals, moyskladPositionsSum } = fixture().load('lib/moysklad/order-totals')
+  for (const quantity of [1, 2, 3, 5, 6, 12, 40, 500]) {
+    for (const price of [61500, 239900, 243055]) {
+      for (const discount of [5, 15, 20, 27, 30, 33.33, 99.99]) {
+        const gross = price * quantity
+        const amount = Math.min(gross, Math.round(gross * discount / 10000) * 100)
+        const target = gross - amount
+        const position = { price, quantity, discount, vat: 22, assortment: { meta: { href: 'product' } } }
+        const output = reconcileMoyskladOrderTotals([position], ['item'], [{ cartItemId: 'item', discountPercent: discount, discountAmount: amount / 100 }], target / 100, gross / 100)
+        assert.equal(output.length, 1)
+        assert.equal(output[0].quantity, quantity)
+        assert.equal(output[0].discount, discount)
+        assert.equal(output[0].vat, 22)
+        assert.equal(output[0].assortment, position.assortment)
+        assert.equal(moyskladPositionsSum(output), target)
+      }
+    }
+  }
 })
 
 test('large mismatch or invalid money prevents document writes', async () => {
