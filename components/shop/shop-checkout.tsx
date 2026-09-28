@@ -87,7 +87,6 @@ export function ShopCheckout({
   const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false)
   const [loyaltyPoints, setLoyaltyPoints] = useState(0)
   const [showDeliveryTimeNotice, setShowDeliveryTimeNotice] = useState(false)
-  const [pendingDeliveryMethod, setPendingDeliveryMethod] = useState<DeliveryMethod | null>(null)
 
   const defaultAddress = (user?.user_metadata?.address as string) || ""
   const isRetailAccountCheckout = user?.user_metadata?.customer_type === "individual"
@@ -240,32 +239,12 @@ export function ShopCheckout({
   }, [deliveryAddress, deliveryMethod, goodsTotal, sochiAddressComplete])
 
   function handleDeliveryMethodClick(method: DeliveryMethod) {
-    if (method === "self_pickup" || method === "sochi_delivery") {
-      setPendingDeliveryMethod(method)
-      setShowDeliveryTimeNotice(true)
-      return
-    }
+    // The schedule is an informational notice, not a confirmation step.
+    // Selecting a method must survive every way of dismissing the dialog.
     setDeliveryMethod(method)
     setCdekSelection(null)
     setYandexSelection(null)
-  }
-
-  function confirmDeliveryTime() {
-    if (pendingDeliveryMethod) {
-      setDeliveryMethod(pendingDeliveryMethod)
-      setCdekSelection(null)
-      setYandexSelection(null)
-    }
-    setShowDeliveryTimeNotice(false)
-    setPendingDeliveryMethod(null)
-  }
-
-  function switchToCdek() {
-    setDeliveryMethod("cdek")
-    setCdekSelection(null)
-    setYandexSelection(null)
-    setShowDeliveryTimeNotice(false)
-    setPendingDeliveryMethod(null)
+    setShowDeliveryTimeNotice(method === "self_pickup" || method === "sochi_delivery")
   }
 
   function resetPromo() {
@@ -466,11 +445,11 @@ export function ShopCheckout({
             <fieldset className="mt-8">
               <legend className="text-sm font-black">Способ получения</legend>
               <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <button type="button" aria-pressed={deliveryMethod === "cdek"} onClick={() => { setDeliveryMethod("cdek"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "cdek" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
+                <button type="button" aria-pressed={deliveryMethod === "cdek"} onClick={() => handleDeliveryMethodClick("cdek")} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "cdek" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
                   <CdekLogo />
                   <span className="mt-4 block text-xs font-medium text-[#655c55]">{cdekEstimate ? `${cdekEstimate} · ${formatPrice(cdekSelection?.deliveryCost || 0)}` : "ПВЗ или курьер"}</span>
                 </button>
-                <button type="button" aria-pressed={deliveryMethod === "yandex_delivery"} onClick={() => { setDeliveryMethod("yandex_delivery"); setCdekSelection(null); setYandexSelection(null) }} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "yandex_delivery" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
+                <button type="button" aria-pressed={deliveryMethod === "yandex_delivery"} onClick={() => handleDeliveryMethodClick("yandex_delivery")} className={`min-h-24 rounded-2xl border p-4 text-left transition-colors ${deliveryMethod === "yandex_delivery" ? "border-[#5b328a] bg-[#f4edfa]" : "border-black/10 hover:border-black/25"}`}>
                   <YandexDeliveryLogo />
                   <span className="mt-3 block text-xs font-medium text-[#655c55]">{yandexEstimate ? `${yandexEstimate} · ${formatPrice(yandexSelection?.deliveryCost || 0)}` : "ПВЗ, постамат или курьер"}</span>
                 </button>
@@ -497,7 +476,7 @@ export function ShopCheckout({
                 </div>
               </div>
             )}
-            <Dialog open={showDeliveryTimeNotice} onOpenChange={(open) => { setShowDeliveryTimeNotice(open); if (!open) setPendingDeliveryMethod(null) }}>
+            <Dialog open={showDeliveryTimeNotice} onOpenChange={setShowDeliveryTimeNotice}>
               <DialogContent className="max-w-md gap-0 overflow-hidden rounded-[28px] border-0 bg-[#fffdf9] p-0 shadow-[0_32px_90px_rgba(45,27,17,0.25)] sm:max-w-md">
                 <div className="relative overflow-hidden bg-[#5b328a] p-6 text-white sm:p-8">
                   <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" aria-hidden="true" />
@@ -506,7 +485,7 @@ export function ShopCheckout({
                     <Clock className="h-6 w-6" />
                   </div>
                   <DialogTitle className="mt-4 text-2xl font-black tracking-[-0.02em]">
-                    {pendingDeliveryMethod === "self_pickup" ? "Самовывоз" : "Доставка по Сочи"}
+                    {deliveryMethod === "self_pickup" ? "Самовывоз" : "Доставка по Сочи"}
                   </DialogTitle>
                   <p className="mt-2 text-sm font-medium text-white/85">Пожалуйста, проверьте, что сможете принять заказ</p>
                 </div>
@@ -520,7 +499,7 @@ export function ShopCheckout({
                       </div>
                     </div>
                   </div>
-                  {pendingDeliveryMethod === "self_pickup" && (
+                  {deliveryMethod === "self_pickup" && (
                     <div className="mt-3 flex items-start gap-3 rounded-3xl border border-[#e6610d]/25 bg-[#fff4e8] p-5">
                       <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#8a4b1c]" />
                       <div>

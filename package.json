@@ -15,7 +15,8 @@
     "payload:generate-types": "node scripts/payload-generate-types.mjs",
     "loyalty:e2e": "node --require ./scripts/os-userinfo-workaround.cjs --import tsx scripts/test-loyalty-flow.ts",
     "test:security": "node --test scripts/test-security.cjs",
-    "test:moysklad": "node --test scripts/test-moysklad-reliability.cjs"
+    "test:moysklad": "node --test scripts/test-moysklad-reliability.cjs",
+    "test:checkout": "node --test scripts/test-shop-checkout.cjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
