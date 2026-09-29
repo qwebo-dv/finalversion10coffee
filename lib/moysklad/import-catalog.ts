@@ -484,6 +484,34 @@ function variantPayloadFromMoysklad(
   }
 }
 
+function preserveVariantPackaging(
+  variants: ReturnType<typeof variantPayloadFromMoysklad>[],
+  existingVariants: PayloadProductDoc["variants"]
+) {
+  const existingByMoyskladId = new Map(
+    existingVariants
+      .filter((variant) => getSyncedMoyskladId(variant))
+      .map((variant) => [getSyncedMoyskladId(variant), variant])
+  )
+
+  return variants.map((variant) => {
+    const moyskladId = getSyncedMoyskladId(variant)
+    const existing = moyskladId ? existingByMoyskladId.get(moyskladId) : undefined
+    if (!existing) return variant
+
+    // Packaging belongs to the site. Keep its row identity and manually entered
+    // values when replacing the array, even if MoySklad renames or reorders it.
+    return {
+      ...variant,
+      id: existing.id,
+      shippingLengthCm: existing.shippingLengthCm ?? null,
+      shippingWidthCm: existing.shippingWidthCm ?? null,
+      shippingHeightCm: existing.shippingHeightCm ?? null,
+      shippingWeightGrams: existing.shippingWeightGrams ?? null,
+    }
+  })
+}
+
 function getVariantGrindSortOrder(variant: ReturnType<typeof variantPayloadFromMoysklad>) {
   const grind = variant.grindOptions[0] || ""
   if (grind === "beans") return 0
@@ -613,7 +641,10 @@ async function upsertProduct(params: {
     const updated = await params.payload.update({
       collection: "products",
       id: existing.id,
-      data: accountingData,
+      data: {
+        ...accountingData,
+        variants: preserveVariantPackaging(variants, existing.variants || []),
+      },
     })
     params.stats.productsUpdated += 1
     params.stats.variantsImported += variants.length
@@ -630,6 +661,7 @@ async function upsertProduct(params: {
       data: {
         ...accountingData,
         moyskladId: productId,
+        variants: preserveVariantPackaging(variants, bySlug.variants || []),
       },
     })
     params.stats.productsUpdated += 1

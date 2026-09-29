@@ -65,7 +65,7 @@ function fixture({ respond, config: overrides = {}, signalAPI = AbortSignal, onD
       if (Object.hasOwn(mocks, target)) return mocks[target]
       if (['crypto', 'node:crypto'].includes(target)) return require('node:crypto')
       if (target === 'node:util') return require('node:util')
-      if (['lib/moysklad/client', 'lib/moysklad/sync', 'lib/moysklad/bundles', 'lib/moysklad/order-totals', 'lib/moysklad/order-link-repair', 'lib/moysklad/order-hash', 'lib/moysklad/order-link-service', 'lib/moysklad/order-link-endpoint', 'lib/moysklad/order-retry', 'lib/discounts', 'lib/product-types', 'payload/access/adminRoles'].includes(target)) return load(target)
+      if (['lib/moysklad/client', 'lib/moysklad/sync', 'lib/moysklad/bundles', 'lib/moysklad/order-totals', 'lib/moysklad/order-link-repair', 'lib/moysklad/order-hash', 'lib/moysklad/order-link-service', 'lib/moysklad/order-link-endpoint', 'lib/moysklad/order-retry', 'lib/moysklad/import-catalog', 'lib/moysklad/products', 'lib/slug', 'lib/discounts', 'lib/product-types', 'payload/access/adminRoles'].includes(target)) return load(target)
       throw new Error(`Unexpected dependency: ${id}`)
     }
     vm.runInNewContext(`(function(require,module,exports){${compiled.get(file)}\n})`, {
@@ -677,4 +677,164 @@ test('503 during conflict reconciliation stays an API failure and does not trigg
   assert.match(result.error, /HTTP 503; GET entity\/customerorder/)
   assert.equal(result.trashed, false)
   assert.equal(writes(f, 'customerorder').length, 1)
+})
+
+// Exercise the full catalog import with HTTP and Payload storage isolated.
+// Array updates replace rows, just as the importer asks Payload to do.
+const packageFields = ['shippingLengthCm', 'shippingWidthCm', 'shippingHeightCm', 'shippingWeightGrams']
+const packageValues = (row) => packageFields.map(field => row[field] ?? null)
+const clone = value => JSON.parse(JSON.stringify(value))
+const catalogRef = (type, id) => ({ meta: { type, href: `https://moysklad.invalid/entity/${type}/${id}` } })
+const remoteCatalogVariant = (id, name, price = 500, stock = 10) => ({
+  id, name: `Coffee (${name})`, ...catalogRef('variant', id),
+  product: catalogRef('product', 'catalog-product'), salePrices: [{ value: price * 100 }], stock,
+})
+const localCatalogVariant = (moyskladId, id, size = 10) => ({
+  id, moyskladId, moyskladType: 'variant', name: 'Old name', price: 1, isAvailable: true,
+  shippingLengthCm: size, shippingWidthCm: size + 1, shippingHeightCm: size + 2,
+  shippingWeightGrams: size * 100,
+})
+
+function catalogFixture({ storedVariants = [], remoteVariants = [], bySlug = false, newProduct = false } = {}) {
+  const source = {
+    folders: [{ id: 'catalog-root', name: 'Кофе' }, { id: 'catalog-group', name: 'Эспрессо', pathName: 'Кофе' }],
+    product: { id: 'catalog-product', name: 'Coffee', ...catalogRef('product', 'catalog-product'),
+      productFolder: catalogRef('productfolder', 'catalog-group'), stock: 10, salePrices: [{ value: 123400 }] },
+    variants: clone(remoteVariants),
+  }
+  const database = {
+    products: newProduct ? [] : [{ id: 7, name: 'Coffee', slug: 'coffee',
+      moyskladId: bySlug ? null : 'catalog-product', variants: clone(storedVariants), description: 'Editor content' }],
+    categories: [], 'product-types': [], clients: [],
+  }
+  const f = fixture({ respond: call => {
+    const entity = call.path.split('?')[0]
+    if (call.method !== 'GET') return
+    const rows = {
+      'entity/productfolder': source.folders,
+      'entity/product': [source.product],
+      'entity/variant': source.variants,
+      'entity/assortment': [source.product, ...source.variants],
+    }[entity]
+    if (rows) return Response.json({ rows, meta: { size: rows.length } })
+  } })
+  let nextId = 100
+  const persist = (collection, data) => {
+    const saved = clone(data)
+    if (collection === 'products') saved.variants = saved.variants.map(row => ({ ...row, id: row.id || `row-${nextId++}` }))
+    return saved
+  }
+  f.payload.find = async ({ collection, where, limit = 1000 }) => {
+    assert.ok(database[collection], `Unexpected collection: ${collection}`)
+    const docs = database[collection].filter(doc => Object.entries(where || {}).every(([field, condition]) => {
+      if ('equals' in condition) return doc[field] === condition.equals
+      if ('in' in condition) return condition.in.includes(doc[field])
+      throw new Error(`Unexpected filter: ${field}`)
+    }))
+    return { docs: clone(docs.slice(0, limit)), totalDocs: docs.length }
+  }
+  f.payload.update = async (input) => {
+    f.updates.push(clone(input))
+    const { collection, id, data } = input
+    const index = database[collection].findIndex(doc => doc.id === id)
+    assert.notEqual(index, -1)
+    database[collection][index] = persist(collection, { ...database[collection][index], ...data })
+    return clone(database[collection][index])
+  }
+  f.payload.create = async ({ collection, data }) => {
+    const saved = persist(collection, { ...data, id: nextId++ })
+    database[collection].push(saved)
+    return clone(saved)
+  }
+  f.payload.delete = async () => { throw new Error('These fixtures must not delete catalog documents') }
+  return { ...f, source, database, product: () => database.products[0],
+    run: () => f.load('lib/moysklad/import-catalog').importMoyskladCatalog(f.payload) }
+}
+
+for (const bySlug of [false, true]) {
+  test(`catalog import preserves packaging and row IDs across repeated syncs (${bySlug ? 'slug lookup' : 'MoySklad ID lookup'})`, async () => {
+    const small = localCatalogVariant('small', 'local-small', 5)
+    const large = localCatalogVariant('large', 'local-large', 20)
+    const f = catalogFixture({ bySlug, storedVariants: [small, large], remoteVariants: [
+      remoteCatalogVariant('small', '250 г, Молотый'), remoteCatalogVariant('large', '1 кг, В зёрнах', 2200),
+    ] })
+    for (let run = 0; run < 3; run++) {
+      f.source.variants.reverse()
+      f.source.variants.find(row => row.id === 'small').name = `Coffee (250 г, Молотый, новое имя ${run})`
+      f.source.variants.find(row => row.id === 'large').salePrices[0].value = (2200 + run) * 100
+      f.source.product.stock = run === 1 ? 0 : 10
+      const result = await f.run()
+      assert.equal(result.ok, true)
+      assert.equal(result.stats.productsUpdated, 1)
+      assert.equal(result.stats.skippedProducts.length, 0)
+      const product = f.product()
+      assert.equal(product.id, 7)
+      assert.equal(product.description, 'Editor content')
+      assert.equal(product.variants[0].moyskladId, 'large')
+      for (const original of [small, large]) {
+        const row = product.variants.find(item => item.moyskladId === original.moyskladId)
+        assert.deepEqual(packageValues(row), packageValues(original))
+        assert.equal(row.id, original.id)
+        assert.equal(row.isAvailable, run !== 1)
+      }
+      assert.equal(product.variants[0].price, 2200 + run)
+      assert.equal(product.variants[1].name, `250 г, Молотый, новое имя ${run}`)
+      assert.equal(product.variants[1].weightGrams, 250)
+    }
+  })
+}
+
+test('catalog import preserves packaging on a product without MoySklad modifications', async () => {
+  const row = { ...localCatalogVariant('catalog-product', 'local-single', 8), moyskladType: 'product' }
+  const f = catalogFixture({ storedVariants: [row] })
+  await f.run()
+  assert.deepEqual(packageValues(f.product().variants[0]), packageValues(row))
+  assert.equal(f.product().variants[0].id, row.id)
+  assert.equal(f.product().variants[0].price, 1234)
+  assert.equal(f.product().variants[0].moyskladType, 'product')
+})
+
+test('a new MoySklad variant never inherits packaging by name or array position', async () => {
+  const old = { ...localCatalogVariant('removed', 'local-old'), name: '250 г' }
+  const remaining = localCatalogVariant('remaining', 'local-remaining', 7)
+  const f = catalogFixture({ storedVariants: [old, remaining], remoteVariants: [
+    remoteCatalogVariant('new', '250 г'), remoteCatalogVariant('remaining', '100 г'),
+  ] })
+  await f.run()
+  assert.deepEqual(f.product().variants.map(row => row.moyskladId), ['new', 'remaining'])
+  assert.deepEqual(packageValues(f.product().variants[0]), [null, null, null, null])
+  assert.notEqual(f.product().variants[0].id, old.id)
+  assert.deepEqual(packageValues(f.product().variants[1]), packageValues(remaining))
+})
+
+test('unlinked local variants are not matched to imported variants by display name', async () => {
+  const f = catalogFixture({ storedVariants: [{ ...localCatalogVariant(null, 'local-unlinked'), name: '250 г' }],
+    remoteVariants: [remoteCatalogVariant('new', '250 г')] })
+  await f.run()
+  assert.deepEqual(packageValues(f.product().variants[0]), [null, null, null, null])
+  assert.notEqual(f.product().variants[0].id, 'local-unlinked')
+})
+
+test('new products import normally and retain subsequently entered packaging', async () => {
+  const f = catalogFixture({ newProduct: true, remoteVariants: [remoteCatalogVariant('new', '1 кг')] })
+  const result = await f.run()
+  assert.equal(result.stats.productsCreated, 1)
+  assert.deepEqual(packageValues(f.product().variants[0]), [null, null, null, null])
+  Object.assign(f.product().variants[0], { shippingLengthCm: 25, shippingWidthCm: 15, shippingHeightCm: 6, shippingWeightGrams: 1050 })
+  const saved = clone(f.product().variants[0])
+  await f.run()
+  assert.deepEqual(packageValues(f.product().variants[0]), packageValues(saved))
+  assert.equal(f.product().variants[0].id, saved.id)
+})
+
+test('partially filled and deliberately cleared packaging stays as the administrator saved it', async () => {
+  const row = { ...localCatalogVariant('partial', 'local-partial'), shippingWidthCm: null }
+  delete row.shippingHeightCm
+  const f = catalogFixture({ storedVariants: [row], remoteVariants: [remoteCatalogVariant('partial', '250 г')] })
+  await f.run()
+  assert.deepEqual(packageValues(f.product().variants[0]), [10, null, null, 1000])
+  f.product().variants[0].shippingLengthCm = null
+  f.product().variants[0].shippingWeightGrams = 275
+  await f.run()
+  assert.deepEqual(packageValues(f.product().variants[0]), [null, null, null, 275])
 })
