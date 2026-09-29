@@ -30,6 +30,9 @@ interface GuestCartContextValue {
   items: GuestCartItem[]
   itemCount: number
   hydrated: boolean
+  cartOpen: boolean
+  setCartOpen: (open: boolean) => void
+  reloadCart: () => Promise<void>
   addItem: (item: Omit<GuestCartItem, "id">) => void
   updateQuantity: (id: string, quantity: number) => void
   removeItem: (id: string) => void
@@ -109,6 +112,7 @@ function fromServerItem(item: CartItem): GuestCartItem {
 export function GuestCartProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth()
   const [items, setItems] = useState<GuestCartItem[]>([])
+  const [cartOpen, setCartOpen] = useState(false)
   const [storageHydrated, setStorageHydrated] = useState(false)
   const [hydrated, setHydrated] = useState(false)
   const [pendingPayment, setPendingPaymentState] = useState<PendingShopPayment | null>(null)
@@ -119,6 +123,7 @@ export function GuestCartProvider({ children }: { children: React.ReactNode }) {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY)
       // Browser storage is the external source used to hydrate this client-only cart.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR cannot read this browser-only external store.
       if (stored) setItems(parseStoredItems(stored))
     } catch {
       window.localStorage.removeItem(STORAGE_KEY)
@@ -348,7 +353,7 @@ export function GuestCartProvider({ children }: { children: React.ReactNode }) {
   const itemCount = useMemo(() => items.reduce((sum, item) => sum + item.quantity, 0), [items])
 
   return (
-    <GuestCartContext.Provider value={{ items, itemCount, hydrated, addItem, updateQuantity, removeItem, removeItems, clearCart, pendingPayment, setPendingPayment }}>
+    <GuestCartContext.Provider value={{ items, itemCount, hydrated, cartOpen, setCartOpen, reloadCart: reloadServerCart, addItem, updateQuantity, removeItem, removeItems, clearCart, pendingPayment, setPendingPayment }}>
       {children}
     </GuestCartContext.Provider>
   )

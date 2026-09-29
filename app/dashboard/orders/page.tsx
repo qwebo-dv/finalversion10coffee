@@ -1,5 +1,6 @@
 import { getClientOrders } from "@/lib/actions/orders"
 import { OrdersList } from "@/components/dashboard/orders-list"
+import { RetailOrdersList } from "@/components/shop/retail-orders-list"
 
 export const dynamic = "force-dynamic"
 
@@ -15,7 +16,9 @@ export async function OrdersPage({ sessionScope = "business" }: { sessionScope?:
         </p>
       </div>
 
-      <OrdersList initialOrders={orders} />
+      {sessionScope === "individual"
+        ? <RetailOrdersList initialOrders={orders} />
+        : <OrdersList initialOrders={orders} />}
     </div>
   )
 }

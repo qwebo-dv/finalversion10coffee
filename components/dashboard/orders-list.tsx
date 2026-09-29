@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import Link from "next/link"
 import {
   Select,
@@ -25,7 +25,7 @@ import {
 } from "@/lib/utils/constants"
 import { repeatOrder, deleteOrder } from "@/lib/actions/orders"
 import { useCart } from "@/providers/cart-provider"
-import { useAuth } from "@/providers/auth-provider"
+import type { CustomerSessionScope } from "@/lib/auth/constants"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { Order } from "@/types"
@@ -33,6 +33,8 @@ import { CDEK_TRACKING_URL } from "@/lib/utils/cdek-tracking"
 
 interface OrdersListProps {
   initialOrders: Order[]
+  sessionScope?: CustomerSessionScope
+  onRepeatOrder?: (orderId: string) => ReturnType<typeof repeatOrder>
 }
 
 type DateRange = "all" | "week" | "month" | "quarter" | "custom"
@@ -45,10 +47,11 @@ const dateRangeLabels: Record<DateRange, string> = {
   custom: "Свой период",
 }
 
-export function OrdersList({ initialOrders }: OrdersListProps) {
+export function OrdersList({ initialOrders, sessionScope = "business", onRepeatOrder }: OrdersListProps) {
   const { reloadCart } = useCart()
-  const { user } = useAuth()
-  const isIndividual = user?.user_metadata?.customer_type === "individual"
+  const isIndividual = sessionScope === "individual"
+  const repeatInProgress = useRef(false)
+  const [repeatingOrderId, setRepeatingOrderId] = useState<string | null>(null)
   const [orders, setOrders] = useState(initialOrders)
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [dateRange, setDateRange] = useState<DateRange>("all")
@@ -90,16 +93,27 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
   }, [orders, statusFilter, dateRange, customFrom, customTo])
 
   async function handleRepeatOrder(orderId: string) {
-    if (isIndividual) {
-      window.location.assign("/shop")
-      return
-    }
-    const result = await repeatOrder(orderId)
-    if (result.success) {
-      await reloadCart()
-      toast.success("Товары добавлены в корзину")
-    } else {
-      toast.error(result.error || "Ошибка")
+    if (repeatInProgress.current) return
+    repeatInProgress.current = true
+    setRepeatingOrderId(orderId)
+    try {
+      const result = await (onRepeatOrder ? onRepeatOrder(orderId) : repeatOrder(orderId, sessionScope))
+      if (result.success) {
+        if (!onRepeatOrder) await reloadCart()
+        setSelectedOrder(null)
+        if (result.skippedCount) {
+          toast.warning(`Товары добавлены в корзину. Недоступных позиций: ${result.skippedCount}`)
+        } else {
+          toast.success("Товары добавлены в корзину")
+        }
+      } else {
+        toast.error(result.error || "Ошибка")
+      }
+    } catch {
+      toast.error("Не удалось повторить заказ. Попробуйте ещё раз")
+    } finally {
+      repeatInProgress.current = false
+      setRepeatingOrderId(null)
     }
   }
 
@@ -294,6 +308,9 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                       </a>
                     )}
                     <button
+                      disabled={repeatingOrderId !== null}
+                      aria-label="Повторить заказ"
+                      aria-busy={repeatingOrderId === order.id}
                       onClick={(e) => {
                         e.stopPropagation()
                         handleRepeatOrder(order.id)
@@ -441,9 +458,10 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                     </a>
                   )}
                   <button
+                    disabled={repeatingOrderId !== null}
+                    aria-busy={repeatingOrderId === selectedOrder.id}
                     onClick={() => {
                       handleRepeatOrder(selectedOrder.id)
-                      setSelectedOrder(null)
                     }}
                     className="flex-1 h-9 flex items-center justify-center gap-1.5 text-xs font-semibold bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 transition-colors"
                   >

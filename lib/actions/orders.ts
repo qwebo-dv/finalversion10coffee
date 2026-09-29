@@ -914,8 +914,11 @@ export async function createOrder(params: {
   return { success: true, orderId: String(doc.id), moyskladInvoiceCreated: hasMoyskladInvoice }
 }
 
-export async function repeatOrder(orderId: string): Promise<{ success?: boolean; error?: string }> {
-  const userId = await getCurrentUserId()
+export async function repeatOrder(
+  orderId: string,
+  sessionScope: CustomerSessionScope = "business",
+): Promise<{ success?: boolean; error?: string; skippedCount?: number }> {
+  const userId = await getCurrentUserId(sessionScope)
   if (!userId) return { error: "Не авторизован" }
 
   const payload = await getPayloadClient()
@@ -941,45 +944,50 @@ export async function repeatOrder(orderId: string): Promise<{ success?: boolean;
     if (ownerId !== userId) return { error: "Заказ не найден" }
 
     const items = (order.items || []).map((item) => ({
+      productId: item.productId,
       productName: item.productName || item.product_name || "",
       variantName: item.variantName || item.variant_name || "",
       grindOption: item.grindOption || item.grind_option || "",
-      quantity: Number(item.quantity) || 1,
+      quantity: Number(item.quantity ?? 1),
     }))
     if (items.length === 0) return { error: "В заказе нет позиций" }
 
     let addedCount = 0
     for (const item of items) {
+      // Prefer the saved product ID: names may change after the original order.
+      // Only legacy orders without an ID are resolved by their catalog name.
       const result = await payload.find({
         collection: "products",
-        where: { name: { equals: item.productName } },
-        limit: 1,
+        where: item.productId
+          ? { id: { equals: item.productId } }
+          : { name: { equals: item.productName } },
+        limit: 2,
         depth: 0,
       })
-      const product = result.docs[0] as unknown as {
-        id: string | number
-        variants?: { id?: string | number; name?: string | null }[] | null
-      }
-      if (!product) continue
+      if (result.docs.length !== 1) continue
+      const product = result.docs[0]
+      if (product.isVisible === false) continue
 
-      const variant = (product.variants || []).find(
+      const variants = (product.variants || []).filter(
         (candidate) => candidate.name === item.variantName
       )
-      if (!variant?.id) continue
+      const variant = variants.length === 1 ? variants[0] : null
+      if (!variant?.id || variant.isAvailable === false) continue
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) continue
 
       const cartResult = await addToCart({
         productId: String(product.id),
         variantId: String(variant.id),
         quantity: item.quantity,
         grindOption: item.grindOption,
-      }, "business")
+      }, sessionScope)
       if (cartResult.success) addedCount++
     }
 
     if (addedCount === 0) return { error: "Товары из заказа не найдены в каталоге" }
 
-    revalidatePath("/dashboard")
-    return { success: true }
+    revalidatePath(sessionScope === "individual" ? "/main" : "/dashboard")
+    return { success: true, skippedCount: items.length - addedCount }
   } catch {
     return { error: "Заказ не найден" }
   }
