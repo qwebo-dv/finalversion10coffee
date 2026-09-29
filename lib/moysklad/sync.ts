@@ -5,6 +5,7 @@ import type { MoyskladConfig, MoyskladSalesChannel as SalesChannel } from "./con
 import { hasMoyskladErrorCode, MoyskladApiError, extractMoyskladId, moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
 import { writeMoyskladLog } from "./logs"
 import { computeOrderContentHash } from "./order-hash"
+import { canExportOrderToMoysklad } from "./order-eligibility"
 import { assertMoyskladDocumentTotal, reconcileMoyskladOrderTotals, type MoyskladDiscountLine } from "./order-totals"
 import { DELIVERY_METHOD_LABELS } from "@/lib/utils/constants"
 import { ensureMoyskladBundleForVariant } from "./bundles"
@@ -44,6 +45,7 @@ interface SyncOrder {
   orderId?: string
   salesChannel?: SalesChannel
   customerType?: "individual" | "business"
+  paymentStatus?: string | null
   createdAt?: string
   subtotal?: number
   discountAmount?: number
@@ -982,6 +984,9 @@ export async function ensureMoyskladStockLossForOrder(
 }
 
 export async function syncOrderToMoysklad(params: SyncOrderParams) {
+  if (!canExportOrderToMoysklad(params.order)) {
+    return { skipped: true as const }
+  }
   const salesChannel: SalesChannel = params.order.salesChannel || (params.order.customerType === "individual" ? "retail" : "wholesale")
   const config = getMoyskladConfig(salesChannel)
   if (!config.enabled || (!config.syncOrdersOnCreate && !params.force)) {

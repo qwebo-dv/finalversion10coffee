@@ -5,7 +5,7 @@ import configPromise from "@payload-config"
 import { getClientDiscountConfig, getShopProducts } from "@/lib/actions/products"
 import { calculateClientDiscount, type ClientDiscountLine } from "@/lib/discounts"
 import { signUp } from "@/lib/actions/auth"
-import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad/sync"
+import { buildMoyskladStockLossLines } from "@/lib/moysklad/sync"
 import { getMoyskladConfig } from "@/lib/moysklad/config"
 import { createYooKassaPayment } from "@/lib/payments/yookassa"
 import { buildYooKassaReceiptItems } from "@/lib/payments/yookassa-receipt"
@@ -424,13 +424,6 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
 
   let clientId: string | number | undefined
   let warning: string | undefined
-  let clientForMoysklad: {
-    id?: string | number
-    fullName: string
-    email: string
-    phone: string | null
-    moyskladCounterpartyId?: string | null
-  } = { fullName, email, phone }
   const auth = await createClient("individual")
   const { data: { user: currentUser } } = await auth.auth.getUser()
 
@@ -444,13 +437,6 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     const existingClient = clients.docs[0]
     if (existingClient?.id) {
       clientId = existingClient.id
-      clientForMoysklad = {
-        id: existingClient.id,
-        fullName: existingClient.fullName || fullName,
-        email: existingClient.email || currentUser.email || email,
-        phone: existingClient.phone || phone,
-        moyskladCounterpartyId: existingClient.moyskladCounterpartyId || null,
-      }
       if (existingClient.supabaseId !== currentUser.id) {
         await payload.update({
           collection: "clients",
@@ -476,13 +462,6 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
         },
       })
       clientId = createdClient.id
-      clientForMoysklad = {
-        id: createdClient.id,
-        fullName: createdClient.fullName || fullName,
-        email: createdClient.email || currentUser.email || email,
-        phone: createdClient.phone || phone,
-        moyskladCounterpartyId: createdClient.moyskladCounterpartyId || null,
-      }
     }
   }
 
@@ -505,15 +484,6 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
       })
       const createdClient = clients.docs[0]
       clientId = createdClient?.id
-      if (createdClient) {
-        clientForMoysklad = {
-          id: createdClient.id,
-          fullName: createdClient.fullName || fullName,
-          email: createdClient.email || email,
-          phone: createdClient.phone || phone,
-          moyskladCounterpartyId: createdClient.moyskladCounterpartyId || null,
-        }
-      }
     }
   }
 
@@ -723,35 +693,8 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     }
   }
 
-  const moyskladSyncResult = await syncOrderToMoysklad({
-    payload,
-    order: {
-      id: order.id,
-      orderId: order.orderId,
-      salesChannel: "retail",
-      customerType: "individual",
-      createdAt: order.createdAt,
-      subtotal,
-      discountAmount,
-      deliveryCost,
-      total,
-      deliveryMethod: input.deliveryMethod,
-      deliveryAddress: address,
-      comment: input.comment,
-    },
-    client: clientForMoysklad,
-    company: null,
-    cartItems,
-    discountLines: items.map((item) => ({
-      cartItemId: item.cartItemId,
-      discountPercent: item.discountPercent,
-      discountAmount: item.discountAmount,
-    })),
-    force: true,
-  })
-  if ("error" in moyskladSyncResult && moyskladSyncResult.error) {
-    console.error(`[Order ${order.orderId || order.id}] Первичная выгрузка розничного заказа в МойСклад завершилась ошибкой: ${moyskladSyncResult.error}`)
-  }
+  // Export starts only after YooKassa confirms payment. Checkout merely saves
+  // the order and its item/discount snapshot for that later export.
 
   if (promoWins && promoResult.promo) {
     await payload.update({

@@ -66,7 +66,7 @@ function fixture({ respond, config: overrides = {}, signalAPI = AbortSignal, onD
       if (Object.hasOwn(mocks, target)) return mocks[target]
       if (['crypto', 'node:crypto'].includes(target)) return require('node:crypto')
       if (target === 'node:util') return require('node:util')
-      if (['lib/moysklad/client', 'lib/moysklad/sync', 'lib/moysklad/bundles', 'lib/moysklad/order-totals', 'lib/moysklad/order-link-repair', 'lib/moysklad/order-hash', 'lib/moysklad/order-link-service', 'lib/moysklad/order-link-endpoint', 'lib/moysklad/order-retry', 'lib/moysklad/import-catalog', 'lib/moysklad/products', 'lib/slug', 'lib/discounts', 'lib/product-types', 'payload/access/adminRoles', 'lib/actions/products', 'lib/actions/shop-orders', 'lib/utils/phone', 'lib/payments/yookassa-receipt', 'lib/payments/yookassa-order-status', 'app/api/shop/payments/yookassa/webhook/route'].includes(target)) return load(target)
+      if (['lib/moysklad/client', 'lib/moysklad/sync', 'lib/moysklad/bundles', 'lib/moysklad/order-totals', 'lib/moysklad/order-eligibility', 'lib/moysklad/order-link-repair', 'lib/moysklad/order-hash', 'lib/moysklad/order-link-service', 'lib/moysklad/order-link-endpoint', 'lib/moysklad/order-retry', 'lib/moysklad/import-catalog', 'lib/moysklad/products', 'lib/slug', 'lib/discounts', 'lib/product-types', 'payload/access/adminRoles', 'lib/actions/products', 'lib/actions/shop-orders', 'lib/utils/phone', 'lib/payments/yookassa-receipt', 'lib/payments/yookassa-order-status', 'app/api/shop/payments/yookassa/webhook/route'].includes(target)) return load(target)
       throw new Error(`Unexpected dependency: ${id}`)
     }
     vm.runInNewContext(`(function(require,module,exports){${compiled.get(file)}\n})`, {
@@ -850,7 +850,7 @@ function retailFixture({ account = false, promo, discountPercent = 0, loyaltyFai
       price: 500, weightGrams: 100, isAvailable: true, grindOptions: [] }] }]
   const client = { id: 9, supabaseId: 'customer', fullName: 'Test Customer', email: 'customer@example.invalid',
     moyskladCounterpartyId: 'retail-buyer', discountPercent }
-  const state = { order: null, httpFailure, loyaltyFailure, paymentCalls: [], remote: null, loyaltyCalls: 0 }
+  const state = { order: null, httpFailure, loyaltyFailure, paymentCalls: [], remote: null, loyaltyCalls: 0, providerPayment: {} }
   const f = fixture({ config: { createCounterparties: true, deliveryServiceId: 'delivery' }, respond: call => {
     if (state.httpFailure) return unavailable()
     if (call.path.startsWith('entity/product/retail-coffee')) return Response.json({ id: 'retail-coffee', uom: { name: 'кг' } })
@@ -882,7 +882,7 @@ function retailFixture({ account = false, promo, discountPercent = 0, loyaltyFai
         return { ok: true, paymentId: 'test-payment', paymentUrl: 'https://payments.invalid/test' }
       },
       getYooKassaPayment: async () => ({ ok: true, paymentId: 'test-payment', orderId: '448',
-        amountRubles: state.order.total, status: 'paid' }),
+        amountRubles: state.order.total, status: 'paid', ...state.providerPayment }),
     },
     'lib/cdek': { calculateTariff: async () => [{ delivery_mode: 2, delivery_sum: 341 }] },
     'lib/delivery-packaging': { getDeliveryPackagingSettings: async () => ({}),
@@ -950,10 +950,15 @@ test('retail catalog loader retains the product and variant MoySklad identities'
 })
 
 for (const options of [{}, { account: true }, { account: true, discountPercent: 10 }, { promo: 10 }]) {
-  test(`retail checkout exports without a manual retry: ${JSON.stringify(options)}`, async () => {
+  test(`retail exports only after confirmed payment, without a manual retry: ${JSON.stringify(options)}`, async () => {
     const f = retailFixture(options)
     const result = await f.checkout()
     assert.equal(result.success, true, result.error)
+    assert.equal(f.state.order.paymentStatus, 'pending')
+    assert.equal(f.state.order.moyskladSyncStatus, 'pending')
+    assert.equal(f.calls.length, 0, 'checkout must not contact MoySklad')
+    assert.equal(f.state.remote, null)
+    assert.equal((await f.payment()).moyskladSynced, true)
     assert.equal(f.state.order.moyskladSyncStatus, 'synced', f.state.order.moyskladSyncError)
     assert.equal(f.state.order.moyskladCustomerOrderId, 'retail-order')
     assert.equal(f.state.remote.sum, Math.round(f.state.order.total * 100))
@@ -968,24 +973,28 @@ for (const options of [{}, { account: true }, { account: true, discountPercent: 
   })
 }
 
-test('retail checkout exports mixed coffee, ordinary goods and paid delivery', async () => {
+test('paid retail export preserves mixed coffee, ordinary goods and delivery', async () => {
   const f = retailFixture()
   f.input.items.push({ id: 'cart-tea', productId: '11', variantId: 'pack-tea', quantity: 2 })
   Object.assign(f.input, { deliveryMethod: 'cdek', address: 'Test pickup point', cdekCityCode: 1, cdekDeliveryType: 'pickup' })
   const result = await f.checkout()
   assert.equal(result.success, true, result.error)
+  assert.equal(f.calls.length, 0)
+  assert.equal((await f.payment()).moyskladSynced, true)
   assert.equal(f.state.order.moyskladSyncStatus, 'synced', f.state.order.moyskladSyncError)
   assert.equal(f.state.remote.positions.length, 3)
   assert.equal(f.state.remote.positions[1].assortment.meta.type, 'product')
   assert.equal(f.state.remote.sum, 390600)
 })
 
-test('retail checkout exports loyalty redemption with the saved total', async () => {
+test('paid retail export preserves loyalty redemption and the saved total', async () => {
   const f = retailFixture({ account: true })
   f.input.loyaltyPoints = 100
   f.input.items.push({ id: 'cart-tea', productId: '11', variantId: 'pack-tea', quantity: 1 })
   const result = await f.checkout()
   assert.equal(result.success, true, result.error)
+  assert.equal(f.calls.length, 0)
+  assert.equal((await f.payment()).moyskladSynced, true)
   assert.equal(f.state.order.moyskladSyncStatus, 'synced', f.state.order.moyskladSyncError)
   assert.equal(f.state.remote.sum, 296500)
   assert.equal(f.state.remote.positions[1].discount || 0, 0, 'points only discount coffee')
@@ -1006,18 +1015,26 @@ test('retail checkout reproduces the three-line rounding from order 10C-00448', 
   assert.equal(f.state.order.subtotal, 2455)
   assert.equal(f.state.order.discountAmount, 246)
   assert.equal(f.state.order.deliveryCost, 341)
+  assert.equal(f.calls.length, 0)
+  assert.equal((await f.payment()).moyskladSynced, true)
   assert.equal(f.state.order.moyskladSyncStatus, 'synced', f.state.order.moyskladSyncError)
   assert.equal(f.state.remote.sum, 255000)
   assert.equal(f.state.remote.positions.length, 4)
 })
 
-test('automatic background retry recovers a retail order without payment or a manual action', async () => {
+test('automatic background retry waits for payment then recovers a failed paid export', async () => {
   const f = retailFixture({ httpFailure: true })
   await f.checkout()
-  f.state.httpFailure = false
-  const result = await f.load('lib/moysklad/order-retry').retryFailedMoyskladOrders(f.payload, { minAgeMs: 0 })
-  assert.equal(result.succeeded, 1)
+  const retry = () => f.load('lib/moysklad/order-retry').retryFailedMoyskladOrders(f.payload, { minAgeMs: 0 })
+  assert.equal((await retry()).succeeded, 0)
+  assert.equal(f.calls.length, 0)
   assert.equal(f.state.order.paymentStatus, 'pending')
+  assert.equal((await f.payment()).moyskladSynced, false)
+  assert.equal(f.state.order.paymentStatus, 'paid')
+  f.state.httpFailure = false
+  const result = await retry()
+  assert.equal(result.succeeded, 1)
+  assert.equal(f.state.order.paymentStatus, 'paid')
   assert.equal(f.state.order.moyskladSyncStatus, 'synced')
   assert.equal(writes(f, 'customerorder').length, 1)
 })
@@ -1040,9 +1057,11 @@ test('loyalty amounts remain exact after automatic recovery with several coffee 
   assert.equal(f.state.remote.positions[2].discount || 0, 0)
 })
 
-test('payment callback automatically recovers an initial MoySklad outage', async () => {
+test('repeated payment callback automatically recovers a paid export after a MoySklad outage', async () => {
   const f = retailFixture({ httpFailure: true })
   assert.equal((await f.checkout()).success, true)
+  assert.equal(f.calls.length, 0)
+  assert.equal((await f.payment()).moyskladSynced, false)
   assert.equal(f.state.order.moyskladSyncStatus, 'error')
   f.state.httpFailure = false
   assert.equal((await f.payment()).moyskladSynced, true)
@@ -1069,4 +1088,107 @@ test('webhook reports a transient MoySklad failure so the provider retries the n
   assert.equal((await f.webhook()).status, 200)
   assert.equal(f.state.order.moyskladSyncStatus, 'synced')
   assert.equal(writes(f, 'customerorder').length, 1)
+})
+
+for (const paymentStatus of ['pending', 'invoiced', 'failed', 'cancelled', 'refunded', null, undefined]) {
+  test(`unpaid retail cannot bypass the core export guard with force: ${paymentStatus}`, async () => {
+    for (const channel of [{ salesChannel: 'retail' }, { customerType: 'individual' }]) {
+      const f = fixture()
+      Object.assign(f.params.order, channel, { paymentStatus, moyskladCustomerOrderId: 'existing-document' })
+      f.params.force = true
+      assert.equal((await f.sync.syncOrderToMoysklad(f.params)).skipped, true)
+      assert.equal(f.calls.length, 0)
+      assert.equal(f.updates.length, 0)
+    }
+  })
+}
+
+for (const [label, options] of [
+  ['background', {}],
+  ['full manual retry', { includeAllUnexported: true, includeExisting: true }],
+  ['selected manual retry', { orderIds: [448] }],
+  ['forced maintenance', { orderIds: [448], forceSelected: true }],
+]) {
+  test(`${label} cannot export an unpaid retail order even with an old sync error`, async () => {
+    const f = retailFixture()
+    await f.checkout()
+    f.state.order.moyskladSyncStatus = 'error'
+    f.state.order.moyskladSyncError = 'Previous premature export failure'
+    const before = clone(f.state.order)
+    const retry = f.load('lib/moysklad/order-retry')
+    const result = await retry.retryFailedMoyskladOrders(f.payload, { minAgeMs: 0, ...options })
+    assert.equal(result.succeeded, 0)
+    assert.equal(result.failed, 0)
+    assert.equal((await retry.syncOrderToMoyskladById(f.payload, 448)).skipped, true)
+    assert.equal(f.calls.length, 0)
+    assert.deepEqual(clone(f.state.order), before)
+  })
+}
+
+for (const [label, providerPayment, expectedStatus] of [
+  ['provider still pending', { status: 'pending' }, 200],
+  ['provider cancelled payment', { status: 'cancelled' }, 200],
+  ['different payment amount', { amountRubles: 1 }, 400],
+  ['different order', { orderId: 'another-order' }, 400],
+  ['different payment', { paymentId: 'another-payment' }, 400],
+]) {
+  test(`a payment.succeeded notification cannot export without verification: ${label}`, async () => {
+    const f = retailFixture()
+    await f.checkout()
+    Object.assign(f.state.providerPayment, providerPayment)
+    assert.equal((await f.webhook()).status, expectedStatus)
+    assert.notEqual(f.state.order.paymentStatus, 'paid')
+    assert.equal(f.calls.length, 0)
+    assert.equal(f.state.remote, null)
+  })
+}
+
+function matchesWhere(doc, where) {
+  if (!where) return true
+  return Object.entries(where).every(([field, condition]) => {
+    if (field === 'and') return condition.every(part => matchesWhere(doc, part))
+    if (field === 'or') return condition.some(part => matchesWhere(doc, part))
+    return Object.entries(condition).every(([operator, expected]) => {
+      const value = doc[field]
+      if (operator === 'exists') return (value !== null && value !== undefined) === expected
+      if (operator === 'equals') return value === expected
+      if (operator === 'not_equals') return value !== null && value !== undefined && value !== expected
+      if (operator === 'in') return expected.includes(value)
+      throw new Error(`Unsupported test query operator: ${operator}`)
+    })
+  })
+}
+
+test('unpaid retail orders cannot fill the background batch before a paid order', async () => {
+  const unpaid = Array.from({ length: 30 }, (_, index) => ({
+    ...retryOrder(index + 1, `UNPAID-${index}`), salesChannel: 'retail', paymentStatus: 'pending',
+  }))
+  const paid = { ...retryOrder(100, 'PAID'), salesChannel: 'retail', paymentStatus: 'paid' }
+  const f = retryFixture([...unpaid, paid], call => {
+    if (call.method === 'POST' && call.path === 'entity/customerorder') return Response.json({ id: 'paid-remote', sum: 50000 })
+  })
+  const originalFind = f.payload.find
+  f.payload.find = async input => input.collection === 'orders'
+    ? { docs: [...unpaid, paid].filter(order => matchesWhere(order, input.where)).slice(0, input.limit), totalPages: 1 }
+    : originalFind(input)
+  const result = await f.run({ includeAllUnexported: false, includeExisting: false })
+  assert.equal(result.checked, 1)
+  assert.equal(result.succeeded, 1, JSON.stringify(result.retried))
+  assert.equal(JSON.parse(writes(f, 'customerorder')[0].init.body).name, 'PAID')
+})
+
+test('retry query and export guard preserve legacy and explicit wholesale channel rules', () => {
+  const { canExportOrderToMoysklad, moyskladExportEligibilityWhere } = fixture().load('lib/moysklad/order-eligibility')
+  for (const [order, expected] of [
+    [{ salesChannel: 'retail', paymentStatus: 'pending' }, false],
+    [{ salesChannel: 'retail', paymentStatus: 'paid' }, true],
+    [{ salesChannel: null, customerType: 'individual', paymentStatus: 'pending' }, false],
+    [{ customerType: 'individual', paymentStatus: 'paid' }, true],
+    [{ salesChannel: 'wholesale', customerType: 'individual', paymentStatus: 'pending' }, true],
+    [{ customerType: 'business', paymentStatus: 'pending' }, true],
+    [{}, true],
+  ]) {
+    assert.equal(canExportOrderToMoysklad(order), expected, JSON.stringify(order))
+    assert.equal(matchesWhere(order, moyskladExportEligibilityWhere), expected, JSON.stringify(order))
+  }
 })

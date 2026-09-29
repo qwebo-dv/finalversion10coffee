@@ -4,6 +4,7 @@ import { normalizeProductDetailsSchema } from "@/lib/product-types"
 import { calculateClientDiscount, normalizeCategoryDiscounts, normalizeDiscountPercent, normalizeProductDiscounts, type CategoryDiscountRule, type ProductDiscountRule } from "@/lib/discounts"
 import { syncOrderToMoysklad, MoyskladTrashedOrderError } from "./sync"
 import { computeOrderContentHash } from "./order-hash"
+import { canExportOrderToMoysklad, moyskladExportEligibilityWhere } from "./order-eligibility"
 import type { MoyskladDiscountLine } from "./order-totals"
 import { writeMoyskladLog } from "./logs"
 import { getMoyskladConfig } from "./config"
@@ -810,6 +811,7 @@ async function getRetryCompany(order: PayloadOrderDoc, client: PayloadClientDoc)
 }
 
 async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
+  if (!canExportOrderToMoysklad(order)) return { skipped: true as const }
   const client = await getRetryClient(payload, order) || getCheckoutContactClient(order)
   if (!client) throw new Error("Клиент заказа не загружен для повтора МойСклад")
 
@@ -825,6 +827,7 @@ async function retryOrder(payload: Payload, order: PayloadOrderDoc) {
       orderId: order.orderId,
       salesChannel: order.salesChannel || undefined,
       customerType: order.customerType || undefined,
+      paymentStatus: order.paymentStatus,
       createdAt: order.createdAt,
       subtotal: numberValue(order.subtotal),
       discountAmount: numberValue(order.discountAmount),
@@ -933,7 +936,7 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
   const includeAllUnexported = options.includeAllUnexported || false
   const includeExisting = options.includeExisting || false
   const includePaidDisabledRetail = options.includePaidDisabledRetail || false
-  const where: Where | undefined = orderIds
+  const statusWhere: Where | undefined = orderIds
     ? { id: { in: orderIds } }
     : includeAllUnexported || includeExisting
       ? undefined
@@ -950,6 +953,10 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
             }] : []),
           ],
         }
+
+  const where: Where = statusWhere
+    ? { and: [moyskladExportEligibilityWhere, statusWhere] }
+    : moyskladExportEligibilityWhere
 
   const orders: PayloadOrderDoc[] = []
   let page = 1
@@ -972,10 +979,9 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
     page += 1
   } while (!orderIds && (includeAllUnexported || includeExisting) && page <= totalPages)
 
-  // Explicitly selected orders (checkbox bulk action in the admin list) are
-  // always treated as retryable/due — the admin picked them on purpose, so we
-  // skip the automatic status/age filtering used by the background sweep.
-  const eligibleOrders = orders.filter((order) => !isExcludedFromRetry(order))
+  // Explicitly selected orders (checkbox bulk action in the admin list)
+  // bypass status/age filters, but never the retail payment requirement.
+  const eligibleOrders = orders.filter((order) => !isExcludedFromRetry(order) && canExportOrderToMoysklad(order))
   const excludedCount = orders.length - eligibleOrders.length
   const retryable = orderIds
     ? eligibleOrders
@@ -1046,6 +1052,9 @@ export async function retryFailedMoyskladOrders(payload: Payload, options: Retry
             : `${order.orderId}: ошибка — ${syncResult.error}`,
           ...progress,
         })
+      } else if ("skipped" in syncResult && syncResult.skipped) {
+        retried.push({ id: order.id, orderId: order.orderId, success: false, skipped: true })
+        emit({ type: "order_done", orderId: order.orderId, message: `${order.orderId}: пропущен`, ...progress })
       } else {
         retried.push({ id: order.id, orderId: order.orderId, success: true })
         emit({ type: "order_done", orderId: order.orderId, message: `${order.orderId}: готово`, ...progress })
