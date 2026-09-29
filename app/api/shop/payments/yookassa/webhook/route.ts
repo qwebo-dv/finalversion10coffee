@@ -16,6 +16,11 @@ export async function POST(request: NextRequest) {
   } else {
     console.log(`[Order ${result.orderNumber || result.orderId}] Статус оплаты подтверждён: ${result.status}`)
   }
+  if (result.ok && result.status === "paid" && result.moyskladSynced === false) {
+    // Payment is already persisted. A non-200 response asks YooKassa to deliver
+    // the notification again, letting the idempotent export recover after an outage.
+    return NextResponse.json({ ok: false, error: "Не завершена выгрузка заказа в МойСклад" }, { status: 502 })
+  }
   if (result.ok && result.status === "paid" && result.confirmationEmailSent === false) {
     // Ask YooKassa to retry the notification. Payment state is already stored,
     // and email delivery is idempotent, so a retry is safe.

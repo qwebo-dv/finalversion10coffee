@@ -549,13 +549,6 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     && promoResult.discountAmount > 0
   )
   const appliedDiscountAmount = promoWins ? promoResult.discountAmount : personalDiscount.amount
-  const appliedDiscountLines = promoWins
-    ? promoResult.discountLines
-    : personalDiscount.lines.map((line) => ({
-        cartItemId: line.cartItemId,
-        discountPercent: line.discountPercent,
-      }))
-
   const requestedLoyaltyPoints = Math.floor(Number(input.loyaltyPoints) || 0)
   if (requestedLoyaltyPoints < 0) return { error: "Количество списываемых баллов не может быть отрицательным" }
   const coffeeSubtotal = cartItems
@@ -629,6 +622,20 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
   }
   const discountAmount = appliedDiscountAmount + requestedLoyaltyPoints
   const total = Math.max(0, subtotal - discountAmount) + deliveryCost
+  // Record redeemed points on coffee lines, including the exact amount. The
+  // immediate export and subsequent retries must use the same saved discounts.
+  const loyaltyDiscounts = new Map<string, number>()
+  if (requestedLoyaltyPoints > 0) {
+    let coffeeAmount = 0
+    let allocatedKopecks = 0
+    for (const item of cartItems) {
+      if (item.product?.product_type_schema !== "coffee") continue
+      coffeeAmount += (item.variant?.price || 0) * item.quantity
+      const cumulativeKopecks = Math.round(requestedLoyaltyPoints * 100 * coffeeAmount / coffeeSubtotal)
+      loyaltyDiscounts.set(item.id, (cumulativeKopecks - allocatedKopecks) / 100)
+      allocatedKopecks = cumulativeKopecks
+    }
+  }
   const items = cartItems.map((item) => {
     const stockLossLine = buildMoyskladStockLossLines([item])[0]
     const lineSubtotal = (item.variant?.price || 0) * item.quantity
@@ -638,8 +645,11 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     const promoLine = promoWins
       ? promoResult.discountLines.find((line) => line.cartItemId === item.id)
       : undefined
-    const lineDiscountPercent = personalLine?.discountPercent || promoLine?.discountPercent || 0
-    const lineDiscountAmount = personalLine?.discountAmount
+    const loyaltyDiscount = loyaltyDiscounts.get(item.id) || 0
+    const lineDiscountPercent = loyaltyDiscount > 0 && lineSubtotal > 0
+      ? loyaltyDiscount / lineSubtotal * 100
+      : personalLine?.discountPercent || promoLine?.discountPercent || 0
+    const lineDiscountAmount = (loyaltyDiscount || personalLine?.discountAmount)
       ?? (lineDiscountPercent > 0 ? Math.round(lineSubtotal * lineDiscountPercent / 100) : 0)
     return {
       cartItemId: item.id,
@@ -732,7 +742,11 @@ async function createShopOrderInternal(input: ShopOrderInput): Promise<ShopOrder
     client: clientForMoysklad,
     company: null,
     cartItems,
-    discountLines: appliedDiscountLines,
+    discountLines: items.map((item) => ({
+      cartItemId: item.cartItemId,
+      discountPercent: item.discountPercent,
+      discountAmount: item.discountAmount,
+    })),
     force: true,
   })
   if ("error" in moyskladSyncResult && moyskladSyncResult.error) {

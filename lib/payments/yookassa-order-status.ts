@@ -34,6 +34,28 @@ export async function refreshYooKassaOrderPayment(reference: string, referenceKi
     },
     overrideAccess: true,
   })
+  // Export independently of cart, loyalty and delivery side effects: a failure
+  // in those systems must not prevent a paid order from reaching MoySklad.
+  let moyskladSynced: boolean | null = null
+  let moyskladError: string | null = null
+  if (payment.status === "paid" && (order.moyskladSyncStatus !== "synced" || !order.moyskladCustomerOrderId)) {
+    try {
+      const sync = await syncOrderToMoyskladById(payload, order.id)
+      if ("error" in sync && sync.error) {
+        moyskladSynced = false
+        moyskladError = sync.error
+        console.error(`[Order ${order.orderId || order.id}] Не удалось выгрузить оплаченный заказ в МойСклад: ${sync.error}`)
+      } else if ("skipped" in sync && sync.skipped) {
+        moyskladSynced = null
+      } else {
+        moyskladSynced = true
+      }
+    } catch (error) {
+      moyskladSynced = false
+      moyskladError = error instanceof Error ? error.message : "Не удалось выгрузить оплаченный заказ в МойСклад"
+      console.error(`[Order ${order.orderId || order.id}] Не удалось выгрузить оплаченный заказ в МойСклад: ${moyskladError}`)
+    }
+  }
   if (payment.status === "paid" && !order.cartClearedAt) {
     const cartCleanup = await clearPaidOrderCart(payload, order, {
       allowLegacyFullClear: order.paymentStatus !== "paid",
@@ -82,26 +104,6 @@ export async function refreshYooKassaOrderPayment(reference: string, referenceKi
     } finally {
       await client.query("select pg_advisory_unlock(hashtext($1))", [lockKey]).catch(() => undefined)
       client.release()
-    }
-  }
-  let moyskladSynced: boolean | null = null
-  let moyskladError: string | null = null
-  if (payment.status === "paid" && (order.moyskladSyncStatus !== "synced" || !order.moyskladCustomerOrderId)) {
-    try {
-      const sync = await syncOrderToMoyskladById(payload, order.id)
-      if ("error" in sync && sync.error) {
-        moyskladSynced = false
-        moyskladError = sync.error
-        console.error(`[Order ${order.orderId || order.id}] Не удалось выгрузить оплаченный заказ в МойСклад: ${sync.error}`)
-      } else if ("skipped" in sync && sync.skipped) {
-        moyskladSynced = null
-      } else {
-        moyskladSynced = true
-      }
-    } catch (error) {
-      moyskladSynced = false
-      moyskladError = error instanceof Error ? error.message : "Не удалось выгрузить оплаченный заказ в МойСклад"
-      console.error(`[Order ${order.orderId || order.id}] Не удалось выгрузить оплаченный заказ в МойСклад: ${moyskladError}`)
     }
   }
   const email = payment.status === "paid"

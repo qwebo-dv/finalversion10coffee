@@ -66,6 +66,8 @@ interface PayloadVariant {
   id?: string | number
   name?: string
   sku?: string | null
+  moyskladId?: string | null
+  moyskladType?: "product" | "variant" | "service" | null
   price?: number
   weightGrams?: number | null
   shippingLengthCm?: number | null
@@ -98,6 +100,7 @@ interface PayloadCoffeeBrewingGuideRef {
 
 interface PayloadProductDoc {
   id?: string | number
+  moyskladId?: string | null
   category?: PayloadCategoryRef | string | number | null
   productTypeRef?: PayloadProductTypeDoc | string | number | null
   detailsSchema?: ProductDetailsSchema
@@ -268,6 +271,8 @@ function transformVariant(v: PayloadVariant, productId: string): ProductVariant 
     product_id: productId,
     name: v.name || "",
     sku: v.sku || null,
+    moysklad_id: v.moyskladId || null,
+    moysklad_type: v.moyskladType || null,
     price: v.price || 0,
     weight_grams: v.weightGrams ?? null,
     shipping_length_cm: v.shippingLengthCm ?? null,
@@ -458,6 +463,7 @@ function transformProduct(doc: PayloadProductDoc, reviews: ProductReview[] = [])
     product_type_schema: resolveProductTypeSchema(doc),
     name: doc.name || "",
     slug: doc.slug || "",
+    moysklad_id: doc.moyskladId || null,
     description: descriptionHtml || null,
     description_images: [],
     sort_order: doc.sortOrder || 0,

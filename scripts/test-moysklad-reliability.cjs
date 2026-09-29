@@ -9,7 +9,7 @@ const ts = require('typescript')
 const root = path.resolve(__dirname, '..')
 const compiled = new Map()
 
-function fixture({ respond, config: overrides = {}, signalAPI = AbortSignal, onDelay, dbConnection } = {}) {
+function fixture({ respond, config: overrides = {}, signalAPI = AbortSignal, onDelay, dbConnection, extraMocks = {} } = {}) {
   const calls = [], waits = [], updates = []
   const config = {
     enabled: true, syncOrdersOnCreate: true, authMode: 'bearer', token: 'test-only',
@@ -49,6 +49,7 @@ function fixture({ respond, config: overrides = {}, signalAPI = AbortSignal, onD
       options?.signal?.throwIfAborted()
       return value
     } },
+    ...extraMocks,
   }
   function load(file) {
     if (modules.has(file)) return modules.get(file).exports
@@ -65,12 +66,12 @@ function fixture({ respond, config: overrides = {}, signalAPI = AbortSignal, onD
       if (Object.hasOwn(mocks, target)) return mocks[target]
       if (['crypto', 'node:crypto'].includes(target)) return require('node:crypto')
       if (target === 'node:util') return require('node:util')
-      if (['lib/moysklad/client', 'lib/moysklad/sync', 'lib/moysklad/bundles', 'lib/moysklad/order-totals', 'lib/moysklad/order-link-repair', 'lib/moysklad/order-hash', 'lib/moysklad/order-link-service', 'lib/moysklad/order-link-endpoint', 'lib/moysklad/order-retry', 'lib/moysklad/import-catalog', 'lib/moysklad/products', 'lib/slug', 'lib/discounts', 'lib/product-types', 'payload/access/adminRoles'].includes(target)) return load(target)
+      if (['lib/moysklad/client', 'lib/moysklad/sync', 'lib/moysklad/bundles', 'lib/moysklad/order-totals', 'lib/moysklad/order-link-repair', 'lib/moysklad/order-hash', 'lib/moysklad/order-link-service', 'lib/moysklad/order-link-endpoint', 'lib/moysklad/order-retry', 'lib/moysklad/import-catalog', 'lib/moysklad/products', 'lib/slug', 'lib/discounts', 'lib/product-types', 'payload/access/adminRoles', 'lib/actions/products', 'lib/actions/shop-orders', 'lib/utils/phone', 'lib/payments/yookassa-receipt', 'lib/payments/yookassa-order-status', 'app/api/shop/payments/yookassa/webhook/route'].includes(target)) return load(target)
       throw new Error(`Unexpected dependency: ${id}`)
     }
     vm.runInNewContext(`(function(require,module,exports){${compiled.get(file)}\n})`, {
       fetch: fetchMock, AbortSignal: signalAPI, Buffer, URLSearchParams, URL, Response,
-      TypeError, Error, console: { error() {} },
+      TypeError, Error, process: { env: { NODE_ENV: 'test' } }, console: { error() {}, warn() {}, log() {} },
     }, { filename: file })(localRequire, loaded, loaded.exports)
     return loaded.exports
   }
@@ -837,4 +838,235 @@ test('partially filled and deliberately cleared packaging stays as the administr
   f.product().variants[0].shippingWeightGrams = 275
   await f.run()
   assert.deepEqual(packageValues(f.product().variants[0]), [null, null, null, 275])
+})
+
+function retailFixture({ account = false, promo, discountPercent = 0, loyaltyFailure = false, httpFailure = false } = {}) {
+  const products = [{ id: 10, name: 'Coffee', slug: 'coffee', moyskladId: 'retail-coffee',
+    detailsSchema: 'coffee', isVisible: true, category: 1,
+    variants: [{ id: 'pack-coffee', name: '250 г', moyskladId: 'coffee-250', moyskladType: 'variant',
+      price: 855, weightGrams: 250, isAvailable: true, grindOptions: ['beans'] }] },
+  { id: 11, name: 'Tea', slug: 'tea', moyskladId: 'retail-tea', detailsSchema: 'tea', isVisible: true, category: 2,
+    variants: [{ id: 'pack-tea', name: '1 шт', moyskladId: 'retail-tea', moyskladType: 'product',
+      price: 500, weightGrams: 100, isAvailable: true, grindOptions: [] }] }]
+  const client = { id: 9, supabaseId: 'customer', fullName: 'Test Customer', email: 'customer@example.invalid',
+    moyskladCounterpartyId: 'retail-buyer', discountPercent }
+  const state = { order: null, httpFailure, loyaltyFailure, paymentCalls: [], remote: null, loyaltyCalls: 0 }
+  const f = fixture({ config: { createCounterparties: true, deliveryServiceId: 'delivery' }, respond: call => {
+    if (state.httpFailure) return unavailable()
+    if (call.path.startsWith('entity/product/retail-coffee')) return Response.json({ id: 'retail-coffee', uom: { name: 'кг' } })
+    if (call.path === 'entity/counterparty/retail-buyer') return Response.json({ id: 'retail-buyer' })
+    if (call.method === 'GET' && call.path.startsWith('entity/customerorder?')) {
+      return Response.json({ rows: state.remote ? [state.remote] : [] })
+    }
+    if (['POST', 'PUT'].includes(call.method) && call.path.startsWith('entity/customerorder')) {
+      const body = JSON.parse(call.init.body)
+      state.remote = { ...body, id: 'retail-order', sum: body.positions.reduce((sum, p) =>
+        sum + Math.round(p.quantity * p.price * (1 - (p.discount || 0) / 100)), 0) }
+      return Response.json(state.remote)
+    }
+  }, extraMocks: {
+    payload: { getPayload: async () => f.payload },
+    '@payload-config': {},
+    'next/cache': { unstable_cache: fn => fn },
+    'next/server': { NextResponse: { json: (body, init) => Response.json(body, init) } },
+    '@payloadcms/richtext-lexical/html': {},
+    'lib/media': {},
+    'lib/supabase/server': { createClient: async () => ({ auth: { getUser: async () => ({
+      data: { user: account ? { id: 'customer', email: client.email } : null },
+    }) } }) },
+    'lib/actions/auth': {},
+    'lib/payments/order-payment-token': { createOrderPaymentToken: () => 'test-payment-token' },
+    'lib/payments/yookassa': {
+      createYooKassaPayment: async input => {
+        state.paymentCalls.push(input)
+        return { ok: true, paymentId: 'test-payment', paymentUrl: 'https://payments.invalid/test' }
+      },
+      getYooKassaPayment: async () => ({ ok: true, paymentId: 'test-payment', orderId: '448',
+        amountRubles: state.order.total, status: 'paid' }),
+    },
+    'lib/cdek': { calculateTariff: async () => [{ delivery_mode: 2, delivery_sum: 341 }] },
+    'lib/delivery-packaging': { getDeliveryPackagingSettings: async () => ({}),
+      shippingLinesFromCartItems: () => [], calculateDeliveryPackaging: () => ({ packages: [], packagingCost: 0 }) },
+    'lib/dadata-address': {}, 'lib/sochi-delivery': {}, 'lib/yandex-delivery': {},
+    'lib/loyalty': {
+      getLoyaltySnapshot: async () => ({ enabled: true, available: 1000, maxRedemptionPercent: 20 }),
+      reserveLoyaltyPoints: async () => {}, releaseLoyaltyReservation: async () => {},
+      finalizeLoyaltyForPaidOrder: async () => {
+        state.loyaltyCalls++
+        if (state.loyaltyFailure) throw new Error('loyalty database unavailable')
+      },
+    },
+    'lib/payments/paid-order-cart': { clearPaidOrderCart: async () => ({ cleared: true }) },
+    'lib/payments/paid-order-email': { sendPaidOrderConfirmation: async () => ({ sent: true }) },
+  } })
+  f.payload.find = async ({ collection, where }) => {
+    if (collection === 'products') return { docs: clone(products.filter(p => !where?.name || p.name === where.name.equals)
+      .filter(p => !where?.moyskladId || p.moyskladId === where.moyskladId.equals)) }
+    if (collection === 'clients') return { docs: account ? [clone(client)] : [] }
+    if (collection === 'promo-codes') return { docs: promo ? [{ id: 1, code: 'TEST', isActive: true,
+      audience: 'individual', discountType: 'percentage', discountValue: promo }] : [] }
+    if (collection === 'product-reviews') return { docs: [] }
+    if (collection === 'orders') return { docs: state.order ? [clone(state.order)] : [], totalDocs: state.order ? 1 : 0, totalPages: 1 }
+    throw new Error(`Unexpected collection: ${collection}`)
+  }
+  f.payload.create = async ({ collection, data }) => {
+    assert.equal(collection, 'orders')
+    state.order = { ...clone(data), id: 448, orderId: 'TEST-RETAIL', createdAt: new Date().toISOString(),
+      items: data.items.map((item, index) => ({ ...clone(item), id: `saved-${index}` })) }
+    return clone(state.order)
+  }
+  f.payload.update = async input => {
+    f.updates.push(clone(input))
+    if (input.collection === 'orders') {
+      Object.assign(state.order, clone(input.data))
+      return clone(state.order)
+    }
+    return { id: input.id, ...input.data }
+  }
+  f.payload.findByID = async ({ collection }) => {
+    if (collection === 'orders') return clone(state.order)
+    if (collection === 'clients') return clone(client)
+    throw new Error(`Unexpected lookup: ${collection}`)
+  }
+  const input = { items: [{ id: 'cart-coffee', productId: '10', variantId: 'pack-coffee', quantity: 3 }],
+    fullName: 'Test Customer', email: 'customer@example.invalid', phone: '+79991234567',
+    deliveryMethod: 'self_pickup', acceptTerms: true, ...(promo ? { promoCode: 'TEST' } : {}) }
+  return { ...f, state, products, input,
+    checkout: () => f.load('lib/actions/shop-orders').createShopOrder(input),
+    payment: () => f.load('lib/payments/yookassa-order-status').refreshYooKassaOrderPayment('test-payment'),
+    webhook: () => f.load('app/api/shop/payments/yookassa/webhook/route').POST({
+      json: async () => ({ event: 'payment.succeeded', object: { id: 'test-payment' } }),
+    }),
+  }
+}
+
+test('retail catalog loader retains the product and variant MoySklad identities', async () => {
+  const f = retailFixture()
+  const products = await f.load('lib/actions/products').getShopProducts()
+  assert.equal(products[0].moysklad_id, 'retail-coffee')
+  assert.equal(products[0].variants[0].moysklad_id, 'coffee-250')
+  assert.equal(products[0].variants[0].moysklad_type, 'variant')
+  assert.equal(products[1].variants[0].moysklad_type, 'product')
+})
+
+for (const options of [{}, { account: true }, { account: true, discountPercent: 10 }, { promo: 10 }]) {
+  test(`retail checkout exports without a manual retry: ${JSON.stringify(options)}`, async () => {
+    const f = retailFixture(options)
+    const result = await f.checkout()
+    assert.equal(result.success, true, result.error)
+    assert.equal(f.state.order.moyskladSyncStatus, 'synced', f.state.order.moyskladSyncError)
+    assert.equal(f.state.order.moyskladCustomerOrderId, 'retail-order')
+    assert.equal(f.state.remote.sum, Math.round(f.state.order.total * 100))
+    assert.equal(writes(f, 'customerorder').length, 1)
+    assert.equal(writes(f, 'invoiceout').length, 0)
+    assert.equal(f.state.order.items[0].stockProductMoyskladId, 'retail-coffee')
+    assert.equal(f.state.order.items[0].stockQuantityKg, 0.75)
+    assert.equal(f.state.paymentCalls.length, 1)
+    await f.payment()
+    await f.payment()
+    assert.equal(writes(f, 'customerorder').length, 1, 'payment callbacks must not duplicate the export')
+  })
+}
+
+test('retail checkout exports mixed coffee, ordinary goods and paid delivery', async () => {
+  const f = retailFixture()
+  f.input.items.push({ id: 'cart-tea', productId: '11', variantId: 'pack-tea', quantity: 2 })
+  Object.assign(f.input, { deliveryMethod: 'cdek', address: 'Test pickup point', cdekCityCode: 1, cdekDeliveryType: 'pickup' })
+  const result = await f.checkout()
+  assert.equal(result.success, true, result.error)
+  assert.equal(f.state.order.moyskladSyncStatus, 'synced', f.state.order.moyskladSyncError)
+  assert.equal(f.state.remote.positions.length, 3)
+  assert.equal(f.state.remote.positions[1].assortment.meta.type, 'product')
+  assert.equal(f.state.remote.sum, 390600)
+})
+
+test('retail checkout exports loyalty redemption with the saved total', async () => {
+  const f = retailFixture({ account: true })
+  f.input.loyaltyPoints = 100
+  f.input.items.push({ id: 'cart-tea', productId: '11', variantId: 'pack-tea', quantity: 1 })
+  const result = await f.checkout()
+  assert.equal(result.success, true, result.error)
+  assert.equal(f.state.order.moyskladSyncStatus, 'synced', f.state.order.moyskladSyncError)
+  assert.equal(f.state.remote.sum, 296500)
+  assert.equal(f.state.remote.positions[1].discount || 0, 0, 'points only discount coffee')
+})
+
+test('retail checkout reproduces the three-line rounding from order 10C-00448', async () => {
+  const f = retailFixture({ account: true, promo: 10 })
+  const template = clone(f.products[0])
+  f.products.splice(0, f.products.length, ...[755, 905, 795].map((price, index) => ({
+    ...clone(template), id: 20 + index, name: `Coffee ${index}`, moyskladId: `coffee-${index}`,
+    variants: [{ ...clone(template.variants[0]), id: `pack-${index}`, moyskladId: `variant-${index}`, price }],
+  })))
+  f.input.items = f.products.map((product, index) => ({
+    id: `cart-${index}`, productId: String(product.id), variantId: product.variants[0].id, quantity: 1,
+  }))
+  Object.assign(f.input, { deliveryMethod: 'cdek', address: 'Test pickup point', cdekCityCode: 1, cdekDeliveryType: 'pickup' })
+  assert.equal((await f.checkout()).success, true)
+  assert.equal(f.state.order.subtotal, 2455)
+  assert.equal(f.state.order.discountAmount, 246)
+  assert.equal(f.state.order.deliveryCost, 341)
+  assert.equal(f.state.order.moyskladSyncStatus, 'synced', f.state.order.moyskladSyncError)
+  assert.equal(f.state.remote.sum, 255000)
+  assert.equal(f.state.remote.positions.length, 4)
+})
+
+test('automatic background retry recovers a retail order without payment or a manual action', async () => {
+  const f = retailFixture({ httpFailure: true })
+  await f.checkout()
+  f.state.httpFailure = false
+  const result = await f.load('lib/moysklad/order-retry').retryFailedMoyskladOrders(f.payload, { minAgeMs: 0 })
+  assert.equal(result.succeeded, 1)
+  assert.equal(f.state.order.paymentStatus, 'pending')
+  assert.equal(f.state.order.moyskladSyncStatus, 'synced')
+  assert.equal(writes(f, 'customerorder').length, 1)
+})
+
+test('loyalty amounts remain exact after automatic recovery with several coffee lines', async () => {
+  const f = retailFixture({ account: true, httpFailure: true })
+  f.input.loyaltyPoints = 101
+  const secondCoffee = clone(f.products[0])
+  Object.assign(secondCoffee, { id: 12, name: 'Coffee 2', moyskladId: 'retail-coffee-2' })
+  Object.assign(secondCoffee.variants[0], { id: 'pack-coffee-2', moyskladId: 'coffee-2-250', price: 700 })
+  f.products.push(secondCoffee)
+  f.input.items.push({ id: 'cart-coffee-2', productId: '12', variantId: 'pack-coffee-2', quantity: 2 })
+  f.input.items.push({ id: 'cart-tea', productId: '11', variantId: 'pack-tea', quantity: 1 })
+  assert.equal((await f.checkout()).success, true)
+  assert.equal(Math.round(f.state.order.items.reduce((sum, row) => sum + row.discountAmount, 0) * 100), 10100)
+  f.state.httpFailure = false
+  const result = await f.payment()
+  assert.equal(result.moyskladSynced, true, result.moyskladError)
+  assert.equal(f.state.remote.sum, 436400)
+  assert.equal(f.state.remote.positions[2].discount || 0, 0)
+})
+
+test('payment callback automatically recovers an initial MoySklad outage', async () => {
+  const f = retailFixture({ httpFailure: true })
+  assert.equal((await f.checkout()).success, true)
+  assert.equal(f.state.order.moyskladSyncStatus, 'error')
+  f.state.httpFailure = false
+  assert.equal((await f.payment()).moyskladSynced, true)
+  assert.equal(f.state.order.moyskladSyncStatus, 'synced')
+  assert.equal(writes(f, 'customerorder').length, 1)
+})
+
+test('loyalty failure after payment does not prevent MoySklad export', async () => {
+  const f = retailFixture({ httpFailure: true, loyaltyFailure: true })
+  await f.checkout()
+  f.state.httpFailure = false
+  await f.payment().catch(() => {})
+  assert.equal(f.state.order.paymentStatus, 'paid')
+  assert.equal(f.state.loyaltyCalls, 1)
+  assert.equal(f.state.order.moyskladSyncStatus, 'synced', f.state.order.moyskladSyncError)
+})
+
+test('webhook reports a transient MoySklad failure so the provider retries the notification', async () => {
+  const f = retailFixture({ httpFailure: true })
+  await f.checkout()
+  const response = await f.webhook()
+  assert.equal(response.status, 502)
+  f.state.httpFailure = false
+  assert.equal((await f.webhook()).status, 200)
+  assert.equal(f.state.order.moyskladSyncStatus, 'synced')
+  assert.equal(writes(f, 'customerorder').length, 1)
 })
