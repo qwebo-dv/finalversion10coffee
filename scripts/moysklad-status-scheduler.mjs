@@ -1,15 +1,16 @@
-// Docker does not execute vercel.json schedules. Call the same protected
-// endpoint locally; schedule the next run only after the current run finishes.
+import { runMoyskladStatusProcess } from './moysklad-status-process.mjs'
+
+// Schedule the verified CLI procedure, without depending on an HTTP listener
+// or the external cron's secret. Never overlap workers in this process.
 export function startMoyskladStatusScheduler({
   env = process.env,
-  fetchImpl = fetch,
+  runSync = runMoyskladStatusProcess,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   logger = console,
 } = {}) {
-  if (!['1', 'true', 'yes', 'on'].includes((env.MOYSKLAD_ENABLED || '').toLowerCase())) return () => {}
-  if (!env.CRON_SECRET) {
-    logger.error('[MoySklad status scheduler] CRON_SECRET is required; scheduler is disabled')
+  if (!['1', 'true', 'yes', 'on'].includes((env.MOYSKLAD_ENABLED || '').toLowerCase())) {
+    logger.log('[MoySklad status scheduler] disabled: MOYSKLAD_ENABLED is not enabled')
     return () => {}
   }
   let stopped = false
@@ -20,27 +21,24 @@ export function startMoyskladStatusScheduler({
     let delay = 10 * 60_000
     request = new AbortController()
     try {
-      const response = await fetchImpl(`http://127.0.0.1:${env.PORT || 3000}/api/cron/moysklad-status-sync`, {
-        headers: { authorization: `Bearer ${env.CRON_SECRET}` },
-        signal: request.signal,
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const result = await response.json()
+      logger.log('[MoySklad status scheduler] starting status import')
+      const result = await runSync({ env, signal: request.signal })
       if (!result.ok) {
         // Historical order errors must not cause full-sweep retries every
-        // minute. The endpoint has already attempted the other linked orders.
-        logger.error(`[MoySklad status scheduler] ${result.errors?.length || 0} order errors`)
+        // minute. The worker has already attempted the other linked orders.
+        logger.error(`[MoySklad status scheduler] import failed; worker exit code ${result.exitCode}`)
       } else {
-        logger.log(`[MoySklad status scheduler] checked=${result.checked || 0}, synced=${result.synced || 0}`)
+        logger.log('[MoySklad status scheduler] status import completed')
       }
     } catch (error) {
-      if (!stopped) logger.error('[MoySklad status scheduler]', error instanceof Error ? error.message : 'Request failed')
+      if (!stopped) logger.error('[MoySklad status scheduler]', error instanceof Error ? error.message : 'Worker failed')
       delay = 60_000
     } finally {
       request = undefined
       if (!stopped) timer = setTimer(run, delay)
     }
   }
+  logger.log('[MoySklad status scheduler] enabled: first import in 10 seconds; interval 10 minutes after completion')
   timer = setTimer(run, 10_000)
   return () => {
     stopped = true

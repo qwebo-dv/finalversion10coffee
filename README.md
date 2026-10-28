@@ -83,3 +83,21 @@ node scripts/moysklad-maintenance.mjs relink --order-id ID --order-number NUMBER
 The relink operation verifies the number, organization, counterparty, product/variant, quantity, price, discount, total, invoice-to-order reference and absence of another local link. It is deliberately limited to one product line with no delivery charge; other cases need a separate reviewed plan. It never writes to MoySklad. After a successful check, append `--apply --backup-file /tmp/moysklad-link-before.json` to the same command. The backup path must be new. A transaction updates only six integration fields, checks that all other local order/item data stayed unchanged, and checks both remote document versions again before committing. Existing payment/fulfilment statuses are preserved. Reapplying an already restored link creates no documents.
 
 After deployment and maintenance, verify the actual Payload and MoySklad cards, IDs and totals. Local tests (`npm run test:moysklad`), TypeScript checks and a build do not establish production completion. [MoySklad position format](https://github.com/moysklad/api-remap-1.2-doc/blob/master/md/documents/_customerOrder.md#позиции-заказа-покупателя) documents the price in kopecks and the discount percentage.
+
+## Автоматическое получение статусов МойСклад
+
+Команда `npm start` запускает Next.js и планировщик через `scripts/start-with-status-sync.mjs`. Docker CMD использует тот же файл. Если в панели деплоя вручную указано `next start`, заменить команду на `npm start`. Параметры Next, например `npm start -- -p 3000`, передаются серверу. Изменения запуска не требуют миграции БД.
+
+При `MOYSKLAD_ENABLED=true` планировщик запускает `scripts/sync-moysklad-order-statuses.ts` через 10 секунд после старта, затем через 10 минут после завершения предыдущего прохода. Это та же процедура, которую вызывает `node scripts/moysklad-maintenance.mjs statuses`. Планировщик загружает окружение до запуска, пишет начало и результат прохода в журнал и останавливает фоновый процесс при завершении приложения. Ошибка запуска процесса повторяется через минуту; ошибки отдельных заказов сохраняют обычный интервал. Общая блокировка PostgreSQL предотвращает одновременные проходы из нескольких экземпляров приложения.
+
+Внутренний процесс не обращается к HTTP cron-адресу и не требует `CRON_SECRET`. Внешний `/api/cron/moysklad-status-sync` сохраняет прежнюю Bearer-авторизацию. Статус оплаты розничного заказа при импорте сохраняется; документы МС читаются без изменения.
+
+После деплоя проверить строки `[MoySklad status scheduler] enabled`, `starting status import`, а затем `status import completed` либо сообщение об ошибке. Если интеграция отключена, в журнале будет `disabled: MOYSKLAD_ENABLED is not enabled`. Появление сообщения о запуске не заменяет проверку фактического статуса заказа на сайте.
+
+Точечное получение статуса заказа:
+
+```sh
+node scripts/moysklad-maintenance.mjs statuses --order-number 10C-00522
+```
+
+Команда меняет статус только указанного связанного заказа сайта, выполняет обычные обработчики уведомлений и баллов и возвращает полученный статус МС. Она не изменяет документы МС. Для проверки автоматического запуска нужны журналы нового деплоя и последующая сверка карточки заказа.

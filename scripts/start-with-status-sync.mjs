@@ -1,23 +1,47 @@
 import { spawn } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
+import nextEnv from '@next/env'
 import { startMoyskladStatusScheduler } from './moysklad-status-scheduler.mjs'
 
-const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start'], {
-  stdio: 'inherit',
-  env: process.env,
-})
-const stopScheduler = startMoyskladStatusScheduler()
-for (const signal of ['SIGTERM', 'SIGINT']) {
-  process.on(signal, () => {
-    stopScheduler()
-    server.kill(signal)
+export function startApplication({
+  appProcess = process,
+  spawnImpl = spawn,
+  loadEnvironment = nextEnv.loadEnvConfig,
+  startScheduler = startMoyskladStatusScheduler,
+  logger = console,
+} = {}) {
+  appProcess.env.NODE_ENV ||= 'production'
+  // Next loads .env files in its child process. Load them in the parent too,
+  // before checking MOYSKLAD_ENABLED or creating the background worker.
+  loadEnvironment(appProcess.cwd())
+  const server = spawnImpl(appProcess.execPath, ['node_modules/next/dist/bin/next', 'start', ...appProcess.argv.slice(2)], {
+    stdio: 'inherit',
+    env: appProcess.env,
   })
+  const stopScheduler = startScheduler({ env: appProcess.env })
+  const signalHandlers = new Map()
+  const cleanup = () => {
+    stopScheduler()
+    for (const [signal, handler] of signalHandlers) appProcess.off(signal, handler)
+  }
+  for (const signal of ['SIGTERM', 'SIGINT']) {
+    const handler = () => {
+      stopScheduler()
+      server.kill(signal)
+    }
+    signalHandlers.set(signal, handler)
+    appProcess.on(signal, handler)
+  }
+  server.once('error', (error) => {
+    cleanup()
+    logger.error('[Next.js]', error.message)
+    appProcess.exitCode = 1
+  })
+  server.once('exit', (code, signal) => {
+    cleanup()
+    appProcess.exitCode = code ?? (signal === 'SIGTERM' || signal === 'SIGINT' ? 0 : 1)
+  })
+  return server
 }
-server.on('error', (error) => {
-  stopScheduler()
-  console.error('[Next.js]', error.message)
-  process.exitCode = 1
-})
-server.on('exit', (code, signal) => {
-  stopScheduler()
-  process.exitCode = code ?? (signal === 'SIGTERM' || signal === 'SIGINT' ? 0 : 1)
-})
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) startApplication()
