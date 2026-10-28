@@ -66,7 +66,7 @@ function fixture({ respond, config: overrides = {}, signalAPI = AbortSignal, onD
       if (Object.hasOwn(mocks, target)) return mocks[target]
       if (['crypto', 'node:crypto'].includes(target)) return require('node:crypto')
       if (target === 'node:util') return require('node:util')
-      if (['lib/moysklad/client', 'lib/moysklad/sync', 'lib/moysklad/bundles', 'lib/moysklad/order-totals', 'lib/moysklad/order-eligibility', 'lib/moysklad/order-link-repair', 'lib/moysklad/order-hash', 'lib/moysklad/order-link-service', 'lib/moysklad/order-link-endpoint', 'lib/moysklad/order-retry', 'lib/moysklad/import-catalog', 'lib/moysklad/products', 'lib/slug', 'lib/discounts', 'lib/product-types', 'payload/access/adminRoles', 'lib/actions/products', 'lib/actions/shop-orders', 'lib/utils/phone', 'lib/payments/yookassa-receipt', 'lib/payments/yookassa-order-status', 'app/api/shop/payments/yookassa/webhook/route'].includes(target)) return load(target)
+      if (['lib/moysklad/status-sync', 'payload/collections/Orders', 'lib/moysklad/client', 'lib/moysklad/sync', 'lib/moysklad/bundles', 'lib/moysklad/order-totals', 'lib/moysklad/order-eligibility', 'lib/moysklad/order-link-repair', 'lib/moysklad/order-hash', 'lib/moysklad/order-link-service', 'lib/moysklad/order-link-endpoint', 'lib/moysklad/order-retry', 'lib/moysklad/import-catalog', 'lib/moysklad/products', 'lib/slug', 'lib/discounts', 'lib/product-types', 'payload/access/adminRoles', 'lib/actions/products', 'lib/actions/shop-orders', 'lib/utils/phone', 'lib/payments/yookassa-receipt', 'lib/payments/yookassa-order-status', 'app/api/shop/payments/yookassa/webhook/route'].includes(target)) return load(target)
       throw new Error(`Unexpected dependency: ${id}`)
     }
     vm.runInNewContext(`(function(require,module,exports){${compiled.get(file)}\n})`, {
@@ -1191,4 +1191,166 @@ test('retry query and export guard preserve legacy and explicit wholesale channe
     assert.equal(canExportOrderToMoysklad(order), expected, JSON.stringify(order))
     assert.equal(matchesWhere(order, moyskladExportEligibilityWhere), expected, JSON.stringify(order))
   }
+})
+
+function statusFixture(orders, remote = {}, config = {}, locked = true) {
+  const queries = [], notifications = [], logs = [], loyalty = [], locks = []
+  const dbConnection = { query: async (sql, params) => {
+    locks.push({ sql, params })
+    return { rows: [{ locked }] }
+  }, release: () => { locks.push('released') } }
+  const f = fixture({ config, dbConnection, respond: call => {
+    const id = call.path.match(/^entity\/customerorder\/([^?]+)\?expand=state$/)?.[1]
+    if (!id) throw new Error('Status sync must only read linked customer orders')
+    const state = remote[id] || { state: { name: 'Собран' }, sum: 50000, payedSum: 0 }
+    return state instanceof Response ? state : Response.json(state)
+  }, extraMocks: {
+    'lib/order-line-discounts': {},
+    'payload/admin/workspace': {},
+    'lib/cdek-tracking-email': {},
+    'lib/loyalty': {
+      accrueLoyaltyForDeliveredOrder: async () => { loyalty.push('delivered') },
+      releaseLoyaltyReservation: async () => { loyalty.push('release') },
+      reverseLoyaltyForReturnedOrder: async () => { loyalty.push('reverse') },
+    },
+    'lib/moysklad/logs': { writeMoyskladLog: async input => { logs.push(input) } },
+    'lib/supabase/admin': { createAdminClient: () => ({ from: () => ({
+      insert: async input => { notifications.push(input); return {} },
+    }) }) },
+  } })
+  const hooks = f.load('payload/collections/Orders').Orders.hooks
+  f.payload.find = async input => {
+    queries.push(input)
+    const rows = orders.filter(order => matchesWhere(order, input.where)).sort((a, b) =>
+      input.sort === 'id' ? a.id - b.id : b.id - a.id)
+    const page = input.page || 1
+    return { docs: rows.slice((page - 1) * input.limit, page * input.limit),
+      hasNextPage: rows.length > page * input.limit, nextPage: page + 1 }
+  }
+  f.payload.update = async input => {
+    f.updates.push(input)
+    const doc = orders.find(order => order.id === input.id)
+    const previousDoc = structuredClone(doc)
+    const req = { payload: f.payload, context: input.context || {} }
+    const data = await hooks.beforeChange[0]({ data: { ...input.data }, operation: 'update', req, originalDoc: doc })
+    Object.assign(doc, data)
+    await hooks.afterChange[0]({ doc, previousDoc, req })
+    return doc
+  }
+  return { ...f, queries, notifications, logs, loyalty, hooks, locks,
+    run: options => f.load('lib/moysklad/status-sync').syncMoyskladOrderStatuses(f.payload, options) }
+}
+
+const statusOrder = (id, fields = {}) => ({ id, orderId: `TEST-${id}`, salesChannel: 'retail',
+  customerType: 'individual', paymentMethod: 'yookassa', paymentStatus: 'paid', status: 'paid',
+  subtotal: 500, total: 500, moyskladCustomerOrderId: `remote-${id}`, ...fields })
+
+test('status sweep includes an older linked order behind 520 unexported orders and all linked pages', async () => {
+  const orders = Array.from({ length: 520 }, (_, i) => statusOrder(i + 100, { moyskladCustomerOrderId: null }))
+  orders.push(statusOrder(1), statusOrder(2), statusOrder(3), statusOrder(4, { moyskladCustomerOrderId: '' }))
+  const f = statusFixture(orders)
+  const result = await f.run({ limit: 2 })
+  assert.equal(result.ok, true)
+  assert.equal(result.checked, 3)
+  assert.equal(result.synced, 3)
+  assert.equal(f.queries.length, 2)
+  assert.equal(f.calls.length, 3)
+  assert.ok(f.calls.every(call => call.method === 'GET'))
+  assert.equal(orders.find(order => order.id === 1).status, 'ready')
+  assert.ok(f.updates.every(input => !Object.hasOwn(input.data, 'paymentStatus')))
+})
+
+test('targeted status repair cannot touch another order', async () => {
+  const orders = [statusOrder(1), statusOrder(2)]
+  const f = statusFixture(orders)
+  assert.equal((await f.run({ orderIds: [2] })).checked, 1)
+  assert.equal(orders[0].status, 'paid')
+  assert.equal(orders[1].status, 'ready')
+})
+
+for (const [name, status] of [['Подтвержден', 'confirmed'], ['Счет выставлен', 'invoiced'],
+  ['Собран', 'ready'], ['Отгружен', 'shipped'], ['Доставлен', 'delivered'], ['Отменен', 'cancelled'], ['Возврат', 'returned']]) {
+  test(`incoming ${name} survives the real order hook and preserves paid retail payment`, async () => {
+    const order = statusOrder(1, { client: { supabaseId: 'customer' } })
+    const f = statusFixture([order], { 'remote-1': { state: { name }, sum: 50000, payedSum: 0 } })
+    const result = await f.run()
+    assert.equal(result.ok, true)
+    assert.equal(order.status, status)
+    assert.equal(order.paymentStatus, 'paid')
+    assert.equal(result.orders[0].status, order.status)
+    assert.equal(f.notifications.length, 1)
+    assert.equal(f.notifications[0].data.status, status)
+    if (status === 'delivered') assert.deepEqual(f.loyalty, ['delivered'])
+  })
+}
+
+test('retail refunds and cancelled/failed payments are never overwritten by MoySklad totals', async () => {
+  for (const paymentStatus of ['refunded', 'cancelled', 'failed', 'pending']) {
+    const order = statusOrder(1, { paymentStatus, status: 'cancelled' })
+    const f = statusFixture([order], { 'remote-1': { state: { name: 'Подтвержден' }, sum: 50000, payedSum: 50000 } })
+    assert.equal((await f.run()).ok, true)
+    assert.equal(order.paymentStatus, paymentStatus)
+    assert.equal(order.status, 'confirmed')
+  }
+})
+
+test('wholesale cancellation is preserved even when MoySklad also reports a new full payment', async () => {
+  const order = statusOrder(1, { salesChannel: 'wholesale', customerType: 'business', paymentMethod: 'invoice', paymentStatus: 'pending' })
+  const f = statusFixture([order], { 'remote-1': { state: { name: 'Отменен' }, sum: 50000, payedSum: 50000 } })
+  assert.equal((await f.run()).ok, true)
+  assert.equal(order.paymentStatus, 'paid')
+  assert.equal(order.status, 'cancelled')
+})
+
+test('unknown or missing MoySklad state records an error without resetting a paid order', async () => {
+  for (const name of [undefined, 'Нестандартный статус']) {
+    const order = statusOrder(1)
+    const f = statusFixture([order], { 'remote-1': { state: { name } } })
+    const result = await f.run()
+    assert.equal(result.ok, false)
+    assert.equal(result.errors.length, 1)
+    assert.equal(order.status, 'paid')
+    assert.equal(order.paymentStatus, 'paid')
+    assert.equal(order.moyskladSyncStatus, 'error')
+    assert.equal(f.notifications.length, 0)
+  }
+})
+
+test('failed remote order does not block the next order, and disabled sync makes no queries', async () => {
+  const f = statusFixture([statusOrder(1), statusOrder(2)], { 'remote-1': new Response('{}', { status: 404 }) })
+  const result = await f.run()
+  assert.equal(result.errors.length, 1)
+  assert.equal(result.synced, 1)
+  const disabled = statusFixture([statusOrder(1)], {}, { enabled: false })
+  assert.equal((await disabled.run()).ok, false)
+  assert.equal(disabled.queries.length, 0)
+  assert.equal(disabled.calls.length, 0)
+})
+
+test('payment hook promotes only a newly confirmed payment and keeps later explicit order statuses', async () => {
+  const f = statusFixture([])
+  const hook = f.hooks.beforeChange[0]
+  const req = { context: {} }
+  const data = await hook({ data: { paymentStatus: 'paid' }, originalDoc: statusOrder(1, { status: 'cancelled', paymentStatus: 'pending' }), operation: 'update', req })
+  assert.equal(data.status, 'paid', 'late provider success reopens the cancelled unpaid order')
+  const updated = await hook({ data: { status: 'cancelled' }, originalDoc: statusOrder(1), operation: 'update', req })
+  assert.equal(updated.status, 'cancelled', 'existing paid payment must not override explicit cancellation')
+})
+
+test('a concurrent status sync skips without reads or notifications and releases its connection', async () => {
+  const f = statusFixture([statusOrder(1)], {}, {}, false)
+  const result = await f.run()
+  assert.equal(result.skipped, true)
+  assert.equal(f.queries.length, 0)
+  assert.equal(f.calls.length, 0)
+  assert.equal(f.notifications.length, 0)
+  assert.equal(f.locks.at(-1), 'released')
+})
+
+test('status sync releases its global lock when the local query fails', async () => {
+  const f = statusFixture([statusOrder(1)])
+  f.payload.find = async () => { throw new Error('database failure') }
+  await assert.rejects(f.run, /database failure/)
+  assert.match(f.locks.at(-2).sql, /pg_advisory_unlock/)
+  assert.equal(f.locks.at(-1), 'released')
 })

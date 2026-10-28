@@ -171,7 +171,7 @@ test('rendered retail Repeat opens the populated header cart, blocks double clic
     { id: '250g', name: '250 г, В зернах', price: 700 },
     { id: 'kg', name: '1 кг, В зернах', price: 2570 },
   ] }]
-  const orders = [{ id: '414', order_id: '10C-00449', status: 'paid', payment_status: 'paid', total: 3,
+  let orders = [{ id: '414', order_id: '10C-00449', status: 'paid', payment_status: 'paid', total: 3,
     created_at: '2026-09-29T15:22:00Z', delivery_method: 'self_pickup',
     items: [{ product_name: 'Espresso Honduras', variant_name: '1 кг, В зернах', quantity: 1 }] }]
   const container = document.createElement('div')
@@ -209,6 +209,10 @@ test('rendered retail Repeat opens the populated header cart, blocks double clic
       Array.from(container.querySelectorAll('span')).find(span => span.textContent === '10C-00449').click()
     })
     assert.ok(document.querySelector('[role="dialog"]'), 'order details open')
+    orders = orders.map(order => ({ ...order, status: 'shipped' }))
+    await act(async () => { reactRoot.render(tree()) })
+    assert.match(document.querySelector('[role="dialog"]').textContent, /Отгружен/, 'open details use fresh server status')
+    assert.match(container.textContent, /Отгружен/, 'the existing list accepts refreshed server props')
     await act(async () => {
       Array.from(document.querySelectorAll('[role="dialog"] button')).find(button => button.textContent === 'Повторить заказ').click()
     })

@@ -148,7 +148,8 @@ export const Orders: CollectionConfig = {
           // an unpaid payment manually. A later authoritative YooKassa
           // `succeeded` webhook may safely reopen it as paid below.
           if (
-            ["cancelled", "failed"].includes(nextPaymentStatus)
+            !req.context?.moyskladStatusSync
+            && ["cancelled", "failed"].includes(nextPaymentStatus)
             && !["paid", "refunded"].includes(previousPaymentStatus)
             && ["new", "confirmed", "invoiced"].includes(nextOrderStatus)
           ) {
@@ -158,7 +159,9 @@ export const Orders: CollectionConfig = {
           // Do not leave an order cancelled if YooKassa subsequently confirms
           // a payment that was still pending when it was closed locally.
           if (
-            nextPaymentStatus === "paid"
+            !req.context?.moyskladStatusSync
+            && nextPaymentStatus === "paid"
+            && previousPaymentStatus !== "paid"
             && ["new", "confirmed", "invoiced", "cancelled"].includes(nextOrderStatus)
           ) {
             data.status = "paid"

@@ -48,4 +48,4 @@ COPY --from=builder --chown=node:node /app/next.config.ts /app/payload.config.ts
 USER node
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+CMD ["node", "scripts/start-with-status-sync.mjs"]

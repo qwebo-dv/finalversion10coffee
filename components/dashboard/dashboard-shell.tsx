@@ -49,6 +49,21 @@ export function DashboardShell({ children, mode }: { children: React.ReactNode; 
   const { items, updateQuantity, removeItem, clearCart } = useCart()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
 
+  useEffect(() => {
+    if (!["/main", "/main/orders", "/dashboard", "/dashboard/orders"].includes(pathname)) return
+    const refresh = () => {
+      if (document.visibilityState === "visible") router.refresh()
+    }
+    const timer = window.setInterval(refresh, 60_000)
+    window.addEventListener("focus", refresh)
+    document.addEventListener("visibilitychange", refresh)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener("focus", refresh)
+      document.removeEventListener("visibilitychange", refresh)
+    }
+  }, [pathname, router])
+
   // The retail cabinet is mounted on a dedicated route, so it must never
   // briefly render wholesale UI while the client session is hydrating.
   const isIndividual = mode === "retail" || user?.user_metadata?.customer_type === "individual"

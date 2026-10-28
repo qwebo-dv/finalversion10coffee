@@ -53,11 +53,17 @@ export function OrdersList({ initialOrders, sessionScope = "business", onRepeatO
   const repeatInProgress = useRef(false)
   const [repeatingOrderId, setRepeatingOrderId] = useState<string | null>(null)
   const [orders, setOrders] = useState(initialOrders)
+  const [previousInitialOrders, setPreviousInitialOrders] = useState(initialOrders)
+  if (initialOrders !== previousInitialOrders) {
+    setPreviousInitialOrders(initialOrders)
+    setOrders(initialOrders)
+  }
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [dateRange, setDateRange] = useState<DateRange>("all")
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [selectedOrderId, setSelectedOrder] = useState<string | null>(null)
+  const selectedOrder = orders.find((order) => order.id === selectedOrderId) || null
 
   const filteredOrders = useMemo(() => {
     let result = [...orders]
@@ -232,7 +238,7 @@ export function OrdersList({ initialOrders, sessionScope = "business", onRepeatO
           {filteredOrders.map((order) => (
             <div
               key={order.id}
-              onClick={() => setSelectedOrder(order)}
+              onClick={() => setSelectedOrder(order.id)}
               className="bg-white rounded-xl border border-black/[0.04] px-4 sm:px-5 py-3 sm:py-4 hover:shadow-sm transition-all cursor-pointer"
             >
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">

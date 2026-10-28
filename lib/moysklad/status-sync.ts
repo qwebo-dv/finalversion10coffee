@@ -5,8 +5,9 @@ import { writeMoyskladLog } from "./logs"
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { MoyskladCustomerOrder } from "./types"
 import type { OrderStatus } from "@/types"
+import { getPool } from "@/lib/db"
 
-type PaymentStatus = "pending" | "invoiced" | "partial" | "paid" | "refunded"
+type PaymentStatus = "pending" | "invoiced" | "partial" | "paid" | "refunded" | "cancelled" | "failed"
 
 interface PayloadClientForStatus {
   id?: string | number
@@ -18,12 +19,17 @@ interface PayloadOrderForStatus {
   orderId?: string
   status?: OrderStatus
   paymentStatus?: PaymentStatus
+  customerType?: string
+  salesChannel?: string
+  paymentMethod?: string
   moyskladCustomerOrderId?: string | null
   client?: PayloadClientForStatus | string | number | null
 }
 
 interface SyncOrderStatusOptions {
+  /** Page size, not a cap on the number of orders checked. */
   limit?: number
+  orderIds?: (string | number)[]
 }
 
 interface SyncedOrderStatus {
@@ -52,10 +58,10 @@ function normalizeStateName(value?: string | null) {
   return (value || "").trim().toLowerCase().replace(/ё/g, "е")
 }
 
-export function mapMoyskladStateToOrderStatus(stateName?: string | null): OrderStatus {
+export function mapMoyskladStateToOrderStatus(stateName?: string | null): OrderStatus | null {
   const state = normalizeStateName(stateName)
 
-  if (!state) return "new"
+  if (!state) return null
   if (state.includes("отмен")) return "cancelled"
   if (state.includes("возврат")) return "returned"
   if (state.includes("собран")) return "ready"
@@ -68,7 +74,7 @@ export function mapMoyskladStateToOrderStatus(stateName?: string | null): OrderS
   if (state.includes("подтверж")) return "confirmed"
   if (state.includes("нов")) return "new"
 
-  return "new"
+  return null
 }
 
 async function notifyClientAboutStatus(order: PayloadOrderForStatus, status: OrderStatus) {
@@ -123,17 +129,51 @@ export async function syncMoyskladOrderStatuses(
     return { ok: false as const, error: "MOYSKLAD_ENABLED не включен" }
   }
 
-  const limit = options.limit || 200
-  const result = await payload.find({
-    collection: "orders",
-    sort: "-createdAt",
-    limit,
-    depth: 1,
-    overrideAccess: true,
-  })
+  // Admin, Docker, CLI and an external cron may run at the same time.
+  // One database lock prevents duplicate notifications across all instances.
+  const client = await getPool().connect()
+  const lockKey = "moysklad-order-status-sync"
+  let locked = false
+  try {
+    const result = await client.query<{ locked: boolean }>(
+      "select pg_try_advisory_lock(hashtext($1)) as locked", [lockKey],
+    )
+    locked = result.rows[0]?.locked === true
+    if (!locked) return { ok: true as const, skipped: true, checked: 0, synced: 0, errors: [], orders: [] }
+    return await syncLinkedMoyskladOrderStatuses(payload, options)
+  } finally {
+    if (locked) {
+      await client.query("select pg_advisory_unlock(hashtext($1))", [lockKey]).catch(() => undefined)
+    }
+    client.release()
+  }
+}
 
-  const orders = (result.docs as PayloadOrderForStatus[])
-    .filter((order) => Boolean(order.moyskladCustomerOrderId))
+async function syncLinkedMoyskladOrderStatuses(payload: Payload, options: SyncOrderStatusOptions) {
+  const limit = options.limit || 200
+  const orders: PayloadOrderForStatus[] = []
+  let page = 1
+  while (true) {
+    const result = await payload.find({
+      collection: "orders",
+      where: {
+        and: [
+          { moyskladCustomerOrderId: { exists: true } },
+          { moyskladCustomerOrderId: { not_equals: "" } },
+          ...(options.orderIds ? [{ id: { in: options.orderIds } }] : []),
+        ],
+      },
+      sort: "id",
+      limit,
+      page,
+      depth: 1,
+      overrideAccess: true,
+    })
+    orders.push(...(result.docs as PayloadOrderForStatus[])
+      .filter((order) => Boolean(order.moyskladCustomerOrderId)))
+    if (!result.hasNextPage) break
+    page = result.nextPage || page + 1
+  }
 
   const synced: SyncedOrderStatus[] = []
   const errors: { id: string | number; orderId?: string; error: string }[] = []
@@ -145,7 +185,16 @@ export async function syncMoyskladOrderStatuses(
     try {
       const moyskladOrder = await fetchMoyskladOrder(moyskladCustomerOrderId)
       const nextStatus = mapMoyskladStateToOrderStatus(moyskladOrder.state?.name)
-      const nextPaymentStatus = mapMoyskladPaymentStatus(moyskladOrder, nextStatus)
+      if (!nextStatus) {
+        throw new Error(`Неизвестный статус МойСклад: ${moyskladOrder.state?.name || "не указан"}`)
+      }
+      // Retail payment is confirmed by the payment provider. MoySklad can have
+      // no incoming payment document even after YooKassa confirms payment.
+      const preservePayment = order.salesChannel === "retail" || (!order.salesChannel && order.customerType === "individual")
+        || order.paymentMethod === "yookassa" || order.paymentMethod === "sber_online"
+      const nextPaymentStatus = preservePayment
+        ? order.paymentStatus || "pending"
+        : mapMoyskladPaymentStatus(moyskladOrder, nextStatus)
       const statusChanged = nextStatus !== order.status
 
       await payload.update({
@@ -153,12 +202,13 @@ export async function syncMoyskladOrderStatuses(
         id: order.id,
         data: {
           status: nextStatus,
-          paymentStatus: nextPaymentStatus,
+          ...(!preservePayment ? { paymentStatus: nextPaymentStatus } : {}),
           moyskladSyncStatus: "synced",
           moyskladSyncError: "",
           moyskladSyncedAt: new Date().toISOString(),
         },
         overrideAccess: true,
+        context: { moyskladStatusSync: true },
       })
 
       if (statusChanged) {
